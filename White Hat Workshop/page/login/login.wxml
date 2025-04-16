@@ -1,0 +1,18 @@
+<cu-custom bgColor="bg-gradual-purple">
+  <view slot="content">登录账户</view>
+</cu-custom>
+<view class="clo-1 padding-top bg-gray ">
+  <view class="borderradius padding-sm margin-xl text-lg "><input placeholder="请输入账号" type="text" bindinput="getzhanghao" /></view>
+  <view class="borderradius padding-sm margin-xl text-lg "><input placeholder="请输入密码" type="password" bindinput="getpassword" /></view>
+  <view class="flex  justify-around">
+    <view class="fan">
+      <button class="btn-dl round but shadow bg-gradual-green" type="primary" bindtap="fanhui" >返回</button>
+    </view>
+    <view class="denglu">
+      <button class="btn-dl round but shadow bg-gradual-purple" type="primary" bindtap="goadmin">登录</button>
+    </view>
+  </view>
+  <view class="register margin-xxl text-lg  text-purple"bindtap="register">
+        去注册
+      </view>
+</view>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+    <!--<shape xmlns:android="http://schemas.android.com/apk/res/android">
+        <solid android:color="#D0EFFF" />  &lt;!&ndash; 背景色 &ndash;&gt;
+        <stroke android:width="1dp" android:color="#A0D0E0" />  &lt;!&ndash; 边框色 &ndash;&gt;
+        <corners android:radius="8dp" />  &lt;!&ndash; 圆角 &ndash;&gt;
+    </shape>-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#E5F6FF"/> <!-- 稍深一点的偏蓝白色输入框背景 -->
+    <stroke
+        android:width="1dp"
+        android:color="#003366"/> <!-- 深蓝色边框 -->
+    <corners android:radius="4dp"/> <!-- 圆角 -->
+</shape>

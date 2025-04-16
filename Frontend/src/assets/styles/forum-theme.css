@@ -1,0 +1,52 @@
+ /* 社区论坛紫色主题样式覆盖 */
+.forum-container .header-card {
+    background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+  }
+  
+  .forum-container .post-card {
+    border-color: rgba(124, 58, 237, 0.2);
+  }
+  
+  .forum-container .post-card:hover {
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+  }
+  
+  .forum-container .post-card.active {
+    border: 2px solid #7c3aed;
+    background-color: #f5f3ff;
+  }
+  
+  .forum-container .post-title,
+  .forum-container .detail-title,
+  .forum-container .comment-title {
+    color: #7c3aed !important;
+  }
+  
+  .forum-container .comment-header .author {
+    color: #7c3aed !important;
+  }
+  
+  .forum-container :deep(.el-button--primary) {
+    background-color: #7c3aed !important;
+    border-color: #7c3aed !important;
+  }
+  
+  .forum-container :deep(.el-button--primary:hover) {
+    background-color: #8b5cf6 !important;
+    border-color: #8b5cf6 !important;
+  }
+  
+  .forum-container :deep(.el-button--text),
+  .forum-container :deep(.el-button--info) {
+    color: #7c3aed !important;
+  }
+  
+  .forum-container :deep(.el-button--text:hover),
+  .forum-container :deep(.el-button--info:hover) {
+    color: #8b5cf6 !important;
+  }
+  
+  .forum-container :deep(.el-tag) {
+    background-color: #7c3aed !important;
+    border-color: #7c3aed !important;
+  }

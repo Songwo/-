@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "./tsconfig.app.json"
+    }
+  ],
+  "compilerOptions": {
+    "verbatimModuleSyntax": true,
+    "types": ["phaser"],
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,   
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": true,
+    "jsx": "preserve",
+    "typeRoots": ["node_modules/@types", "node_modules/vuex/types"],
+    "baseUrl": "./",  // 解析非相对模块的基础地址，默认是当前目录
+    "paths": {
+      "@/*": ["./src/*"]  // 路径映射，相对于baseUrl
+    }
+  },
+  "exclude": [
+    "node_modules",
+  ]
+}

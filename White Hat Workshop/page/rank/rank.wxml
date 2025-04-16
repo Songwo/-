@@ -1,0 +1,19 @@
+<cu-custom bgColor="bg-gradual-purple">
+  <view slot="content">排行榜</view>
+</cu-custom>
+
+<view class="cu-card case no-card">
+  <view class="cu-item shadow">
+    <view class="cu-list menu-avatar">
+      <view class="cu-item" wx:for="{{list}}" wx:key="o">
+        <image class="cu-avatar round lg" src="{{item.avatarUrl}}" mode="" />
+        <view class="content flex-sub">
+          <view class="text-black text-xl text-bold">{{item.username}}</view>
+        </view>
+        <view class="action">
+          <text class="text-black text-xxl text-bold">{{item.totalScore}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

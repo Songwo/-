@@ -1,0 +1,10 @@
+.padding-top{
+  padding-top: 200rpx;
+}
+.borderradius{
+  border-radius: 60px;
+  background-color: rgb(250, 248, 248);
+}
+.but{
+  width:200rpx;
+}

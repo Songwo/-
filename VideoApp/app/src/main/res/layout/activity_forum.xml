@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:background="@drawable/background_gradient_blue">
+
+    <!-- 标题和图片部分 -->
+    <LinearLayout
+
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="16dp">
+
+        <!-- 安全漏洞讨论 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:id="@+id/safety_vulnerabilities">
+
+            <ImageView
+                android:id="@+id/safety_vulnerabilities_icon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/banner1"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/safety_vulnerabilities" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/safety_vulnerabilities"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- 网络攻击案例 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:id="@+id/network_attacks">
+
+            <ImageView
+                android:id="@+id/network_attacks_icon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/banner1"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/network_attacks" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/network_attacks"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- 网络工具推荐 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:id="@+id/network_tools">
+
+            <ImageView
+                android:id="@+id/network_tools_icon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/banner1"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/network_tools" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/network_tools"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- 行业动态 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:id="@+id/industry_news">
+
+            <ImageView
+                android:id="@+id/industry_news_icon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/banner1"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/industry_news" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/industry_news"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/subpost"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="添加帖子"
+            android:textColor="@color/white"
+            android:background="@drawable/nav_background"
+            android:textStyle="bold"
+            android:textSize="33dp"
+            >
+
+        </Button>
+    </LinearLayout>
+
+    <!-- 内容框架布局 -->
+    <FrameLayout
+        android:background="@drawable/postp"
+        android:id="@+id/content_frame"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+
+    <!-- 底部导航栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="@drawable/nav_background"
+
+        >
+
+        <!-- 首页 -->
+        <LinearLayout
+            android:id="@+id/pinghome"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_home"
+                android:tint="@color/white"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="首页"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- 论坛 -->
+        <LinearLayout
+            android:id="@+id/ping"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            >
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_wd"
+
+                android:tint="@color/blue_light"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="论坛"
+                android:textColor="@color/blue_light"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+
+        <LinearLayout
+            android:id="@+id/navAIfroum"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+
+            android:padding="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/imgai"
+                android:tint="@color/white"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AI问答"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+
+        <!-- 我的（当前选中状态） -->
+        <LinearLayout
+            android:id="@+id/pingProfile"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+
+            android:padding="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_profile"
+                android:tint="@color/white"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="我的"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

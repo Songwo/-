@@ -1,0 +1,23 @@
+/* page/challenge/Question.wxss */
+.borderradius{
+  border-radius: 60px;
+  background-color: rgb(250, 248, 248);
+}
+.but{
+  width:200rpx; 
+}
+/* 弹窗内容 */
+.cu-dialog {
+  background-color: #fff;
+  border-radius: 10px 10px 0 0;
+}
+.xuanti{
+  height: 400rpx;
+  overflow-y: auto; /* 内容过多时出现滚动条 */
+}
+.width{
+  width: 90rpx;
+  height: 90rpx;
+  margin-top: 10rpx;
+  margin-bottom: 10rpx;
+}

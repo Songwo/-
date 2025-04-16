@@ -1,0 +1,21 @@
+<cu-custom bgColor="bg-gradual-purple" isBack="{{true}}">
+  <view slot="backText">返回</view>
+  <view slot="content">精品奖励</view>
+</cu-custom>
+
+<view class="" wx:for="{{unlockedRewards}}" wx:key="index">
+  <view class="flex  text-xxl margin-sm"  bind:tap="showRewordChange" data-index="{{index}}" >
+    <view class="margin-left-xl basis-sm">奖励{{index+1}}</view>
+    <view class="margin-right-xl basis-sm flex cuIcon-unfold justify-end"></view>
+  </view>
+  
+  <view class="divLine"></view>
+
+  <view class="flex text-lg justify-center" wx:if="{{showReword[index]}}" >
+    <view class="basis-xl">{{unlockedRewards[index]}}</view>
+  </view>
+  <view class="divLine basis-xl"></view>
+</view>
+
+
+

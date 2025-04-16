@@ -1,0 +1,19 @@
+.cuIcon-right{
+  font-size: 30px;
+}
+.bottom{
+  height: 1020rpx;
+  border-radius: 20px;
+}
+.top {
+  border-radius: 20px;
+}
+.line {
+  border-top: 1px solid rgb(177, 177, 177); /* 画一条黑色的1px宽的线 */
+  margin: 10px 0;  /* 你可以根据需要设置上下的间距 */
+  margin-left: 5%;
+  width: 90%;
+}
+.text-30{
+  font-size: 60rpx;
+}

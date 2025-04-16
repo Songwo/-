@@ -1,0 +1,27 @@
+<cu-custom bgColor="bg-gradual-purple" isBack="{{true}}">
+  <view slot="backText">返回</view>
+  <view slot="content">发布文章</view>
+</cu-custom>
+
+<scroll-view>
+  <view class="cu-form-group">
+    <view style="font-size: 40rpx;" class="title">题目</view>
+    <input style="font-size: 40rpx;" bindinput="getInputTitle" bindfocus="onFocusTitle" value="{{inputTitle}}" type="text" />
+  </view>
+
+  <view class="cu-form-group">
+    <view class="text-xxl">文章类型</view>
+    <picker bindchange="PickerChange" value="{{index}}" range="{{picker}}">
+      <view class="picker">{{picker[pickerIndex]}}</view>
+    </picker>
+  </view>
+
+  <view class="cu-form-group">
+    <textarea style="font-size: 35rpx; height: 1000rpx;" bindinput="getInputContent" bindfocus="onFocusContent" value="{{inputContent}}"></textarea>
+  </view>
+
+  <view class="flex justify-around margin-top-sm">
+    <button class="cu-btn round  bg-gradual-green" bindtap="onCancel">取消</button>
+    <button class="cu-btn round  bg-gradual-purple" bindtap="sendPost">发布</button>
+  </view>
+</scroll-view>

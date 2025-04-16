@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/postp">
+
+    <!-- 标题部分 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp"
+        android:layout_marginTop="100dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="40dp"
+            android:src="@drawable/postitle"
+            android:layout_marginRight="16dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="标题"
+            android:textColor="@color/white"
+            android:layout_marginRight="16dp"/>
+
+        <EditText
+            android:id="@+id/et_title"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+
+            android:layout_weight="1"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#B3FFFFFF"
+            android:background="@drawable/tech_edittext_background"
+            />
+    </LinearLayout>
+
+
+    <!-- 帖子类别部分 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp"
+        android:layout_marginTop="40dp">
+
+        <ImageView
+            android:layout_marginTop="5dp"
+            android:layout_width="24dp"
+            android:layout_height="40dp"
+            android:src="@drawable/postfl"
+            android:layout_marginRight="16dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="帖子类别"
+            android:textColor="@color/white"
+            android:layout_marginRight="16dp"/>
+
+        <Spinner
+            android:id="@+id/sp_section"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:background="@drawable/tech_edittext_background"
+
+            />
+    </LinearLayout>
+
+    <!-- 内容部分 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp"
+        android:layout_marginTop="30dp">
+
+        <ImageView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/postnr"
+            android:layout_gravity="center_vertical"
+            android:layout_marginRight="16dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:text="内容"
+            android:textColor="@color/white"
+            android:layout_marginRight="16dp"/>
+
+        <EditText
+            android:id="@+id/et_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minLines="4"
+            android:gravity="top"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#B3FFFFFF"
+            android:background="@drawable/tech_edittext_background"
+            android:scrollbars="vertical"/>
+    </LinearLayout>
+
+    <!-- 返回和提交按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:orientation="horizontal"
+        android:layout_marginTop="20dp"
+        >
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:id="@+id/btn_back"
+            android:layout_marginLeft="100dp"
+            >
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/postfh"
+                android:layout_gravity="center"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="返回"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:gravity="center"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:id="@+id/btn_submit"
+            android:layout_marginLeft="80dp">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/posttj"
+                android:layout_gravity="center"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="提交"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:gravity="center"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

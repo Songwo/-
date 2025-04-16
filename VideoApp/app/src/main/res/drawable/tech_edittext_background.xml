@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#1AFFFFFF" />
+    <corners android:radius="12dp" />
+    <stroke android:width="3dp" android:color="#4DFFFFFF" />
+</shape>
+<!--
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <stroke
+        android:width="3dp"
+        android:color="#00FF7F"/> &lt;!&ndash; 深蓝色边框 &ndash;&gt;
+    <corners android:radius="4dp"/> &lt;!&ndash; 圆角 &ndash;&gt;
+</shape>-->

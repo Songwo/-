@@ -1,0 +1,102 @@
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+android:layout_width="match_parent"
+android:layout_height="match_parent"
+android:orientation="vertical"
+android:gravity="center"
+android:background="@drawable/background_gradient_blue"
+    android:padding="20dp">
+
+    <!-- Logo -->
+<ImageView
+android:layout_width="200dp"
+android:layout_height="200dp"
+android:src="@drawable/logo"
+    android:layout_marginBottom="40dp" />
+
+    <!-- 账号行 -->
+<LinearLayout
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:orientation="horizontal"
+android:layout_marginBottom="40dp">
+
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="账号"
+    android:textSize="16sp"
+    android:textColor="#FFFFFF"
+    android:layout_marginBottom="8dp" />
+
+<EditText
+    android:id="@+id/etUsername"
+    android:layout_width="match_parent"
+    android:layout_height="50dp"
+    android:hint="请输入账号"
+    android:textColor="#FFFFFF"
+    android:textColorHint="#B3FFFFFF"
+android:background="@drawable/tech_edittext_background"
+android:paddingStart="16dp"
+android:paddingEnd="16dp"
+
+android:drawablePadding="8dp" />
+</LinearLayout>
+
+    <!-- 密码行 -->
+<LinearLayout
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:orientation="horizontal"
+android:layout_marginBottom="50dp">
+
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="密码"
+    android:textSize="16sp"
+    android:textColor="#FFFFFF"
+    android:layout_marginBottom="8dp" />
+
+<EditText
+    android:id="@+id/etPassword"
+    android:layout_width="match_parent"
+    android:layout_height="50dp"
+    android:hint="请输入密码"
+    android:inputType="textPassword"
+    android:textColor="#FFFFFF"
+    android:textColorHint="#B3FFFFFF"
+android:background="@drawable/tech_edittext_background"
+android:paddingStart="16dp"
+android:paddingEnd="16dp"
+
+android:drawablePadding="8dp" />
+</LinearLayout>
+
+    <!-- 登录按钮 -->
+<Button
+android:id="@+id/btnLogin"
+android:layout_width="match_parent"
+android:layout_height="50dp"
+android:text="登录"
+android:textSize="16sp"
+android:textColor="#FFFFFF"
+android:background="@drawable/tech_button_background"
+    android:layout_marginBottom="20dp"
+    android:stateListAnimator="@null"
+    android:elevation="4dp"
+    android:translationZ="4dp" />
+
+    <!-- 注册按钮 -->
+<Button
+android:id="@+id/btnRegister"
+android:layout_width="match_parent"
+android:layout_height="50dp"
+android:text="注册"
+android:textSize="16sp"
+android:textColor="#FFFFFF"
+android:background="@drawable/tech_button_background"
+    android:stateListAnimator="@null"
+    android:elevation="4dp"
+    android:translationZ="4dp" />
+    </LinearLayout>

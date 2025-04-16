@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/background_gradient_blue">
+
+    <!-- 顶部栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:gravity="center_vertical">
+
+        <!-- 用户头像 -->
+        <ImageView
+            android:id="@+id/userAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_user"
+            android:contentDescription="用户头像"
+            android:layout_marginEnd="8dp"/>
+
+        <!-- 搜索框 -->
+        <LinearLayout
+
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/edittext_background"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="8dp">
+
+            <EditText
+                android:maxLines="1"
+                android:id="@+id/searchInput"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:hint="搜索视频..."
+                android:background="@null"
+                android:paddingStart="8dp"
+                android:textSize="14sp"
+                android:textColor="#764ba2"/>
+
+            <ImageView
+                android:id="@+id/searchButton"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_search"
+                android:contentDescription="搜索按钮"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <!-- 右侧功能按钮 -->
+        <ImageView
+            android:id="@+id/rightButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_more"
+            android:contentDescription="更多功能"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+    <!-- 轮播图 -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/bannerPager"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginTop="8dp"/>
+
+
+
+
+    <LinearLayout
+        android:id="@+id/indicator"
+        android:layout_width="wrap_content"
+        android:layout_height="20dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="-10dp"
+        android:orientation="horizontal"/>
+
+    <!-- 在轮播图下方添加 -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        >
+
+        <LinearLayout
+            android:id="@+id/pageIndicator"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+
+            android:gravity="center"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/page1"
+                android:text="推荐"
+                android:gravity="center"
+                android:textSize="16sp"
+                android:padding="8dp"
+                android:textColor="@color/blue_light"
+                android:layout_width="100dp"
+
+
+                android:layout_height="wrap_content"
+                android:background="@drawable/background_gradient_new"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginLeft="40dp"
+
+                />
+
+            <TextView
+                android:id="@+id/page2"
+                android:text="热点"
+                android:gravity="center"
+                android:textSize="16sp"
+                android:padding="8dp"
+                android:layout_width="100dp"
+                android:layout_height="wrap_content"
+
+                android:background="@drawable/background_gradient_new"
+                android:clickable="true"
+                android:focusable="true"
+                android:textColor="@color/gray"
+                android:layout_marginLeft="10dp"/>
+
+            <TextView
+                android:id="@+id/page3"
+                android:text="科普"
+                android:gravity="center"
+                android:textSize="16sp"
+                android:padding="8dp"
+                android:layout_width="100dp"
+                android:layout_height="wrap_content"
+
+                android:background="@drawable/background_gradient_new"
+                android:clickable="true"
+                android:focusable="true"
+                android:textColor="@color/gray"
+                android:layout_marginLeft="10dp"/>
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- 视频列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/videoGrid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="4dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"/>
+
+    <!-- 底部导航栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="@drawable/nav_background"
+
+        >
+
+        <!-- 首页 -->
+        <LinearLayout
+            android:id="@+id/navHome"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            >
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_home"
+
+                android:tint="@color/blue_light"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="首页"
+                android:textColor="@color/blue_light"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- 论坛 -->
+        <LinearLayout
+            android:id="@+id/navping"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            >
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_wd"
+
+                android:tint="@color/white"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="论坛"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+
+        <LinearLayout
+            android:id="@+id/navAI"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+
+            android:padding="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/imgai"
+                android:tint="@color/white"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AI问答"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+
+
+
+        <!-- 我的（当前选中状态） -->
+        <LinearLayout
+            android:id="@+id/navProfile"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+
+            android:padding="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_profile"
+                android:tint="@color/white"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="我的"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

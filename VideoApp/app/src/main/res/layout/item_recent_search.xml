@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="160dp"
+    android:layout_height="80dp"
+    android:layout_margin="4dp">
+
+    <TextView
+        android:id="@+id/tvSearchText"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:background="@drawable/background_gradient_blue"
+        android:textColor="@color/white"/>
+</androidx.cardview.widget.CardView>

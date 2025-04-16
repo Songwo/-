@@ -1,0 +1,35 @@
+<cu-custom bgColor="bg-gradual-purple">
+  <view slot="content">首页</view>
+</cu-custom>
+<!-- 导航栏 -->
+<scroll-view scroll-x class="bg-white nav" scroll-left="{{scrollLeft}}">
+  <view class="cu-item {{index==TabCur?'text-purple cur':''}}" wx:for="{{nav}}" wx:key="index" bindtap="tabSelect" data-id="{{index}}">
+    {{item}}
+  </view>
+</scroll-view>
+<view class="flex justify-around margin-top-sm">
+  <view class="cu-btn bg-gradual-purple basis-sm round" bind:tap="gotocheatai" >
+    AI专家
+  </view>
+  <view class="cu-btn bg-gradual-purple basis-sm round" bind:tap="gotosendPost" >
+    发布帖子
+  </view>
+</view>
+<!--post-->
+<view class="cu-card article {{isCard?'no-card':''}}">
+  <view class="cu-item" wx:for="{{showPost}}" wx:key="index">
+    <view class="bg-white " bind:tap="gotoessay" data-c="{{item}}">
+      <view class="title">
+        <view class="line-height-25 margin-top-sm">{{item.title}}</view>
+      </view>
+      <view class="content">
+        <view class="desc">
+          <view class="text-content">{{item.content}}</view>
+          <view>
+            <view class="cu-tag bg-red light sm round margin-bottom-sm">{{item.section}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

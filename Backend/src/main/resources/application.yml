@@ -1,0 +1,46 @@
+#spring:
+#  data:
+#    mongodb:
+#      uri: mongodb://CsNet:yzMKSXjALzBsn5NG@47.117.70.79csnet?authSource=admin
+spring:
+  data:
+    mongodb:
+      host: 127.0.0.1
+      database: csnet
+#      port: 27017
+#      database: CsNet
+      username: CsNet
+      password: yzMKSXjALzBsn5NG
+  web:
+    resources:
+      static-locations: "file:F:/NetGame_s/hello_vue3_1.0/src/avatar/"
+  mvc:
+    contentnegotiation:
+      favor-parameter: false
+      favor-path-extension: false
+      media-types:
+        json: application/json
+        multipart: multipart/form-data
+
+server:
+  port: 8080
+
+task:
+  executor:
+    core-pool-size: 5
+    max-pool-size: 20
+    queue-capacity: 100
+    thread-name-prefix: lab-task-
+
+# 以下配置仅在有自定义 Docker 客户端时生效
+docker:
+  host: tcp://47.117.70.79:2375
+  tls:
+    enabled: true
+    cert-path: /etc/docker/certs
+  pool:
+    max-total: 100
+    max-per-route: 20
+    timeout:
+      connect: 30s
+      response: 45s
