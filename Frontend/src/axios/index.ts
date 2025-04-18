@@ -3,7 +3,7 @@ import ToUrl from '@/api/api';
 // 创建 axios 实例
 const instance = axios.create({
   baseURL: ToUrl.url, // 后端 API 地址
-  timeout: 5000, // 设置请求超时
+  timeout: 100000, // 设置请求超时
 });
 
 // 请求拦截器
