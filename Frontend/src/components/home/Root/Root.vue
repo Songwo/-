@@ -129,7 +129,7 @@ const activeMenu = computed(() => {
   if (path.includes('/root/findIp')) return 'pricate'
   if (path.includes('/root/Crehash')) return 'pricate'
   if (path.includes('/root/CheckPwd')) return 'pricate'
-  return 'home' //如果不存在就返回home
+  return 'home' //不存在返回home
 })
 
 // 退出登录
@@ -152,13 +152,13 @@ const Mine = () => {
 
 // App端下载
 const downloadApp = () => {
-  ElMessage.success('跳转到App端下载页面')
+  // ElMessage.success('跳转到App端下载页面')
   window.open('/root/app', 'App_down')
 }
 
 // AI智能解答
 const aiAnswer = () => {
-  ElMessage.success('进入AI智能解答页面')
+  // ElMessage.success('进入AI智能解答页面')
   router.push('/root/chat-wacyg')
 }
 </script>
@@ -258,10 +258,10 @@ const aiAnswer = () => {
 }
 
 .menu .el-menu-item.is-active {
-  color: #ffffff;
+  color: #eaeaea !important;
   font-weight: bold;
-  border-bottom: 2px solid #ffffff;
-  background-color: rgba(102, 126, 234, 0.3);
+  border-bottom: 6px solid #9ca4d8 !important;
+  background-color: #5b21b6 !important;
   position: relative;
   overflow: hidden;
 }
@@ -272,8 +272,8 @@ const aiAnswer = () => {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #ffffff, transparent);
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #ffe066, transparent);
   animation: shimmer 2s infinite;
 }
 
@@ -422,8 +422,6 @@ const aiAnswer = () => {
     margin-right: 5px;
   }
 }
-
-/* Add styles for medium screens */
 @media (min-width: 769px) and (max-width: 1024px) {
   .menu .el-menu-item {
     padding: 0 10px;
@@ -442,16 +440,13 @@ const aiAnswer = () => {
     font-size: clamp(12px, 1.1vw, 14px);
   }
 }
-
 /* 页脚样式 */
 .app-footer {
   text-align: center;
   padding: 25px 0;
-  /* 增加一点上下内边距 */
   color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
   line-height: 1.8;
-  /* 增加行高，让多行文本更清晰 */
   background-color: transparent;
   border-top: none;
   flex-shrink: 0;
@@ -461,7 +456,6 @@ const aiAnswer = () => {
 
 .app-footer p {
   margin: 4px 0;
-  /* 给段落之间增加一点间距 */
 }
 
 .app-footer a {
@@ -477,8 +471,6 @@ const aiAnswer = () => {
 
 .disclaimer {
   color: rgba(255, 255, 255, 0.6);
-  /* 警告信息颜色可以稍微再淡一点 */
   font-size: 11px;
-  /* 警告信息字体可以稍小 */
 }
 </style>

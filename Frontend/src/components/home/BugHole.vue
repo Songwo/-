@@ -173,7 +173,7 @@ const dialogVisible = ref(false);
 
 // 分页状态
 const currentPage = ref(1);
-const pageSize = ref(9); // 3x3 网格布局
+const pageSize = ref(12); // 3x3 网格布局
 const totalFilteredVulnerabilities = ref(0); // 过滤后的总数
 const totalVulnerabilitiesFromSource = ref(0); // API直接返回的总数
 const BugHole = ref([]); // 存储来自 API 的所有漏洞
@@ -531,12 +531,12 @@ watch(BugHole, (newValue) => {
 .search-input {
   border: none;
 }
-:deep(.search-input .el-input__wrapper) { /* 目标 element plus wrapper */
+:deep(.search-input .el-input__wrapper) { 
   box-shadow: none !important;
   background-color: transparent !important;
   padding: 0; /* 如果需要，移除默认内边距 */
 }
-:deep(.search-input .el-input__inner) { /* 目标 input 元素 */
+:deep(.search-input .el-input__inner) { 
     height: 38px; /* 如果使用 size large，确保高度一致 */
     line-height: 38px;
 }

@@ -72,13 +72,13 @@
   </div>
 </template>
 
-<script lang="ts" setup name="Private">
+<script setup name="Private">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Search } from '@element-plus/icons-vue'
 import axios from 'axios'
-import ToUrl from '@/api/api'
+import ToUrl from '@/api/api.ts'
 import store from '@/store'
 
 const searchQuery = ref('')
@@ -90,7 +90,7 @@ const stats = ref({
 })
 
 // 格式化数字显示
-const formatNumber = (num: number) => {
+const formatNumber = (num) => {
   if (num >= 1000) {
     return (num / 1000).toFixed(1) + 'k+'
   }
@@ -127,7 +127,7 @@ const recordVisit = async () => {
 }
 
 // 定时更新统计数据
-let statsInterval: number | null = null
+let statsInterval= null
 
 onMounted(() => {
   // 加载数据
@@ -220,7 +220,7 @@ const filteredTools = computed(() => {
   })
 })
 
-const goToTool = (url: string) => {
+const goToTool = (url) => {
   router.push('/root' + url)
 }
 
@@ -248,7 +248,7 @@ const increaseUserCount = async () => {
   font-size: 36px;
   font-weight: 600;
   margin-bottom: 40px;
-  background: linear-gradient(45deg, #6a1b9a, #9c27b0);
+  background: linear-gradient(45deg, #edd0ff, #e465fb);
   -webkit-background-clip: text;
   -moz-background-clip: text;
   -ms-background-clip: text;
