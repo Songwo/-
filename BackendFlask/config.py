@@ -34,5 +34,5 @@ class Config:
     JWT_SECRET = os.getenv("JWT_SECRET")
     JWT_ALGORITHM = "HS256"
 
-    DEFAULT_LIMIT = "100 per hour"  # 每小时允许最多访问100次
+    DEFAULT_LIMIT = "100 per hour"  # 每小时允许最多访问1000次
 

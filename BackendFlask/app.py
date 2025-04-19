@@ -1,12 +1,9 @@
 from flask import Flask
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 import logging
 from extensions import limiter
 from config import Config
 from routes.chat import chat_bp
-
 # 初始化 Flask
 app = Flask(__name__)
 app.config.from_object(Config)

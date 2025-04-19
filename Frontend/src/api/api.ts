@@ -5,6 +5,8 @@ const ToUrl={
     // 本地环境
     // url:'http://localhost:5001',
 
-    aiUrl:'http://wacyg.fun:9000/api/chat'
+    aiUrl:'http://wacyg.fun:9000/api/chat',
+    staUrl:'http://wacyg.fun:9000//api/chat/instance',
+    stadUrl:'http://wacyg.fun:9000//api/chat/instance'
 }
 export default ToUrl;

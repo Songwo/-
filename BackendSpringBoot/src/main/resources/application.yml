@@ -2,6 +2,7 @@
 #  data:
 #    mongodb:
 #      uri: mongodb://CsNet:yzMKSXjALzBsn5NG@47.117.70.79csnet?authSource=admin
+
 spring:
   data:
     mongodb:
@@ -11,6 +12,12 @@ spring:
 #      database: CsNet
       username: CsNet
       password: yzMKSXjALzBsn5NG
+#spring:
+#  data:
+#    mongodb:
+#      host: 127.0.0.1
+#      database: CsNet
+#      port: 27017
   web:
     resources:
       static-locations: "file:F:/NetGame_s/hello_vue3_1.0/src/avatar/"

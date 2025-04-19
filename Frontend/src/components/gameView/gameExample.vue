@@ -40,11 +40,8 @@
             </div>
 
             <div class="card-actions" style="margin-top: 10px">
-              <el-button type="primary" 
-                size="small" 
-                @click="startLab(challenge)" 
-                :loading="challenge.loading"
-                :disabled="!challenge.unlocked || challenge.isCompleted || isAnyLabRunning() && !challenge.labUrl">
+              <el-button type="primary" size="small" @click="startLab(challenge)" :loading="challenge.loading"
+                :disabled="challenge.disabled || !challenge.unlocked || challenge.isCompleted || isAnyLabRunning() && !challenge.labUrl">
                 启动靶场
               </el-button>
               <el-button type="success" size="small" @click="verifyFlag(challenge)"
@@ -53,10 +50,15 @@
               </el-button>
             </div>
 
-            <div v-if="challenge.labUrl" style="margin-top:10px">
+            <div v-if="challenge.labUrl">
               <el-link :href="challenge.labUrl" target="_blank">
                 前往靶场
               </el-link>
+              <span v-if="runningLabInfo && runningLabInfo.challengeId === challenge.id">
+                (剩余时间: {{ Math.floor(runningLabInfo.remainingSeconds / 1000 / 60) }}分{{
+                  Math.floor((runningLabInfo.remainingSeconds / 1000) % 60)
+                }}秒)
+              </span>
             </div>
 
             <div v-if="challenge.isCompleted" style="margin-top:10px">
@@ -79,7 +81,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElNotification } from 'element-plus'
 import ToUrl from '@/api/api'
@@ -89,109 +91,133 @@ import { useStore } from 'vuex'
 const store = useStore();
 
 // 挑战数据（每个分类内包含关卡数组）
-const categories = ref([
-  {
-    key: 'low',
-    name: '低级挑战',
-    unlocked: true,
-    challenges: [
-      {
-        id: 'CVE-2024-001',
-        title: 'SQL注入漏洞',
-        description: '通过构造恶意SQL语句获取数据库权限',
-        difficulty: 1,
-        task: '获取管理员账户密码',
-        flag: 'FLAG{SQL-123}',
-        // 新增三个参数及默认值
-        labConfig: {
-          images:{
-            frontend: "songwo/bug_view-frontend",
-            backend: "songwo/bug_view-backend",
-            mysql: "songwo/vulnerable_mysql:latest"
-          },
-          containerPort: 8080,
-          duration: 5
-        },
-        unlocked: true,
-        isCompleted: false,
-        completionTime: null,
-        score: 0,
-        labUrl: '',
-        loading: false
-      },
-      {
-        id: 'CVE-2024-002',
-        title: '命令注入漏洞',
-        description: '通过系统命令注入获取服务器权限',
-        difficulty: 1,
-        task: '读取/etc/passwd文件内容',
-        flag: 'FLAG{CMD-456}',
-        labConfig: {
-          imageName: 'command-injection-lab',
-          containerPort: 3000,
-          duration: 45
-        },
-        unlocked: true,
-        isCompleted: false
-      }
-    ]
-  },
-  {
-    key: 'medium',
-    name: '中级挑战',
-    unlocked: false,
-    challenges: [
-      {
-        id: 'CVE-2024-003',
-        title: 'XSS攻击',
-        description: '窃取用户Cookie信息',
-        difficulty: 2,
-        task: '触发alert弹窗并窃取cookie',
-        flag: 'FLAG{XSS-789}',
-        labConfig: {
-          imageName: 'xss-lab',
-          containerPort: 80,
-          duration: 75
-        }
-      },
-      {
-        id: 'CVE-2024-004',
-        title: 'CSRF攻击',
-        description: '伪造用户请求修改账户信息',
-        difficulty: 2,
-        task: '成功修改管理员邮箱',
-        flag: 'FLAG{CSRF-012}',
-        labConfig: {
-          imageName: 'csrf-lab',
-          containerPort: 8080,
-          duration: 60
-        }
-      }
-    ]
-  },
-  {
-    key: 'high',
-    name: '高级挑战',
-    unlocked: false,
-    challenges: [
-      {
-        id: 'CVE-2024-003',
-        title: '提权漏洞利用',
-        description: '实现本地权限提升',
-        difficulty: 3,
-        task: '获取root权限',
-        flag: 'FLAG{ROOT-789}',
-        unlocked: false,
-        isCompleted: false,
-        completionTime: null,
-        score: 0,
-        labUrl: '',
-        loading: false
-      }
-    ]
-  }
-])
+const categories = ref([])
+//加载靶场漏洞
+const fetchChallenges = async () => {
+  console.log('token:', JSON.stringify(store.state.token));
+  try {
+    const response = await axios.get(ToUrl.url + '/api/challenges', {
+      headers: { 'Authorization': `Bearer ${store.state.token.trim()}` }
+    });
+    // 假设后端返回的就是一个 challenge 列表
+    const challengeList = response.data;
 
+    console.log('token:', JSON.stringify(store.state.token));
+    // 你可以根据 difficulty 分组
+    const low = [], medium = [], high = [];
+    challengeList.forEach(ch => {
+      if (ch.difficulty === 1) low.push(mapChallenge(ch));
+      else if (ch.difficulty === 2) medium.push(mapChallenge(ch));
+      else if (ch.difficulty === 3) high.push(mapChallenge(ch));
+    });
+
+    categories.value = [
+      { key: 'low', name: '低级挑战', unlocked: true, challenges: low },
+      { key: 'medium', name: '中级挑战', unlocked: false, challenges: medium },
+      { key: 'high', name: '高级挑战', unlocked: false, challenges: high }
+    ];
+  } catch (e) {
+    ElMessage.error('获取挑战数据失败');
+  }
+};
+
+const runningLabInfo = ref(null)
+let countdownTimer = null
+
+watch(
+  () => runningLabInfo.value && runningLabInfo.value.remainingSeconds,
+  (newVal, oldVal) => {
+    if (countdownTimer) clearInterval(countdownTimer)
+    if (runningLabInfo.value && runningLabInfo.value.remainingSeconds > 0) {
+      countdownTimer = setInterval(() => {
+        if (runningLabInfo.value.remainingSeconds > 0) {
+          runningLabInfo.value.remainingSeconds -= 1000 // 毫秒为单位
+        }
+        if (runningLabInfo.value.remainingSeconds <= 0) {
+          runningLabInfo.value.remainingSeconds = 0
+          clearInterval(countdownTimer)
+          ElMessage.warning('靶场已到期，请重新启动！')
+          // 自动刷新靶场状态
+          checkLabStatus()
+        }
+      }, 1000)
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+const checkLabStatus = async () => {
+  try {
+    for (const category of categories.value) {
+      for (const challenge of category.challenges) {
+        const res = await axios.get(ToUrl.stadUrl, {
+          params: {
+            userId: store.state.id,
+            challengeId: challenge.id
+          }
+        });
+        console.log(res.data.running)
+        console.log(res.data)
+        if (res.data.running) {
+          runningLabInfo.value = {
+            challengeId: challenge.id,
+            labUrl: res.data.labUrl,
+            remainingSeconds: res.data.remaining
+          };
+          // 标记当前 challenge
+          challenge.labUrl = res.data.labUrl;
+          challenge.running = true;
+          // 让其他 challenge 不可点击
+          categories.value.forEach(cat => {
+            cat.challenges.forEach(ch => {
+              if (ch.id !== challenge.id) ch.disabled = true;
+            });
+          });
+          return; // 只允许一个靶场运行
+        }
+      }
+    }
+    // 如果没有运行中的靶场
+    runningLabInfo.value = null;
+    categories.value.forEach(cat => {
+      cat.challenges.forEach(ch => ch.disabled = false);
+    });
+  } catch (e) {
+    console.error('靶场状态获取失败', e);
+  }
+};
+
+onMounted(async () => {
+  await fetchChallenges();
+  await checkLabStatus();
+});
+
+
+// 映射后端 challenge 到前端 challenge
+function mapChallenge(ch) {
+  return {
+    id: ch.id,
+    title: ch.title,
+    description: ch.description,
+    difficulty: ch.difficulty,
+    task: ch.task,
+    flag: ch.flag,
+    score: ch.score,
+    labConfig: {
+      images: ch.images,
+      duration: ch.durationMinutes
+    },
+    unlocked: ch.unlocked,
+    isCompleted: ch.completed,
+    completionTime: ch.completionTime,
+    labUrl: '',
+    loading: false
+  }
+}
 // 当前选中的分类（默认低级）
 const currentCategoryKey = ref('low')
 const currentChallenges = computed(() => {
@@ -219,25 +245,24 @@ const confirmVerify = async () => {
       ToUrl.url + '/lab/flag',
       {
         userId: store.state.id,
-        imageName: challenge.labConfig.images.frontend,
+        imageName: challenge.labConfig.images.frontend.image,
         flag: inputFlag.value
       },
       { headers: { 'Authorization': `Bearer ${store.state.token}` } }
     )
 
     if (response.data.code == 200) {
-      // Mark challenge as completed locally
+
       challenge.isCompleted = true;
       challenge.completionTime = new Date();
-      
-      // Through Vuex submission status change (Kept in case other parts rely on it)
+
       store.commit('completeChallenge', {
         categoryKey: currentCategoryKey.value,
         challengeId: challenge.id,
         score: 100
       })
       ElMessage.success('验证成功！挑战通关')
-      unlockNextChallenge(challenge) // Now unlock the next one based on local state
+      unlockNextChallenge(challenge)
     } else {
       ElMessage.error('FLAG验证失败，请重试')
     }
@@ -272,7 +297,7 @@ const getUnlockProgress = (challenge) => {
   return `${index + 1}/${category.challenges.length}`
 }
 
-// 修改后的启动靶场方法
+// 启动靶场方法
 const startLab = async (challenge) => {
   if (!challenge.unlocked || challenge.loading || challenge.isCompleted || isAnyLabRunning()) return
 
@@ -283,19 +308,19 @@ const startLab = async (challenge) => {
     const frontendPort = Math.floor(Math.random() * 100) + 8081
     const backendPort = Math.floor(Math.random() * 100) + 3000
     const mysqlPort = Math.floor(Math.random() * 100) + 3300
-    
+
     // 构建服务名称
     const frontendName = `frontend${randomSuffix}`
     const backendName = `backend${randomSuffix}`
     const mysqlName = `mysql${randomSuffix}`
-    
+
     // 构建多服务请求
     const requestData = {
       services: [
         {
           serviceName: frontendName,
-          image: challenge.labConfig.images.frontend,
-          ports: { [frontendPort.toString()]: 8080 },
+          image: challenge.labConfig.images.frontend.image,
+          ports: { [frontendPort.toString()]: challenge.labConfig.images.frontend.port },
           env: {
             VITE_BACKEND_NAME: backendName
           },
@@ -303,8 +328,8 @@ const startLab = async (challenge) => {
         },
         {
           serviceName: backendName,
-          image: challenge.labConfig.images.backend,
-          ports: { [backendPort.toString()]: 3000 },
+          image: challenge.labConfig.images.backend.image,
+          ports: { [backendPort.toString()]: challenge.labConfig.images.backend.port },
           env: {
             DB_HOST: mysqlName,
             DB_PORT: "3306",
@@ -316,29 +341,41 @@ const startLab = async (challenge) => {
         },
         {
           serviceName: mysqlName,
-          image: challenge.labConfig.images.mysql,
-          ports: { [mysqlPort.toString()]: 3306 },
+          image: challenge.labConfig.images.mysql.image,
+          ports: { [mysqlPort.toString()]: challenge.labConfig.images.mysql.port },
           env: {
             MYSQL_ROOT_PASSWORD: "123456",
             MYSQL_DATABASE: "vulnerable_db"
           }
         }
       ],
-      duration: challenge.labConfig.duration || 5
+      duration: challenge.labConfig.duration || 30
     }
-    
+
     // 发送请求
     const response = await axios.post(
       ToUrl.url + '/lab/create-compose',
       requestData,
       { headers: { 'Authorization': `Bearer ${store.state.token}` } }
     )
-    
+
     // 更新数据 - 使用前端端口作为访问链接
     challenge.labUrl = `http://47.117.70.79:${frontendPort}`
+    // 启动靶场后
+    await axios.post(ToUrl.staUrl, {
+      userId: store.state.id,
+      labUrl: challenge.labUrl,
+      startTime: Date.now(),
+      duration: challenge.labConfig.duration,
+      challengeId: challenge.id
+    });
     ElMessage.success('靶场启动成功！')
-    // 将数据保存到localStorage
-    // saveLabStatus() // Commented out
+    const durationMs = (challenge.labConfig.duration || 30) * 60 * 1000
+    runningLabInfo.value = {
+      challengeId: challenge.id,
+      labUrl: challenge.labUrl,
+      remainingSeconds: durationMs
+    }
   } catch (error) {
     console.error('启动失败:', error)
     ElMessage.error(`靶场启动失败: ${error.response?.data?.message || error.message}`)
