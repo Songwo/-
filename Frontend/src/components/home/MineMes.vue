@@ -76,7 +76,7 @@
                 <el-button @click="saveChanges" type="primary" class="action-button">
                   <el-icon><Check /></el-icon>保存
                 </el-button>
-                <el-button @click="handleCancelEdit" class="action-button">
+                <el-button @click="handleCancelEdit" class="action-button cancel-button">
                   <el-icon><Close /></el-icon>取消
                 </el-button>
               </div>
@@ -109,6 +109,63 @@
               </el-descriptions>
               <el-button @click="handleEditProfile" type="primary" class="edit-button">
                 <el-icon><Edit /></el-icon>编辑资料
+              </el-button>
+            </div>
+          </el-card>
+
+          <!-- 学习报告卡片 -->
+          <el-card class="learning-report-card glass-effect">
+            <template #header>
+              <div class="card-header">
+                <el-icon><Document /></el-icon>
+                <span>学习报告</span>
+              </div>
+            </template>
+
+            <div class="learning-stats">
+              <div class="stat-row">
+                <div class="stat-item">
+                  <div class="stat-value">{{ learningStats.totalTime || 0 }}</div>
+                  <div class="stat-label">总学习时长(小时)</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">{{ learningStats.completedCourses || 0 }}</div>
+                  <div class="stat-label">已完成课程</div>
+                </div>
+              </div>
+              <div class="stat-row">
+                <div class="stat-item">
+                  <div class="stat-value">{{ learningStats.averageScore || 0 }}%</div>
+                  <div class="stat-label">平均得分</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">{{ learningStats.continuousDays || 0 }}</div>
+                  <div class="stat-label">连续学习天数</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="learning-analysis">
+              <h3>学习情况分析</h3>
+              <div class="analysis-content">
+                <p>{{ learningAnalysis }}</p>
+              </div>
+            </div>
+
+            <div class="learning-suggestions">
+              <h3>学习建议</h3>
+              <ul class="suggestions-list">
+                <li v-for="(suggestion, index) in learningSuggestions" :key="index">
+                  <el-icon><Check /></el-icon>
+                  {{ suggestion }}
+                </li>
+              </ul>
+            </div>
+
+            <div class="report-actions">
+              <el-button type="primary" @click="generateReport" class="generate-report-btn">
+                <el-icon><Download /></el-icon>
+                生成详细报告
               </el-button>
             </div>
           </el-card>
@@ -232,8 +289,8 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelPasswordChange">取消</el-button>
-          <el-button type="primary" @click="savePasswordChanges">确定</el-button>
+          <el-button @click="handleCancelPasswordChange" class="dialog-cancel-btn">取消</el-button>
+          <el-button type="primary" @click="savePasswordChanges" class="dialog-confirm-btn">确定</el-button>
         </div>
       </template>
     </el-dialog>
@@ -274,7 +331,7 @@
 
 <script setup>
 import {  ref,onMounted } from 'vue'
-import { Message, Lock, User, ArrowLeft, Calendar, Timer, Star, Edit, Close, DataLine, Platform } from '@element-plus/icons-vue'
+import { Message, Lock, User, ArrowLeft, Calendar, Timer, Star, Edit, Close, DataLine, Platform, Document, Download, Check } from '@element-plus/icons-vue'
 import { ElMessage, ElDialog, ElForm, ElFormItem, ElInput, ElButton, ElRow, ElCol, ElCard, ElTag } from 'element-plus';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router'
@@ -299,6 +356,20 @@ const userInfo = ref({
   totalScore:'',
   emailVerified: false
 })
+
+// 学习统计数据
+const learningStats = ref({
+  totalTime: 0,
+  completedCourses: 0,
+  averageScore: 0,
+  continuousDays: 0
+})
+
+// 学习分析
+const learningAnalysis = ref('')
+
+// 学习建议
+const learningSuggestions = ref([])
 
 const passwordDialogVisible = ref(false);
 const passwordForm = ref({
@@ -357,11 +428,6 @@ const handleChangePassword = () => {
   passwordDialogVisible.value = true;
 };
 
-const handleGoBack=()=>{
-  ElMessage.info("返回");
-  router.push("/root/home")
-}
-
 //加载用户信息
 const userMinemes = async () => {
   if (store.state.user === "") {
@@ -390,9 +456,78 @@ const userMinemes = async () => {
   }
 };
 
-// 在组件挂载时加载用户信息
+// 生成学习报告
+const generateReport = async () => {
+  try {
+    // 这里应该调用后端API获取详细的学习报告数据
+    const response = await axios.get(ToUrl.url+`/user/learning-report/${store.state.user}`, {
+      headers: {
+        'Authorization': `Bearer ${store.state.token}`
+      }
+    });
+    
+    // 更新学习统计数据
+    learningStats.value = response.data.data.stats;
+    learningAnalysis.value = response.data.data.analysis;
+    learningSuggestions.value = response.data.data.suggestions;
+    
+    // 生成可下载的报告
+    const reportContent = generateReportContent();
+    downloadReport(reportContent);
+    
+    ElMessage.success('报告生成成功');
+  } catch (error) {
+    ElMessage.error('报告生成失败');
+  }
+};
+
+// 生成报告内容
+const generateReportContent = () => {
+  const report = {
+    title: `${userInfo.value.username}的学习报告`,
+    date: new Date().toLocaleDateString(),
+    stats: learningStats.value,
+    analysis: learningAnalysis.value,
+    suggestions: learningSuggestions.value
+  };
+  
+  return JSON.stringify(report, null, 2);
+};
+
+// 下载报告
+const downloadReport = (content) => {
+  const blob = new Blob([content], { type: 'application/json' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${userInfo.value.username}_学习报告_${new Date().toLocaleDateString()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+// 加载学习数据
+const loadLearningData = async () => {
+  try {
+    const response = await axios.get(ToUrl.url+`/user/learning-stats/${store.state.user}`, {
+      headers: {
+        'Authorization': `Bearer ${store.state.token}`
+      }
+    });
+    
+    learningStats.value = response.data.data.stats;
+    learningAnalysis.value = response.data.data.analysis;
+    learningSuggestions.value = response.data.data.suggestions;
+  } catch (error) {
+    console.error('加载学习数据失败:', error);
+  }
+};
+
+// 在组件挂载时加载用户信息和学习数据
 onMounted(() => {
   userMinemes();
+  loadLearningData();
 });
 
 // 修改密码
@@ -595,28 +730,38 @@ const handleVerifyEmail = () => {
   text-align: center;
 }
 
-.avatar-hover {
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.avatar-hover:hover {
-  transform: scale(1.05);
-}
-
 .avatar-hint {
   position: absolute;
-  bottom: -20px;
+  bottom: -25px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 12px;
-  color: #666;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .avatar-container:hover .avatar-hint {
   opacity: 1;
+  bottom: -30px;
+}
+
+.avatar-hover {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.avatar-hover:hover {
+  transform: scale(1.05);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 10px rgba(64, 158, 255, 0.3);
 }
 
 .user-info {
@@ -902,21 +1047,193 @@ const handleVerifyEmail = () => {
 }
 
 /* 取消按钮样式 */
-:deep(.el-button--default) {
-  background-color: #ffffff !important;
-  border-color: #dcdfe6 !important;
-  color: #333333 !important;
+.cancel-button {
+  color: #000000 !important;
+  background: #ffffff !important;
+  border: 1px solid #dcdfe6 !important;
 }
 
-:deep(.el-button--default:hover) {
-  background-color: #f5f7fa !important;
+.cancel-button:hover {
+  background: #f5f7fa !important;
   border-color: #dcdfe6 !important;
-  color: #333333 !important;
+  color: #000000 !important;
 }
 
-:deep(.el-button--default:active) {
-  background-color: #f5f7fa !important;
+.cancel-button:active {
+  background: #f5f7fa !important;
   border-color: #dcdfe6 !important;
-  color: #333333 !important;
+  color: #000000 !important;
+}
+
+/* 密码弹窗按钮样式 */
+.dialog-cancel-btn {
+  color: #000000 !important;
+  background: #ffffff !important;
+  border: 1px solid #dcdfe6 !important;
+}
+
+.dialog-cancel-btn:hover {
+  background: #f5f7fa !important;
+  border-color: #dcdfe6 !important;
+  color: #000000 !important;
+}
+
+.dialog-cancel-btn:active {
+  background: #f5f7fa !important;
+  border-color: #dcdfe6 !important;
+  color: #000000 !important;
+}
+
+/* 密码弹窗样式 */
+:deep(.el-dialog) {
+  background: #ffffff !important;
+}
+
+:deep(.el-dialog__title) {
+  color: #000000 !important;
+}
+
+:deep(.el-dialog__body) {
+  color: #000000 !important;
+}
+
+:deep(.el-form-item__label) {
+  color: #000000 !important;
+}
+
+:deep(.el-input__inner) {
+  color: #000000 !important;
+  background: #ffffff !important;
+}
+
+:deep(.el-input__wrapper) {
+  background: #ffffff !important;
+}
+
+/* 学习报告卡片样式 */
+.learning-report-card {
+  margin-top: 20px;
+  border-radius: 15px;
+}
+
+.learning-report-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.learning-stats {
+  padding: 20px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.stat-row:last-child {
+  margin-bottom: 0;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  margin: 0 10px;
+}
+
+.stat-item:first-child {
+  margin-left: 0;
+}
+
+.stat-item:last-child {
+  margin-right: 0;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.learning-analysis,
+.learning-suggestions {
+  padding: 20px;
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.learning-analysis h3,
+.learning-suggestions h3 {
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+
+.analysis-content {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+}
+
+.suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.suggestions-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.suggestions-list li:last-child {
+  margin-bottom: 0;
+}
+
+.suggestions-list .el-icon {
+  color: var(--el-color-success);
+}
+
+.report-actions {
+  padding: 20px;
+  text-align: center;
+}
+
+.generate-report-btn {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .stat-row {
+    flex-direction: column;
+  }
+  
+  .stat-item {
+    margin: 0 0 10px 0;
+  }
+  
+  .stat-item:last-child {
+    margin-bottom: 0;
+  }
 }
 </style>

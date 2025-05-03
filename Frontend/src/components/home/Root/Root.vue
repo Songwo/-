@@ -79,9 +79,10 @@
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useStore } from 'vuex'
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import ToUrl from '@/api/api'
 import { Menu } from '@element-plus/icons-vue'
+import gsap from 'gsap'
 
 // 移动端菜单状态
 const isMobileMenuOpen = ref(false)
@@ -89,6 +90,21 @@ const isMobileMenuOpen = ref(false)
 // 切换移动端菜单
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
+  if (isMobileMenuOpen.value) {
+    gsap.fromTo('.mobile-menu .el-menu-item', 
+      { 
+        opacity: 0,
+        y: -20
+      },
+      { 
+        opacity: 1,
+        y: 0,
+        duration: 0.5,
+        stagger: 0.1,
+        ease: 'power2.out'
+      }
+    )
+  }
 }
 
 // 使用 route 路径匹配标签
@@ -154,6 +170,44 @@ const activeMenu = computed(() => {
   return 'home' //不存在返回home
 })
 
+// 添加监听activeMenu的变化
+watch(activeMenu, (newValue, oldValue) => {
+  if (oldValue) {
+    // 移除旧的激活项的动画效果
+    const oldMenuItem = document.querySelector(`.menu .el-menu-item[index="${oldValue}"]`)
+    if (oldMenuItem) {
+      gsap.to(oldMenuItem, {
+        borderBottom: 'none',
+        fontWeight: 'normal',
+        color: '#ffffff',
+        textShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
+        duration: 0.3
+      })
+    }
+  }
+  
+  if (newValue) {
+    // 获取当前激活的菜单项
+    const activeMenuItem = document.querySelector(`.menu .el-menu-item[index="${newValue}"]`)
+    if (activeMenuItem) {
+      // 应用GSAP动画
+      gsap.timeline()
+        .to(activeMenuItem, {
+          color: '#ffffff',
+          fontWeight: 'bold',
+          textShadow: '0 0 10px rgba(255, 255, 255, 0.7), 0 0 20px rgba(255, 255, 255, 0.4)', // 白色发光效果
+          duration: 0.3,
+          ease: 'power2.out'
+        })
+        .to(activeMenuItem, {
+          borderBottom: '6px solid #ffffff',
+          duration: 0.3,
+          ease: 'elastic.out(1, 0.5)'
+        }, '-=0.2')
+    }
+  }
+})
+
 // 退出登录
 const laout = () => {
   ElMessageBox.confirm('确定要退出登录吗？', '提示', {
@@ -191,6 +245,45 @@ const aiAnswer = () => {
   }
   router.push('/root/chat-wacyg');
 };
+
+// 在组件挂载后添加菜单项动画
+onMounted(() => {
+  // 为每个菜单项添加悬停动画
+  const menuItems = document.querySelectorAll('.menu .el-menu-item')
+  menuItems.forEach(item => {
+    item.addEventListener('mouseenter', () => {
+      gsap.to(item, {
+        scale: 1.05,
+        duration: 0.3,
+        ease: 'power2.out'
+      })
+    })
+    
+    item.addEventListener('mouseleave', () => {
+      gsap.to(item, {
+        scale: 1,
+        duration: 0.3,
+        ease: 'power2.out'
+      })
+    })
+  })
+
+  // 为logo添加初始动画
+  gsap.from('.logo', {
+    opacity: 0,
+    x: -50,
+    duration: 1,
+    ease: 'power2.out'
+  })
+
+  // 为用户信息添加初始动画
+  gsap.from('.user-dropdown, .login-buttons', {
+    opacity: 0,
+    x: 50,
+    duration: 1,
+    ease: 'power2.out'
+  })
+})
 </script>
 
 <style scoped>
@@ -276,45 +369,19 @@ const aiAnswer = () => {
 .menu .el-menu-item {
   color: #ffffff;
   font-size: clamp(12px, 1.2vw, 16px);
-  font-weight: 500;
-  transition: padding 0.3s ease, background-color 0.3s ease, font-size 0.3s ease;
+  transition: color 0.3s ease;
   flex-shrink: 0;
   padding: 0 15px;
+  position: relative;
+}
+
+.menu .el-menu-item.is-active {
+  position: relative;
 }
 
 .menu .el-menu-item:hover {
   background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
-}
-
-.menu .el-menu-item.is-active {
-  color: #eaeaea !important;
-  font-weight: bold;
-  border-bottom: 6px solid #9ca4d8 !important;
-  background-color: #5b21b6 !important;
-  position: relative;
-  overflow: hidden;
-}
-
-.menu .el-menu-item.is-active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, #ffe066, transparent);
-  animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(100%);
-  }
 }
 
 .router-link {

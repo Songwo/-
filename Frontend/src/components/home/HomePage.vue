@@ -18,6 +18,43 @@
         <p>从这里开始，探索网络安全的世界</p>
       </div> 
 
+      <!-- 项目资源链接 -->
+      <div class="project-links">
+        <h2>项目资源</h2>
+        <div class="links-grid">
+          <a href="http://www.wacyg.fun" target="_blank" class="link-card">
+            <el-icon><Monitor /></el-icon>
+            <h3>在线体验平台</h3>
+            <p>访问我们的在线学习平台</p>
+          </a>
+          <a href="https://blog.csdn.net/zhao9585/article/details/147677821" target="_blank" class="link-card">
+            <el-icon><Reading /></el-icon>
+            <h3>配套教程</h3>
+            <p>CSDN详细教程文档</p>
+          </a>
+          <a href="https://github.com/Songwo/BaiMaoGongFang.git" target="_blank" class="link-card">
+            <el-icon><Link /></el-icon>
+            <h3>GitHub源码</h3>
+            <p>获取项目完整源代码</p>
+          </a>
+          <a href="https://juejin.cn/post/7499050342774718518" target="_blank" class="link-card">
+            <el-icon><Document /></el-icon>
+            <h3>掘金专栏</h3>
+            <p>技术文章与经验分享</p>
+          </a>
+          <a href="https://zhuanlan.zhihu.com/p/1902005033681290221" target="_blank" class="link-card">
+            <el-icon><ChatDotRound /></el-icon>
+            <h3>知乎专栏</h3>
+            <p>深度技术讨论</p>
+          </a>
+          <a href="https://www.jianshu.com/p/717bf5dca0ac" target="_blank" class="link-card">
+            <el-icon><Edit /></el-icon>
+            <h3>简书文章</h3>
+            <p>项目详细说明</p>
+          </a>
+        </div>
+      </div>
+
       <!-- 特色功能区块 -->
       <div class="features-section">
         <div class="feature-card">
@@ -89,7 +126,7 @@
   
   <script setup>
   import { ref } from 'vue';
-  import { Monitor, Reading, Trophy, User } from '@element-plus/icons-vue'
+  import { Monitor, Reading, Trophy, User, Link, Document, ChatDotRound, Edit } from '@element-plus/icons-vue'
   
 // 使用 import 导入图片
 import homePage1 from '@/assets/homepage2.jpg';
@@ -234,6 +271,47 @@ const latestNews = ref([
     font-size: 1.5rem;
     color: #ffffff;
     margin-bottom: 20px;
+  }
+
+  .project-links {
+    margin: 40px 0;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 10px;
+  }
+
+  .links-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px;
+  }
+
+  .link-card {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    transition: transform 0.3s;
+  }
+
+  .link-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .link-card .el-icon {
+    font-size: 40px;
+    color: #d0ffdc;
+    margin-bottom: 15px;
+  }
+
+  .link-card h3 {
+    color: #d0ffdc;
+    margin: 10px 0;
+  }
+
+  .link-card p {
+    color: #ffffff;
+    font-size: 0.9rem;
   }
 
   .features-section {

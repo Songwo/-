@@ -1,9 +1,9 @@
 //请求路径地址
 const ToUrl={
     // dev环境
-    // url:'https://wacyg.fun',
+    url:'https://wacyg.fun',
     // 本地环境
-    url:'http://localhost:8080',
+    // url:'http://localhost:8080',
     //ai路径
     aiUrl:'https://wacyg.fun:9000/api/chat',
     // 获取实例
