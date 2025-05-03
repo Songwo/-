@@ -8,4 +8,5 @@ import java.util.Optional;
 
 public interface StatsRepository extends MongoRepository<Stats, String> {
     Optional<Stats> findByDate(LocalDate date);
+    Optional<Stats> findByUserIdAndDate(String userId, LocalDate date);
 }

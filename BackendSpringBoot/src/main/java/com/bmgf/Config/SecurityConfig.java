@@ -40,15 +40,36 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 公开路径
                         .requestMatchers(
+                                // 用户认证相关
                                 "/user/login",
                                 "/user/register",
                                 "/admin/login",
                                 "/error",
-                                "/avatar/**"
+
+                                // 静态资源访问
+                                "/avatar/**",
+                                "/images/**",
+                                "/video/**",
+                                "/upload/**",
+
+                                // 社区论坛相关
+                                "/post/findAll",
+                                "/post/findBySection",
+                                "/post/findById",
+                                "/post/search",
+                                "/post/hot",
+                                "/comments/find/**",
+
+                                // 漏洞库相关
+                                "/user/findAllHole",
+                                "/bug/findById/**",
+                                "/bug/search",
+
+                                // 其他公开API
+                                "/api/public/**"
                         ).permitAll()
 
                         // 特定权限要求
-                        // 与Token中的权限完全匹配
                         // 放行所有OPTIONS请求
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
@@ -75,15 +96,16 @@ public class SecurityConfig {
                 "https://netkpi.icu",
                 "http://localhost:8080",
                 "http://localhost:3000",
-                "http://localhost:5173/",
+                "http://localhost:5173",
                 "http://47.117.70.79",
-                "https://www.wncyg.fun",
-                "http://www.wncyg.fun",
+                "https://www.wacyg.fun",
+                "http://www.wacyg.fun",
                 "https://wacyg.fun",
                 "http://wacyg.fun"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept"));
+        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With",
+                "Accept","X-User-ID"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

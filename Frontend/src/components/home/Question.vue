@@ -1,114 +1,151 @@
 <template>
-  <el-container class="main-container">
-    <!-- 左侧分类 -->
-    <el-aside width="240px" class="category-side">
+  <div class="course-container">
+    <!-- 左侧导航栏 -->
+    <div class="course-sidebar">
+      <div class="sidebar-header">
+        <h3>课程分类</h3>
+      </div>
       <el-menu :default-active="activeCategory" @select="handleCategorySelect" class="category-menu" accordion>
         <el-sub-menu v-for="category in categories" :key="category.id" :index="category.id.toString()">
-          <template #title>{{ category.name }}</template>
+          <template #title>
+            <span class="menu-title">
+              <el-icon><Folder /></el-icon>
+              {{ category.name }}
+            </span>
+          </template>
           <el-menu-item v-for="subcategory in category.subcategories" :key="subcategory.id"
             :index="subcategory.id.toString()">
+            <el-icon><Document /></el-icon>
             {{ subcategory.name }}
           </el-menu-item>
         </el-sub-menu>
       </el-menu>
-    </el-aside>
+    </div>
 
-    <!-- 右侧内容 -->
-    <el-main class="exam-main">
-      <!-- 试卷列表 -->
-      <div v-if="!currentExam" class="exam-list">
-        <el-card v-for="exam in filteredExams" :key="exam.id" class="exam-card"
-          :class="{ 'disabled-card': exam.isSubmitted }" @click="startExam(exam)">
-          <div class="exam-header">
-            <h3>{{ exam.title }}</h3>
-            <el-tag v-if="exam.isSubmitted" type="success">已完成</el-tag>
-          </div>
-          <p>{{ exam.description }}</p>
-          <div class="exam-meta">
-            <span>时长: {{ exam.duration }}分钟</span>
-            <span>题量: {{ exam.questionCount }}题</span>
-          </div>
-        </el-card>
-      </div>
-
-      <!-- 考试界面 -->
-      <div v-else class="exam-interface">
-        <div class="exam-header">
-          <h2>{{ currentExam.title }}</h2>
-          <div class="timer">
-            <el-icon>
-              <clock />
-            </el-icon>
-            剩余时间: {{ formattedTime }}
+    <!-- 主内容区 -->
+    <div class="course-main">
+      <!-- 试卷列表视图 -->
+      <div v-if="!currentExam" class="course-content">
+        <div class="content-header">
+          <h2>测试题库</h2>
+          <div class="search-bar">
+            <el-input placeholder="搜索测试..." prefix-icon="Search" />
           </div>
         </div>
-
-        <el-form :model="answers">
-          <div v-for="question in currentExam.questions" :key="question.id" class="question-item">
-            <h4>{{ question.title }}</h4>
-            <el-form-item :prop="`answers[${question.id}].value`" :rules="[{ validator: validateAnswer(question) }]">
-              <component :is="getQuestionComponent(question.type)" v-model="answers[question.id].value">
-                <!-- 单选 -->
-                <!-- 修改选项显示方式 -->
-                <template v-if="question.type === 'single'">
-                  <el-radio v-for="option in question.options" :key="option.value" :label="option.value" border>
-                    {{ option.label }}
-                  </el-radio>
-                </template>
-                <!-- 多选 -->
-                <template v-if="question.type === 'multiple'">
-                  <el-checkbox v-for="option in question.options" :key="option.value" :label="option.value" border>
-                    {{ option.label }}
-                  </el-checkbox>
-                </template>
-              </component>
-            </el-form-item>
-          </div>
-        </el-form>
-
-        <div class="action-buttons">
-          <el-button type="primary" @click="submitExam">提交试卷</el-button>
-          <el-button @click="cancelExam">取消考试</el-button>
-        </div>
-        <!-- 在action-buttons下方添加结果展示 -->
-        <div v-if="currentExam?.isSubmitted" class="exam-results">
-          <el-alert :title="`本次得分: ${scoreInfo.scoreDelta}`" type="success" show-icon />
-
-          <div class="result-details">
-            <div v-for="question in currentExam.questions" :key="question.id" class="result-item">
-              <h4 :class="getResultClass(question.id)">
-                {{ question.title }}
-                <span class="result-tag">
-                  {{ getResultTag(question.id) }}
-                </span>
-              </h4>
-
-              <!-- 显示正确答案 -->
-              <div v-if="resultDetails[question.id]" class="correct-answer">
-                <span>正确答案: {{ formatCorrectAnswer(question) }}</span>
-                <span class="score-delta">(得分变化: +{{ resultDetails[question.id].scoreDelta }})</span>
+        
+        <div class="exam-grid">
+          <div v-for="exam in filteredExams" :key="exam.id" 
+               class="exam-card" 
+               :class="{ 'disabled-card': exam.isSubmitted }" 
+               @click="startExam(exam)">
+            <div class="card-cover">
+              <el-image :src="getRandomCourseImage()" fit="cover" />
+              <div class="card-tag" v-if="exam.isSubmitted">
+                <el-tag type="success" effect="dark">已完成</el-tag>
               </div>
-
-              <!-- 显示用户答案 -->
-              <div class="user-answer">
-                您的答案: {{ formatUserAnswer(question.id) || "未作答" }}
+            </div>
+            <div class="card-content">
+              <h3>{{ exam.title }}</h3>
+              <p>{{ exam.description }}</p>
+              <div class="card-meta">
+                <span><el-icon><Timer /></el-icon> {{ exam.duration }}分钟</span>
+                <span><el-icon><Document /></el-icon> {{ exam.questionCount }}题</span>
               </div>
-
-              <div class="result-message">
-                {{ resultDetails[question.id]?.message }}
+              <div class="card-footer">
+                <el-button type="primary" plain>开始测试</el-button>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </el-main>
-  </el-container>
+
+      <!-- 考试界面 -->
+      <div v-else class="exam-interface">
+        <div class="exam-header">
+          <div class="header-left">
+            <el-button @click="cancelExam" circle>
+              <el-icon><ArrowLeft /></el-icon>
+            </el-button>
+            <h2>{{ currentExam.title }}</h2>
+          </div>
+          <div class="timer">
+            <el-icon><Clock /></el-icon>
+            <span>剩余时间: {{ formattedTime }}</span>
+          </div>
+        </div>
+
+        <div class="exam-content">
+          <el-form :model="answers">
+            <div v-for="(question, index) in currentExam.questions" :key="question.id" class="question-item">
+              <div class="question-header">
+                <span class="question-number">第{{ index + 1 }}题</span>
+                <h4>{{ question.title }}</h4>
+              </div>
+              <el-form-item :prop="`answers[${question.id}].value`" :rules="[{ validator: validateAnswer(question) }]">
+                <component :is="getQuestionComponent(question.type)" v-model="answers[question.id].value">
+                  <template v-if="question.type === 'single'">
+                    <el-radio v-for="option in question.options" :key="option.value" :label="option.value">
+                      <span class="option-content">{{ option.label }}</span>
+                    </el-radio>
+                  </template>
+                  <template v-if="question.type === 'multiple'">
+                    <el-checkbox v-for="option in question.options" :key="option.value" :label="option.value">
+                      <span class="option-content">{{ option.label }}</span>
+                    </el-checkbox>
+                  </template>
+                </component>
+              </el-form-item>
+            </div>
+          </el-form>
+        </div>
+
+        <div class="exam-footer">
+          <el-button type="primary" size="large" @click="submitExam">提交试卷</el-button>
+        </div>
+
+        <!-- 结果展示 -->
+        <div v-if="currentExam?.isSubmitted" class="exam-results">
+          <div class="result-header">
+            <el-alert :title="`本次得分: ${scoreInfo.scoreDelta}`" type="success" show-icon />
+          </div>
+          
+          <div class="result-content">
+            <div v-for="question in currentExam.questions" :key="question.id" class="result-item">
+              <div class="result-question">
+                <h4 :class="getResultClass(question.id)">
+                  {{ question.title }}
+                  <span class="result-tag">{{ getResultTag(question.id) }}</span>
+                </h4>
+                
+                <div class="answer-section">
+                  <div class="correct-answer">
+                    <span class="label">正确答案:</span>
+                    <span class="value">{{ formatCorrectAnswer(question) }}</span>
+                    <span class="score-delta">+{{ resultDetails[question.id]?.scoreDelta }}</span>
+                  </div>
+                  
+                  <div class="user-answer">
+                    <span class="label">您的答案:</span>
+                    <span class="value">{{ formatUserAnswer(question.id) || "未作答" }}</span>
+                  </div>
+                </div>
+
+                <div class="result-message" v-if="resultDetails[question.id]?.message">
+                  {{ resultDetails[question.id].message }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onUnmounted, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Clock } from '@element-plus/icons-vue'
+import { Clock, Folder, Document, Timer, ArrowLeft, Search } from '@element-plus/icons-vue'
 import { useStore } from 'vuex'
 import axios from 'axios'
 import ToUrl from '@/api/api'
@@ -178,7 +215,7 @@ const fetchCategories = async () => {
   }
 }
 
-// 新增分类数据处理方法
+// 分类数据处理方法
 const processCategories = (data) => {
   // 转换分类数据结构
   const mainCategories = Object.entries(data)
@@ -259,7 +296,7 @@ const filteredExams = computed(() => {
   )
 })
 
-// 新增答案校验逻辑
+// 答案校验逻辑
 const allQuestionsAnswered = computed(() => {
   if (!currentExam.value) return false
   return currentExam.value.questions.every(question => {
@@ -407,7 +444,7 @@ const handleCategorySelect = async (subCategoryId) => {
     }
 
     // 更新exams数组
-    exams.value = newExams; // 直接替换而不是过滤和添加
+    exams.value = newExams; // 直接替换
 
     activeCategory.value = subCategoryId;
     ElMessage.success('题目加载成功');
@@ -416,7 +453,7 @@ const handleCategorySelect = async (subCategoryId) => {
   }
 };
 
-// 修改后的开始考试逻辑
+// 开始考试逻辑
 const startExam = (exam) => {
   if (exam.questions.length === 0) {
     ElMessage.warning('请先加载题目');
@@ -516,7 +553,7 @@ const formatUserAnswer = (questionId) => {
   const option = question.options.find(o => o.value === answer)
   return option ? `${answer}. ${option.label.split('. ')[1]}` : answer
 }
-// 新增题目关联方法
+// 题目关联方法
 const linkQuestionsToCategories = () => {
   categories.value.forEach(category => {
     // 筛选本分类题目
@@ -538,311 +575,498 @@ const linkQuestionsToCategories = () => {
   })
 }
 
+// 随机课程图片方法
+const getRandomCourseImage = () => {
+  const images = [
+    'https://images.unsplash.com/photo-1501504905252-473c47e087f8',
+    'https://images.unsplash.com/photo-1516321318423-f06f85e504b3',
+    'https://images.unsplash.com/photo-1516321497487-e288fb19713f',
+    'https://images.unsplash.com/photo-1516321318423-f06f85e504b3'
+  ]
+  return images[Math.floor(Math.random() * images.length)]
+}
+
 onUnmounted(() => {
   clearInterval(timer.value)
 })
 </script>
 
 <style lang="scss" scoped>
-.main-container {
+.course-container {
+  display: flex;
   height: 100vh;
-  color: #2c3e50;
+  background-color: transparent;
+}
 
-  .category-side {
-    border-right: 1px solid #e4e7ed;
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+.course-sidebar {
+  width: 280px;
+  background: transparent;
+  border-right: 1px solid rgba(228, 231, 237, 0.5);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  padding: 20px 0;
 
-    .category-menu {
-      border-right: none;
+  .sidebar-header {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid rgba(228, 231, 237, 0.5);
+    
+    h3 {
+      margin: 0;
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       
-      :deep(.el-menu-item) {
-        &.is-active {
-          background-color: #f0e6ff;
-          color: #8b5cf6;
-        }
-        
-        &:hover {
-          background-color: #f8f5ff;
-        }
+      &::before {
+        content: '';
+        display: block;
+        width: 4px;
+        height: 16px;
+        background: #8b5cf6;
+        border-radius: 2px;
       }
     }
   }
 
-  .exam-main {
-    padding: 24px;
-
-    .exam-list {
-      display: grid;
-      gap: 24px;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    }
-
-    .exam-interface {
-      .exam-header {
+  .category-menu {
+    border-right: none;
+    background: transparent;
+    
+    :deep(.el-menu-item),
+    :deep(.el-sub-menu__title) {
+      height: 44px;
+      line-height: 44px;
+      padding: 0 20px;
+      color: #ffffff;
+      font-size: 14px;
+      background: transparent;
+      
+      .menu-title {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 32px;
-        padding: 20px;
-        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-        border-radius: 12px;
-        color: white;
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
-
-        h2 {
-          margin: 0;
-          font-size: 24px;
-          font-weight: 600;
-        }
-
-        .timer {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 18px;
-          font-weight: 500;
-          background: rgba(255, 255, 255, 0.2);
-          padding: 8px 16px;
-          border-radius: 20px;
-          backdrop-filter: blur(4px);
+        gap: 8px;
+        
+        .el-icon {
+          font-size: 16px;
+          color: rgba(255, 255, 255, 0.7);
         }
       }
-
-      .question-item {
-        margin-bottom: 32px;
-        padding: 24px;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-        transition: transform 0.2s, box-shadow 0.2s;
-        border: 1px solid #e4e7ed;
-
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-        }
-
-        h4 {
-          margin: 0 0 20px 0;
-          font-size: 18px;
-          color: #2c3e50;
-          font-weight: 600;
+      
+      &:hover {
+        background: rgba(0, 0, 0, 0.5);
+        color: #ffffff;
+        
+        .el-icon {
+          color: #ffffff;
         }
       }
     }
-
-    .action-buttons {
-      margin-top: 40px;
-      text-align: center;
-      display: flex;
-      gap: 16px;
-      justify-content: center;
-
-      .el-button {
-        padding: 12px 32px;
-        font-size: 16px;
+    
+    :deep(.el-menu-item.is-active) {
+      background: rgba(219, 166, 255, 0.6);
+      color: #ffffff;
+      font-weight: 500;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 4px;
+        background: #8b5cf6;
+      }
+      
+      .el-icon {
+        color: #ffffff;
+      }
+    }
+    
+    :deep(.el-sub-menu) {
+      .el-menu-item {
+        padding-left: 40px;
+        height: 40px;
+        line-height: 40px;
+        font-size: 13px;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.4) !important;
+        
+        &:hover {
+          color: #ffffff;
+          background: rgba(0, 0, 0, 0.5) !important;
+        }
+        
+        &.is-active {
+          color: #ffffff;
+          background: rgba(0, 0, 0, 0.6) !important;
+        }
+        
+        &::before {
+          display: none;
+        }
+      }
+      
+      :deep(.el-sub-menu__title) {
+        background: rgba(0, 0, 0, 0.3) !important;
+        color: #ffffff;
+        
+        &:hover {
+          color: #ffffff;
+          background: rgba(0, 0, 0, 0.5) !important;
+        }
+      }
+      
+      :deep(.el-menu) {
+        background: rgba(0, 0, 0, 0.3) !important;
+        border-radius: 4px;
+        margin: 4px 0;
+        padding: 4px 0;
+      }
+      
+      :deep(.el-menu--inline) {
+        background: rgba(0, 0, 0, 0.3) !important;
+      }
+      
+      :deep(.el-menu--popup) {
+        background: rgba(0, 0, 0, 0.3) !important;
+        backdrop-filter: blur(10px);
+        border: none;
         border-radius: 8px;
-        transition: all 0.3s ease;
-
-        &--primary {
-          background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-          border: none;
-          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-
+        padding: 4px;
+        
+        .el-menu-item {
+          color: #ffffff;
+          border-radius: 4px;
+          margin: 2px 0;
+          
           &:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.5) !important;
           }
+          
+          &.is-active {
+            background: rgba(0, 0, 0, 0.6) !important;
+          }
+        }
+      }
+    }
+    
+    // 添加展开状态的样式
+    :deep(.el-sub-menu.is-opened) {
+      > .el-sub-menu__title {
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.5) !important;
+        
+        .el-icon {
+          color: #ffffff;
         }
       }
     }
   }
 }
 
+.course-main {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.course-content {
+  .content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    
+    h2 {
+      margin: 0;
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .search-bar {
+      width: 300px;
+    }
+  }
+}
+
+.exam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
 .exam-card {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: none;
+  background: transparent;
   border-radius: 12px;
   overflow: hidden;
-  background: white;
-  border: 1px solid #e4e7ed;
-
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 1px solid rgba(228, 231, 237, 0.5);
+  
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.15);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   }
-
+  
   &.disabled-card {
     opacity: 0.7;
     cursor: not-allowed;
-    background: #f8f9fa;
   }
+  
+  .card-cover {
+    position: relative;
+    height: 160px;
+    
+    .el-image {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .card-tag {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+    }
+  }
+  
+  .card-content {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    
+    h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      color: #ffffff;
+    }
+    
+    p {
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    
+    .card-meta {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      
+      span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+    }
+    
+    .card-footer {
+      text-align: center;
+      
+      .el-button {
+        background: rgba(139, 92, 246, 0.8);
+        border: none;
+        color: #ffffff;
+        padding: 8px 24px;
+        font-size: 14px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: rgba(139, 92, 246, 1);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+        
+        &:active {
+          transform: translateY(0);
+        }
+      }
+    }
+  }
+}
 
+.exam-interface {
+  background: transparent;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  
   .exam-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-    padding: 16px;
-    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-    color: white;
-
-    h3 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 600;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e4e7ed;
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      
+      h2 {
+        margin: 0;
+        font-size: 24px;
+        color: #2c3e50;
+      }
     }
-
-    .el-tag {
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      backdrop-filter: blur(4px);
+    
+    .timer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #f0e6ff;
+      border-radius: 20px;
+      color: #8b5cf6;
+      font-weight: 500;
     }
   }
-
-  .el-card__body {
-    padding: 20px;
+  
+  .question-item {
+    margin-bottom: 32px;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    border: 1px solid rgba(228, 231, 237, 0.5);
+    
+    .question-header {
+      margin-bottom: 20px;
+      
+      .question-number {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #e4e7ed;
+        border-radius: 12px;
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 12px;
+      }
+      
+      h4 {
+        margin: 0;
+        font-size: 18px;
+        color: #2c3e50;
+      }
+    }
+    
+    .option-content {
+      display: inline-block;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      margin-left: 8px;
+      border: 1px solid rgba(228, 231, 237, 0.5);
+    }
   }
-
-  p {
-    color: #4b5563;
-    margin: 12px 0;
-    line-height: 1.6;
-  }
-
-  .exam-meta {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 16px;
-    color: #6b7280;
-    font-size: 0.95em;
+  
+  .exam-footer {
+    margin-top: 40px;
+    text-align: center;
   }
 }
 
 .exam-results {
   margin-top: 40px;
-  padding: 24px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e4e7ed;
-
-  .el-alert {
+  
+  .result-header {
     margin-bottom: 24px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-    border: none;
-    color: white;
   }
-}
-
-.result-item {
-  margin: 20px 0;
-  padding: 20px;
-  border-radius: 12px;
-  background: #f8f9fa;
-  transition: all 0.3s ease;
-  border: 1px solid #e4e7ed;
-
-  &:hover {
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
-  }
-
-  h4 {
-    margin-bottom: 16px;
-    font-size: 16px;
-    font-weight: 600;
-    color: #2c3e50;
-
-    &.correct {
-      color: #8b5cf6;
-      border-left: 4px solid #8b5cf6;
-      padding-left: 12px;
+  
+  .result-item {
+    margin-bottom: 24px;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    border: 1px solid rgba(228, 231, 237, 0.5);
+    
+    .result-question {
+      h4 {
+        margin: 0 0 16px;
+        font-size: 18px;
+        color: #2c3e50;
+        
+        &.correct {
+          color: #8b5cf6;
+        }
+        
+        &.incorrect {
+          color: #ef4444;
+        }
+      }
+      
+      .result-tag {
+        float: right;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        
+        .correct & {
+          background: #f0e6ff;
+          color: #8b5cf6;
+        }
+        
+        .incorrect & {
+          background: #fee2e2;
+          color: #ef4444;
+        }
+      }
     }
-
-    &.incorrect {
-      color: #ef4444;
-      border-left: 4px solid #ef4444;
-      padding-left: 12px;
+    
+    .answer-section {
+      margin: 16px 0;
+      
+      .correct-answer,
+      .user-answer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        
+        .label {
+          color: #6b7280;
+          font-weight: 500;
+        }
+        
+        .value {
+          color: #2c3e50;
+        }
+        
+        .score-delta {
+          margin-left: auto;
+          color: #8b5cf6;
+          font-weight: 600;
+        }
+      }
     }
-
-    &.invalid-question {
+    
+    .result-message {
       color: #6b7280;
-      border-left: 4px solid #6b7280;
-      padding-left: 12px;
+      font-size: 14px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      margin-top: 12px;
     }
   }
-}
-
-.result-tag {
-  float: right;
-  font-size: 0.85em;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-weight: 500;
-
-  .correct & {
-    background: #f0e6ff;
-    color: #8b5cf6;
-  }
-
-  .incorrect & {
-    background: #fee2e2;
-    color: #ef4444;
-  }
-
-  .invalid-question & {
-    background: #f3f4f6;
-    color: #6b7280;
-  }
-}
-
-.correct-answer {
-  color: #8b5cf6;
-  margin: 8px 0;
-  font-weight: 500;
-
-  .score-delta {
-    margin-left: 12px;
-    color: #6d28d9;
-    font-weight: 600;
-  }
-}
-
-.user-answer {
-  color: #4b5563;
-  margin: 8px 0;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e4e7ed;
-}
-
-.result-message {
-  color: #6b7280;
-  font-size: 0.95em;
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e4e7ed;
 }
 
 :deep(.el-radio),
 :deep(.el-checkbox) {
-  margin-right: 24px;
-  margin-bottom: 16px;
-  
-  .el-radio__label,
-  .el-checkbox__label {
-    color: #4b5563;
-  }
+  margin-right: 16px;
+  margin-bottom: 12px;
   
   &.is-checked {
-    .el-radio__label,
-    .el-checkbox__label {
+    .option-content {
+      background: #f0e6ff;
       color: #8b5cf6;
     }
   }
@@ -854,28 +1078,8 @@ onUnmounted(() => {
   border-color: #8b5cf6;
 }
 
-:deep(.el-radio__input.is-checked + .el-radio__label),
-:deep(.el-checkbox__input.is-checked + .el-checkbox__label) {
-  color: #8b5cf6;
-}
-
-:deep(.el-radio__inner:hover),
-:deep(.el-checkbox__inner:hover) {
-  border-color: #8b5cf6;
-}
-
-:deep(.el-radio__input.is-focus .el-radio__inner),
-:deep(.el-checkbox__input.is-focus .el-checkbox__inner) {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
-}
-
 :deep(.el-form-item) {
-  margin-bottom: 28px;
-}
-
-:deep(.el-form-item__label) {
-  color: #4b5563;
+  margin-bottom: 24px;
 }
 
 :deep(.el-form-item__error) {

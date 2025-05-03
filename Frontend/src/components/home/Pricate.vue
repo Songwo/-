@@ -69,6 +69,37 @@
         </el-col>
       </el-row>
     </div>
+
+    <!-- 代码示例分区 -->
+    <div class="code-examples-section">
+      <h2>加解密代码示例</h2>
+      <el-row :gutter="20">
+        <el-col :span="8" v-for="example in codeExamples" :key="example.name">
+          <el-card class="code-card">
+            <div class="code-header">
+              <Icon :icon="example.icon" class="code-icon" />
+              <h3>{{ example.name }}</h3>
+            </div>
+            <p class="code-description">{{ example.description }}</p>
+            <div class="code-languages">
+              <el-tag v-for="lang in example.languages" :key="lang" class="language-tag">
+                {{ lang }}
+              </el-tag>
+            </div>
+            <div class="code-actions">
+              <el-button type="primary" @click="downloadCode(example)">
+                <el-icon><Download /></el-icon>
+                下载代码
+              </el-button>
+              <el-button type="success" @click="viewCode(example)">
+                <el-icon><View /></el-icon>
+                查看代码
+              </el-button>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
   </div>
 </template>
 
@@ -76,10 +107,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Download, View } from '@element-plus/icons-vue'
 import axios from 'axios'
 import ToUrl from '@/api/api.ts'
 import store from '@/store'
+import { ElMessage } from 'element-plus'
 
 const searchQuery = ref('')
 const router = useRouter()
@@ -160,6 +192,12 @@ const hotTools = ref([
     link: '/cms' 
   },
   { 
+    name: '子域名查询', 
+    description: '在线子域名查询工具', 
+    icon: 'mdi:domain',
+    link: '/subdomain' 
+  },
+  { 
     name: 'IP查询', 
     description: '在线IP信息查询工具', 
     icon: 'mdi:ip-network',
@@ -169,7 +207,7 @@ const hotTools = ref([
     name: '密码强度检测', 
     description: '密码强度检测工具', 
     icon: 'mdi:shield-lock',
-    link: '/CheckPwd' 
+    link: '/root/CheckPwd' 
   }
 ])
 
@@ -179,6 +217,13 @@ const tools = ref([
     description: '在线CMS指纹识别工具', 
     icon: 'mdi:shield-search',
     link: '/cms',
+    category: 'scan'
+  },
+  { 
+    name: '子域名查询', 
+    description: '在线子域名查询工具', 
+    icon: 'mdi:domain',
+    link: '/subdomain',
     category: 'scan'
   },
   { 
@@ -208,6 +253,32 @@ const tools = ref([
     icon: 'mdi:shield-lock',
     link: '/CheckPwd',
     category: 'analysis'
+  },
+  {
+    name: '端口扫描工具',
+    description: '在线端口扫描工具',
+    icon: 'mdi:network-outline',
+    link: '/portscan',
+    category: 'scan'
+  },
+  {
+    name: 'URL编码工具',
+    description: '在线URL编码工具',
+    icon: 'mdi:link-variant',
+    link: '/urlencode',
+  },
+  {
+    name: '凯撒密码工具',
+    description: '在线凯撒密码工具',
+    icon: 'mdi:lock-outline',
+    link: '/caesar',
+    category: 'encode'
+  },
+  {
+    name: 'Unicode编码工具',
+    description: '在线Unicode编码工具',
+    icon: 'mdi:unicode',
+    link: '/unicode',
   }
 ])
 
@@ -221,7 +292,13 @@ const filteredTools = computed(() => {
 })
 
 const goToTool = (url) => {
-  router.push('/root' + url)
+  const token = store.state.token;
+  if (!token || token === 'null' || token === '') {
+    ElMessage.warning('请先登录后使用此功能');
+    router.push('/');
+    return;
+  }
+  router.push('/root' + url);
 }
 
 const increaseUserCount = async () => {
@@ -233,6 +310,219 @@ const increaseUserCount = async () => {
   } catch (error) {
     console.error('Failed to increase user count:', error)
   }
+}
+
+// 代码示例数据
+const codeExamples = ref([
+  {
+    name: 'AES加密',
+    description: '高级加密标准(AES)实现，支持128/192/256位密钥',
+    icon: 'mdi:lock',
+    languages: ['Java', 'Python', 'JavaScript'],
+    code: {
+      Java: `import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.Base64;
+
+public class AESEncryption {
+    private static final String ALGORITHM = "AES";
+    
+    public static String encrypt(String data, String key) throws Exception {
+        SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), ALGORITHM);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        byte[] encryptedBytes = cipher.doFinal(data.getBytes());
+        return Base64.getEncoder().encodeToString(encryptedBytes);
+    }
+    
+    public static String decrypt(String encryptedData, String key) throws Exception {
+        SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), ALGORITHM);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+        byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+        return new String(decryptedBytes);
+    }
+}`,
+      Python: `from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+import base64
+
+def encrypt(data, key):
+    cipher = AES.new(key.encode(), AES.MODE_CBC)
+    ct_bytes = cipher.encrypt(pad(data.encode(), AES.block_size))
+    iv = base64.b64encode(cipher.iv).decode('utf-8')
+    ct = base64.b64encode(ct_bytes).decode('utf-8')
+    return iv + ':' + ct
+
+def decrypt(encrypted_data, key):
+    iv, ct = encrypted_data.split(':')
+    iv = base64.b64decode(iv)
+    ct = base64.b64decode(ct)
+    cipher = AES.new(key.encode(), AES.MODE_CBC, iv)
+    pt = unpad(cipher.decrypt(ct), AES.block_size)
+    return pt.decode()`,
+      JavaScript: `const crypto = require('crypto');
+
+function encrypt(text, key) {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(key), iv);
+    let encrypted = cipher.update(text);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decrypt(text, key) {
+    const [ivHex, encryptedHex] = text.split(':');
+    const iv = Buffer.from(ivHex, 'hex');
+    const encrypted = Buffer.from(encryptedHex, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key), iv);
+    let decrypted = decipher.update(encrypted);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+}`
+    }
+  },
+  {
+    name: 'RSA加密',
+    description: 'RSA非对称加密实现，支持密钥生成和加解密',
+    icon: 'mdi:key-variant',
+    languages: ['Java', 'Python', 'JavaScript'],
+    code: {
+      Java: `import javax.crypto.Cipher;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.util.Base64;
+
+public class RSAEncryption {
+    private static final String ALGORITHM = "RSA";
+    
+    public static KeyPair generateKeyPair() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance(ALGORITHM);
+        generator.initialize(2048);
+        return generator.generateKeyPair();
+    }
+    
+    public static String encrypt(String data, PublicKey publicKey) throws Exception {
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        byte[] encryptedBytes = cipher.doFinal(data.getBytes());
+        return Base64.getEncoder().encodeToString(encryptedBytes);
+    }
+    
+    public static String decrypt(String encryptedData, PrivateKey privateKey) throws Exception {
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+        return new String(decryptedBytes);
+    }
+}`,
+      Python: `from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+import base64
+
+def generate_keys():
+    key = RSA.generate(2048)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
+    return private_key, public_key
+
+def encrypt(data, public_key):
+    key = RSA.import_key(public_key)
+    cipher = PKCS1_OAEP.new(key)
+    encrypted = cipher.encrypt(data.encode())
+    return base64.b64encode(encrypted).decode()
+
+def decrypt(encrypted_data, private_key):
+    key = RSA.import_key(private_key)
+    cipher = PKCS1_OAEP.new(key)
+    decrypted = cipher.decrypt(base64.b64decode(encrypted_data))
+    return decrypted.decode()`,
+      JavaScript: `const crypto = require('crypto');
+
+function generateKeyPair() {
+    return crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: {
+            type: 'spki',
+            format: 'pem'
+        },
+        privateKeyEncoding: {
+            type: 'pkcs8',
+            format: 'pem'
+        }
+    });
+}
+
+function encrypt(text, publicKey) {
+    const buffer = Buffer.from(text, 'utf8');
+    const encrypted = crypto.publicEncrypt(publicKey, buffer);
+    return encrypted.toString('base64');
+}
+
+function decrypt(encrypted, privateKey) {
+    const buffer = Buffer.from(encrypted, 'base64');
+    const decrypted = crypto.privateDecrypt(privateKey, buffer);
+    return decrypted.toString('utf8');
+}`
+    }
+  },
+  {
+    name: 'MD5哈希',
+    description: 'MD5消息摘要算法实现，用于数据完整性校验',
+    icon: 'mdi:function-variant',
+    languages: ['Java', 'Python', 'JavaScript'],
+    code: {
+      Java: `import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+public class MD5Hash {
+    public static String hash(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] messageDigest = md.digest(input.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : messageDigest) {
+                hexString.append(String.format("%02x", b));
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}`,
+      Python: `import hashlib
+
+def md5_hash(text):
+    return hashlib.md5(text.encode()).hexdigest()`,
+      JavaScript: `const crypto = require('crypto');
+
+function md5Hash(text) {
+    return crypto.createHash('md5').update(text).digest('hex');
+}`
+    }
+  }
+])
+
+// 下载代码
+const downloadCode = (example) => {
+  const blob = new Blob([JSON.stringify(example.code, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${example.name}_code_examples.json`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  ElMessage.success('代码示例已下载')
+}
+
+// 查看代码
+const viewCode = (example) => {
+  // 这里可以打开一个对话框显示代码
+  ElMessage.info('代码查看功能即将推出')
 }
 </script>
 
@@ -336,6 +626,7 @@ const increaseUserCount = async () => {
   margin: 10px;
   border: 1px solid #ebeef5;
   position: relative;
+  overflow: visible;
 }
 
 .tool-card.hot {
@@ -345,12 +636,15 @@ const increaseUserCount = async () => {
 .hot-badge {
   position: absolute;
   top: -10px;
-  right: 10px;
+  right: -10px;
   background: #e6a23c;
   color: white;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 4px 12px;
+  border-radius: 15px;
   font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 1;
 }
 
 .tool-card:hover {
@@ -391,6 +685,72 @@ p {
 
 .el-row {
   margin-top: 40px;
+  justify-content: center;
+}
+
+.tool-card :deep(.el-button) {
+  background-color: white;
+  color: #9c27b0;
+  border: 1px solid #9c27b0;
+}
+
+.tool-card :deep(.el-button:hover) {
+  background-color: #9c27b0;
+  color: white;
+}
+
+.code-examples-section {
+  margin-top: 40px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
+  border-radius: 10px;
+}
+
+.code-examples-section h2 {
+  text-align: center;
+  color: #303133;
+  margin-bottom: 30px;
+}
+
+.code-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.code-icon {
+  font-size: 24px;
+  color: #9c27b0;
+}
+
+.code-description {
+  color: #606266;
+  margin-bottom: 15px;
+  flex-grow: 1;
+}
+
+.code-languages {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.language-tag {
+  background-color: #f0f2f5;
+  border: none;
+}
+
+.code-actions {
+  display: flex;
+  gap: 10px;
   justify-content: center;
 }
 </style>

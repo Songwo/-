@@ -160,8 +160,22 @@ import axios from 'axios'
 import store from '@/store' // 假设使用 Vuex store 获取 token
 import ToUrl from '@/api/api' // 假设这里导出包含基础 URL 的对象
 
+// 导入封面图片
+import poster1 from '@/assets/VedioFm/poster1.jpg'
+import poster2 from '@/assets/VedioFm/poster2.jpg'
+import poster3 from '@/assets/VedioFm/poster3.jpg'
+import poster4 from '@/assets/VedioFm/poster4.jpg'
+import poster5 from '@/assets/VedioFm/poster5.jpg'
+
 // --- 配置 ---
-const DEFAULT_POSTER = '/img/default_poster.jpg'; // 定义默认封面图路径
+const DEFAULT_POSTERS = [
+  poster1,
+  poster2,
+  poster3,
+  poster4,
+  poster5
+]; // 定义默认封面图数组
+const DEFAULT_POSTER = poster1; // 使用导入的图片作为默认封面
 const BASE_AVATAR_URL = ToUrl.url ? ToUrl.url + '/avatar' : ''; // 封面图基础 URL
 
 // --- 响应式数据 ---
@@ -198,9 +212,14 @@ const getVideoPoster = (video) => {
 
   const imagePath = video.imageurl || '';
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || !BASE_AVATAR_URL) {
-      return imagePath || DEFAULT_POSTER; // 如果是完整 URL 或无 Base URL，直接使用
+      return imagePath || getRandomPoster(); // 如果没有指定封面，使用随机封面
   }
   return `${BASE_AVATAR_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`; // 拼接 Base URL
+};
+
+const getRandomPoster = () => {
+  const randomIndex = Math.floor(Math.random() * DEFAULT_POSTERS.length);
+  return DEFAULT_POSTERS[randomIndex];
 };
 
 const getVideoUrl = (video) => {
@@ -390,9 +409,8 @@ watch(() => store?.state?.token, (newToken, oldToken) => {
 /* --- 通用容器 --- */
 .video-container {
   padding: 25px 30px;
-  background: linear-gradient(135deg, #769fcd 0%, #b9d7ea 100%); /* 更柔和的蓝调 */
+  background: transparent; /* 改为透明背景 */
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   color: #333;
   min-height: calc(100vh - 100px); /* 确保有最小高度 */
 }
@@ -404,7 +422,7 @@ watch(() => store?.state?.token, (newToken, oldToken) => {
   align-items: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5); /* 更明显的分割线 */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2); /* 调整分割线透明度 */
 }
 
 .header h2 {
@@ -412,7 +430,7 @@ watch(() => store?.state?.token, (newToken, oldToken) => {
   font-weight: 600;
   font-size: 1.8em;
   margin: 0;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2); /* 更柔和的阴影 */
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .search-input {
@@ -624,8 +642,8 @@ watch(() => store?.state?.token, (newToken, oldToken) => {
 
 .related-videos-section, .introduction-section {
   margin-top: 45px;
-  padding: 30px; /* 增加内边距 */
-  background-color: rgba(0, 0, 0, 0.07); /* 统一的淡色背景 */
+  padding: 30px;
+  background-color: rgba(0, 0, 0, 0.05); /* 降低背景透明度 */
   border-radius: 10px;
 }
 
@@ -643,7 +661,7 @@ watch(() => store?.state?.token, (newToken, oldToken) => {
 
 /* --- 简介区块 --- */
 .introduction-section {
-  background-color: rgba(255, 255, 255, 0.9); /* 更亮的背景 */
+  background-color: rgba(255, 255, 255, 0.8); /* 降低背景透明度 */
   color: #343a40;
 }
 .introduction-section .intro-title {

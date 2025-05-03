@@ -14,8 +14,8 @@
       </div>
       <!-- 导航菜单 -->
       <el-menu class="menu" mode="horizontal" :default-active="activeMenu" :class="{ 'mobile-menu': isMobileMenuOpen }">
-        <el-menu-item v-for="(label, index) in menuItems" :key="index" :index="index">
-          <RouterLink :to="`/root/${index}`" class="router-link">{{ label }}</RouterLink>
+        <el-menu-item v-for="(item, key) in filteredMenuItems" :key="key" :index="key">
+          <RouterLink :to="`/root/${key}`" class="router-link">{{ item.label }}</RouterLink>
         </el-menu-item>
         <!-- 更多菜单项下的下拉菜单 -->
         <el-menu-item class="more">
@@ -24,7 +24,7 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="downloadApp">App端下载</el-dropdown-item>
-                <el-dropdown-item @click="aiAnswer">AI智能解答</el-dropdown-item>
+                <el-dropdown-item v-if="isLoggedIn" @click="aiAnswer">AI智能解答</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -32,18 +32,25 @@
       </el-menu>
 
       <!-- User Info -->
-      <el-dropdown class="user-dropdown" trigger="click">
-        <span class="user-info">
-          <el-avatar :src="at.avatar" size="32" class="user-avatar" />
-          你好，{{ at.user }}
-        </span>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item @click="Mine">个人信息</el-dropdown-item>
-            <el-dropdown-item @click="laout">退出</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+      <template v-if="isLoggedIn">
+        <el-dropdown class="user-dropdown" trigger="click">
+          <span class="user-info">
+            <el-avatar :src="at.avatar" size="32" class="user-avatar" />
+            你好，{{ at.user }}
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="Mine">个人信息</el-dropdown-item>
+              <el-dropdown-item @click="laout">退出</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </template>
+      <template v-else>
+        <div class="login-buttons">
+          <el-button type="primary" @click="goToLogin">登录</el-button>
+        </div>
+      </template>
     </el-header>
 
     <!-- Main Content -->
@@ -88,7 +95,6 @@ const toggleMobileMenu = () => {
 const route = useRoute()
 const router = useRouter()
 const store = useStore()
-const app_url = ToUrl.url
 
 // 动态加载用户名
 const at = computed(() => ({
@@ -97,19 +103,35 @@ const at = computed(() => ({
   avatar: `${ToUrl.url}/${store.state.avatar}`
 }))
 
-// 菜单项
+// 判断是否登录
+const isLoggedIn = computed(() => {
+  return store.state.token && store.state.token !== 'null' && store.state.token !== '';
+});
+
+// 菜单项定义
 const menuItems = {
-  home: '首页',
-  pricate: '实战练习',
-  atack: '攻防课程',
-  bughole: '漏洞库',
-  ConunityTalk: '社区论坛',
-  Question: '答题测试',
-  sortMine: '个人排名',
-  reward: '奖励页面',
-  game: '游戏学习',
-  aboutUs: '关于我们'
-}
+  home: { label: '首页', requireAuth: false },
+  pricate: { label: '实战工具', requireAuth: true },
+  atack: { label: '攻防课程', requireAuth: true },
+  bughole: { label: '漏洞库', requireAuth: false },
+  ConunityTalk: { label: '社区论坛', requireAuth: false },
+  Question: { label: '答题测试', requireAuth: true },
+  sortMine: { label: '个人排名', requireAuth: true },
+  reward: { label: '奖励页面', requireAuth: true },
+  game: { label: '游戏学习', requireAuth: true },
+  aboutUs: { label: '关于我们', requireAuth: false }
+};
+
+// 根据登录状态过滤菜单项
+const filteredMenuItems = computed(() => {
+  const filtered = {};
+  Object.entries(menuItems).forEach(([key, item]) => {
+    if (!item.requireAuth || isLoggedIn.value) {
+      filtered[key] = item;
+    }
+  });
+  return filtered;
+});
 
 // 根据当前路由路径返回匹配的菜单 index
 const activeMenu = computed(() => {
@@ -156,11 +178,19 @@ const downloadApp = () => {
   window.open('/root/app', 'App_down')
 }
 
-// AI智能解答
+// 前往登录页
+const goToLogin = () => {
+  router.push('/login');
+};
+
+// 修改 AI 智能解答方法
 const aiAnswer = () => {
-  // ElMessage.success('进入AI智能解答页面')
-  router.push('/root/chat-wacyg')
-}
+  if (!isLoggedIn.value) {
+    ElMessage.warning('请先登录后使用此功能');
+    return;
+  }
+  router.push('/root/chat-wacyg');
+};
 </script>
 
 <style scoped>
@@ -472,5 +502,24 @@ const aiAnswer = () => {
 .disclaimer {
   color: rgba(255, 255, 255, 0.6);
   font-size: 11px;
+}
+
+.login-buttons {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  padding-right: 20px;
+}
+
+.login-buttons .el-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.login-buttons .el-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
 }
 </style>

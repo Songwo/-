@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- 首页 -->
+  <url>
+    <loc>http://www.wacyg.fun/</loc>
+    <lastmod>2024-05-03</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <!-- 登录/注册页 -->
+  <url>
+    <loc>http://www.wacyg.fun/login</loc>
+    <lastmod>2024-05-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 首页子页面 -->
+  <url>
+    <loc>http://www.wacyg.fun/root/home</loc>
+    <lastmod>2024-05-03</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- 关于我们 -->
+  <url>
+    <loc>http://www.wacyg.fun/root/aboutUs</loc>
+    <lastmod>2024-05-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- 漏洞库 -->
+  <url>
+    <loc>http://www.wacyg.fun/root/bughole</loc>
+    <lastmod>2024-05-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 社区论坛 -->
+  <url>
+    <loc>http://www.wacyg.fun/root/ConunityTalk</loc>
+    <lastmod>2024-05-03</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- App下载 -->
+  <url>
+    <loc>http://www.wacyg.fun/root/app</loc>
+    <lastmod>2024-05-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset> 

@@ -95,6 +95,17 @@
             <span>奖励管理</span>
           </el-menu-item>
         </RouterLink>
+
+        <!-- 公告管理 -->
+        <RouterLink :to="announcementPath" class="router-link">
+          <el-menu-item index="9">
+            <el-icon>
+              <EditPen />
+            </el-icon>
+            <span>公告管理</span>
+          </el-menu-item>
+        </RouterLink>
+
       </el-menu>
     </el-aside>
 
@@ -135,7 +146,7 @@ const bugPath = ref('/backMange/bug');
 const categoryPath = ref('/backMange/category');
 const questionPath = ref('/backMange/ques');
 const rewardPath = ref('/backMange/reword');
-
+const announcementPath = ref('/backMange/announcement');
 // 头像动态绑定
 const xava = ref("");  // 从 store 获取头像路径
 xava.value=store.state.avatar;
@@ -163,6 +174,8 @@ const activeMenu = computed(() => {
       return '7';
     case '/backMange/reword':
       return '8';
+    case '/backMange/announcement':
+      return '9';
     default:
       return '1';  // 默认激活第一个菜单
   }

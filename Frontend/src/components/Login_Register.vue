@@ -8,6 +8,9 @@
             <div class="cyber-line"></div>
           </div>
 
+          <!-- 添加返回首页按钮 -->
+          <el-button class="back-home-btn" @click="goToHome">返回首页</el-button>
+
           <!-- 登录表单 -->
           <el-form v-if="isLogin" :model="loginForm" :rules="loginRules" ref="loginFormRef"
             @submit.prevent="handleLogin">
@@ -302,6 +305,11 @@ const handleRegister = async () => {
     loading.value = false;
   }
 };
+
+// 添加返回首页方法
+const goToHome = () => {
+  router.push('/root/home');
+};
 </script>
 
 <style scoped lang="scss">
@@ -457,5 +465,23 @@ const handleRegister = async () => {
 .fade-transform-leave-to {
   opacity: 0;
   transform: translateX(30px);
+}
+
+.back-home-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(102, 126, 234, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  &:hover {
+    background: rgba(102, 126, 234, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
 }
 </style>

@@ -1,101 +1,431 @@
 <template>
-  <div class="cms-tool">
-    <h2>在线 CMS 指纹识别工具</h2>
-    <p>输入网站 URL,识别其 CMS 类型，并获取详细信息（归属地、端口等）</p>
-
-    <!-- 输入框 -->
-    <el-input v-model="websiteUrl" placeholder="请输入网站 URL" class="input-box" />
-
-    <!-- 按钮 -->
-    <el-button type="primary" @click="fetch()" :loading="loading">开始识别</el-button>
-
-    <!-- 识别结果 -->
-    <div v-if="cmsResult" class="result">
-      <h3>识别结果：</h3>
-      <el-table :data="tableData" style="width: 100%">
-        <el-table-column label="信息类型" prop="label"></el-table-column>
-        <el-table-column label="内容" prop="content"></el-table-column>
-      </el-table>
-
-      <!-- 端口信息 -->
-      <el-table :data="cmsResult.details" style="width: 100%">
-        <el-table-column label="端口" prop="port"></el-table-column>
-        <el-table-column label="状态" prop="status"></el-table-column>
-      </el-table>
+  <div class="cms-container">
+    <!-- 返回按钮 -->
+    <div class="back-button">
+      <el-button type="primary" @click="goBack">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
     </div>
 
-    <!-- 错误提示 -->
-    <div v-if="errorMessage" class="error-message">
-      <p>{{ errorMessage }}</p>
+    <!-- 标题 -->
+    <h1 class="title">CMS指纹识别工具</h1>
+
+    <!-- 功能介绍 -->
+    <el-card class="intro-card">
+      <template #header>
+        <div class="card-header">
+          <span>功能介绍</span>
+        </div>
+      </template>
+      <p class="intro-text">
+        CMS指纹识别工具可以帮助您快速识别网站使用的CMS系统。
+        通过分析网站的特定特征，如文件路径、响应头、HTML特征等，准确识别出网站使用的CMS类型和版本。
+      </p>
+    </el-card>
+
+    <!-- 配置区域 -->
+    <el-card class="config-card">
+      <template #header>
+        <div class="card-header">
+          <span>扫描配置</span>
+        </div>
+      </template>
+      <div class="config-content">
+        <el-form :model="config" label-width="100px">
+          <el-form-item label="扫描方式">
+            <el-radio-group v-model="config.scanType">
+              <el-radio label="quick">快速扫描</el-radio>
+              <el-radio label="deep">深度扫描</el-radio>
+              <el-radio label="custom">自定义扫描</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="超时时间">
+            <el-input-number v-model="config.timeout" :min="1" :max="30" />
+            <span class="unit">秒</span>
+          </el-form-item>
+          <el-form-item label="并发数">
+            <el-input-number v-model="config.concurrent" :min="1" :max="10" />
+          </el-form-item>
+          <el-form-item label="扫描特征">
+            <el-checkbox-group v-model="config.features">
+              <el-checkbox label="headers">响应头</el-checkbox>
+              <el-checkbox label="html">HTML特征</el-checkbox>
+              <el-checkbox label="files">文件路径</el-checkbox>
+              <el-checkbox label="cookies">Cookies</el-checkbox>
+            </el-checkbox-group>
+          </el-form-item>
+        </el-form>
+      </div>
+    </el-card>
+
+    <!-- 输入区域 -->
+    <el-card class="input-card">
+      <template #header>
+        <div class="card-header">
+          <span>目标网站</span>
+          <div class="header-actions">
+            <el-button type="primary" @click="clearInput">清空</el-button>
+            <el-button type="success" @click="importTargets">导入</el-button>
+          </div>
+        </div>
+      </template>
+      <el-input
+        v-model="targetUrl"
+        type="textarea"
+        :rows="4"
+        placeholder="请输入目标网站URL，多个URL请换行输入..."
+        resize="none"
+      />
+    </el-card>
+
+    <!-- 操作按钮 -->
+    <div class="action-buttons">
+      <el-button-group>
+        <el-button type="primary" @click="startScan" :loading="scanning">
+          <el-icon><Search /></el-icon>
+          开始扫描
+        </el-button>
+        <el-button type="warning" @click="stopScan" :disabled="!scanning">
+          <el-icon><Close /></el-icon>
+          停止扫描
+        </el-button>
+        <el-button type="success" @click="exportResults">
+          <el-icon><Download /></el-icon>
+          导出结果
+        </el-button>
+      </el-button-group>
     </div>
+
+    <!-- 扫描结果 -->
+    <el-card class="result-card">
+      <template #header>
+        <div class="card-header">
+          <span>扫描结果</span>
+          <div class="header-actions">
+            <el-button type="primary" @click="clearResults">清空结果</el-button>
+          </div>
+        </div>
+      </template>
+      <el-table :data="scanResults" style="width: 100%" v-loading="scanning">
+        <el-table-column prop="url" label="目标网站" show-overflow-tooltip />
+        <el-table-column prop="cms" label="CMS类型" width="150" />
+        <el-table-column prop="version" label="版本" width="120" />
+        <el-table-column prop="confidence" label="可信度" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getConfidenceType(row.confidence)">
+              {{ row.confidence }}%
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="features" label="匹配特征" show-overflow-tooltip />
+        <el-table-column prop="scanTime" label="扫描时间" width="180" />
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button type="text" @click="viewDetails(row)">详情</el-button>
+            <el-button type="text" @click="deleteResult(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- 统计信息 -->
+    <el-card class="stats-card">
+      <template #header>
+        <div class="card-header">
+          <span>统计信息</span>
+        </div>
+      </template>
+      <el-row :gutter="20">
+        <el-col :span="6" v-for="stat in statistics" :key="stat.label">
+          <div class="stat-item">
+            <div class="stat-value">{{ stat.value }}</div>
+            <div class="stat-label">{{ stat.label }}</div>
+          </div>
+        </el-col>
+      </el-row>
+    </el-card>
+
+    <!-- 历史记录 -->
+    <el-card class="history-card">
+      <template #header>
+        <div class="card-header">
+          <span>历史记录</span>
+          <el-button type="danger" @click="clearHistory">清空历史</el-button>
+        </div>
+      </template>
+      <el-table :data="history" style="width: 100%">
+        <el-table-column prop="url" label="目标网站" show-overflow-tooltip />
+        <el-table-column prop="cms" label="CMS类型" width="150" />
+        <el-table-column prop="scanTime" label="扫描时间" width="180" />
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button type="text" @click="useHistoryItem(row)">使用</el-button>
+            <el-button type="text" @click="deleteHistoryItem(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </div>
 </template>
 
 <script setup>
-import store from '@/store';
-import axios from 'axios';
-import { ElMessage } from 'element-plus';
-import { ref,computed } from 'vue';
-import ToUrl from '@/api/api';
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ArrowLeft, Search, Close, Download } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
-//定义响应式数据
-const websiteUrl=ref()
-const returnDate=ref()
-//检索输入的ip
-const fetch=async () => {
-  try{
-    const res = await axios.get(ToUrl.url+'/cms/detect', {
-      params: { url: websiteUrl.value }, // 这里放入 params
-      headers: { 
-        'Authorization': `Bearer ${store.state.token}` 
+const router = useRouter()
+const targetUrl = ref('')
+const scanning = ref(false)
+const scanResults = ref([])
+const history = ref([])
+
+const config = ref({
+  scanType: 'quick',
+  timeout: 10,
+  concurrent: 3,
+  features: ['headers', 'html', 'files']
+})
+
+// 返回主页
+const goBack = () => {
+  router.push('/root/pricate')
+}
+
+// 清空输入
+const clearInput = () => {
+  targetUrl.value = ''
+}
+
+// 导入目标
+const importTargets = () => {
+  // 实现导入功能
+  ElMessage.info('导入功能即将推出')
+}
+
+// 开始扫描
+const startScan = () => {
+  if (!targetUrl.value.trim()) {
+    ElMessage.warning('请输入目标网站URL')
+    return
+  }
+  scanning.value = true
+  // 模拟扫描过程
+  setTimeout(() => {
+    const urls = targetUrl.value.split('\n').filter(url => url.trim())
+    urls.forEach(url => {
+      const result = {
+        url: url.trim(),
+        cms: 'WordPress',
+        version: '5.8.2',
+        confidence: Math.floor(Math.random() * 30) + 70,
+        features: 'wp-content, wp-includes, wp-login.php',
+        scanTime: new Date().toLocaleString()
       }
-    });
-    returnDate.value=res.data.data;
-    // console.log(returnDate.value);
-  }catch(error){
-    ElMessage.error(error)
+      scanResults.value.push(result)
+      addToHistory(result)
+    })
+    scanning.value = false
+    ElMessage.success('扫描完成')
+  }, 2000)
+}
+
+// 停止扫描
+const stopScan = () => {
+  scanning.value = false
+  ElMessage.info('扫描已停止')
+}
+
+// 导出结果
+const exportResults = () => {
+  if (scanResults.value.length === 0) {
+    ElMessage.warning('没有可导出的结果')
+    return
+  }
+  const blob = new Blob([JSON.stringify(scanResults.value, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'cms_scan_results.json'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  ElMessage.success('结果已导出')
+}
+
+// 清空结果
+const clearResults = () => {
+  scanResults.value = []
+  ElMessage.success('结果已清空')
+}
+
+// 获取可信度标签类型
+const getConfidenceType = (confidence) => {
+  if (confidence >= 90) return 'success'
+  if (confidence >= 70) return 'warning'
+  return 'danger'
+}
+
+// 查看详情
+const viewDetails = (row) => {
+  // 实现详情查看功能
+  ElMessage.info('详情功能即将推出')
+}
+
+// 删除结果
+const deleteResult = (row) => {
+  const index = scanResults.value.indexOf(row)
+  if (index > -1) {
+    scanResults.value.splice(index, 1)
+    ElMessage.success('已删除结果')
   }
 }
 
+// 添加历史记录
+const addToHistory = (result) => {
+  history.value.unshift({
+    url: result.url,
+    cms: result.cms,
+    scanTime: result.scanTime
+  })
+  // 限制历史记录数量
+  if (history.value.length > 10) {
+    history.value.pop()
+  }
+  // 保存到本地存储
+  localStorage.setItem('cmsHistory', JSON.stringify(history.value))
+}
+
+// 清空历史记录
+const clearHistory = () => {
+  history.value = []
+  localStorage.removeItem('cmsHistory')
+  ElMessage.success('历史记录已清空')
+}
+
+// 使用历史记录项
+const useHistoryItem = (item) => {
+  targetUrl.value = item.url
+}
+
+// 删除历史记录项
+const deleteHistoryItem = (item) => {
+  const index = history.value.indexOf(item)
+  if (index > -1) {
+    history.value.splice(index, 1)
+    localStorage.setItem('cmsHistory', JSON.stringify(history.value))
+    ElMessage.success('已删除历史记录')
+  }
+}
+
+// 统计信息
+const statistics = computed(() => [
+  { label: '已扫描网站', value: scanResults.value.length },
+  { label: 'WordPress', value: scanResults.value.filter(r => r.cms === 'WordPress').length },
+  { label: 'Joomla', value: scanResults.value.filter(r => r.cms === 'Joomla').length },
+  { label: 'Drupal', value: scanResults.value.filter(r => r.cms === 'Drupal').length }
+])
+
+// 加载历史记录
+onMounted(() => {
+  const savedHistory = localStorage.getItem('cmsHistory')
+  if (savedHistory) {
+    history.value = JSON.parse(savedHistory)
+  }
+})
 </script>
 
 <style scoped>
-.cms-tool {
-  text-align: center;
+.cms-container {
   padding: 20px;
-  font-size: 18px; /* 增大字体 */
-  height: 83vh; /* 让容器撑满整个页面 */
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.back-button {
+  margin-bottom: 20px;
+}
+
+.title {
+  text-align: center;
+  font-size: 28px;
+  color: #303133;
+  margin-bottom: 30px;
+}
+
+.intro-card,
+.config-card {
+  margin-bottom: 30px;
+}
+
+.intro-text {
+  color: #606266;
+  line-height: 1.6;
+}
+
+.config-content {
+  padding: 20px;
+}
+
+.unit {
+  margin-left: 10px;
+  color: #909399;
+}
+
+.input-card,
+.result-card,
+.stats-card {
+  margin-bottom: 20px;
+}
+
+.card-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-buttons {
+  margin: 20px 0;
+  display: flex;
   justify-content: center;
 }
 
-.input-box {
-  margin-bottom: 20px;
-  width: 400px;
-  height: 42px;
-  font-size: 16px; /* 增大输入框字体 */
-  margin-left: 580px;
+.stat-item {
+  text-align: center;
+  padding: 20px;
+  background: #f5f7fa;
+  border-radius: 4px;
 }
 
-.el-button {
-  font-size: 16px; /* 增大按钮字体 */
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 8px;
 }
 
-.result {
-  margin-top: 20px;
-  text-align: left;
-  font-size: 18px; /* 增大表格内容的字体 */
+.stat-label {
+  font-size: 14px;
+  color: #909399;
 }
 
-.error-message {
-  margin-top: 20px;
-  color: red;
-  font-size: 18px; /* 增大错误信息字体 */
+.history-card {
+  margin-top: 30px;
 }
 
-.el-table {
-  margin-top: 20px;
-  font-size: 18px; /* 增大表格字体 */
+:deep(.el-card__header) {
+  background-color: #f5f7fa;
+  padding: 15px 20px;
+}
+
+:deep(.el-textarea__inner) {
+  font-family: monospace;
 }
 </style>

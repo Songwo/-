@@ -1,6 +1,7 @@
 package com.bmgf.controller;
 import com.bmgf.po.Comment;
 import com.bmgf.po.Result;
+import com.bmgf.service.impl.StatsService;
 import com.bmgf.service.impl.UserService;
 import com.bmgf.service.impl.VulnContainerService;
 import com.bmgf.service.impl.CommentService;
@@ -23,15 +24,18 @@ public class CommentController {
     private VulnContainerService containerService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private StatsService statsService;
     // 3. 插入评论
     @PostMapping("/insert")
     public Result insertComment(@Valid @RequestBody Comment comment, @RequestHeader("Authorization") String authHeader) {
         // 从安全上下文获取当前用户ID
         String token = authHeader.substring(7); // 去掉"Bearer "前缀
         String username = containerService.getUsernameFromToken(token);
-        // 其他逻辑不变...
         comment.setAuthorId(userService.findByUsername(username).getId());
-        return Result.success(commentService.addComment(comment));
+        Comment com=commentService.addComment(comment);
+        statsService.incrementUserCommentCount(username);
+        return Result.success(com);
     }
 }
 

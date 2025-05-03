@@ -17,6 +17,8 @@ public class StorageConfig implements WebMvcConfigurer {
     private String videoPath;
     @Value("${storage.media.avatar.location}")
     private String avatarPath;
+    @Value("${storage.media.post.location}")
+    private String postPath;
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 视频资源（增强配置）
@@ -28,6 +30,12 @@ public class StorageConfig implements WebMvcConfigurer {
         // 头像资源（增强配置）
         registry.addResourceHandler("/avatar/**")
                 .addResourceLocations("file:" + avatarPath + "/")
+                .setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS))
+                .resourceChain(true)
+                .addResolver(new VersionResourceResolver().addContentVersionStrategy("/**"));
+        // 头像资源（增强配置）
+        registry.addResourceHandler("/posts/**")
+                .addResourceLocations("file:" + postPath + "/")
                 .setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS))
                 .resourceChain(true)
                 .addResolver(new VersionResourceResolver().addContentVersionStrategy("/**"));

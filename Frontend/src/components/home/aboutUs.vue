@@ -1,4 +1,4 @@
-`<template>
+<template>
   <div class="about-us">
     <!-- Hero Section -->
     <div class="hero-section">
@@ -34,7 +34,7 @@
     </section>
 
     <!-- Team Section -->
-    <section class="team-section">
+    <section v-if="isLoggedIn" class="team-section">
       <div class="container">
         <h2>团队成员</h2>
         <div class="team-grid">
@@ -71,12 +71,20 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useStore } from 'vuex'
 import a from '@/assets/Data/song.jpg'
 import b from '@/assets/Data/jun.jpg'
 import c from '@/assets/Data/long.jpg'
 import d from '@/assets/Data/ke.jpg'
 import e from '@/assets/Data/hao.jpg'
+
+const store = useStore()
+
+// 判断是否登录
+const isLoggedIn = computed(() => {
+  return store.state.token && store.state.token !== 'null' && store.state.token !== '';
+});
 
 const teamMembers = ref([
   {
@@ -303,4 +311,4 @@ h2 {
     font-size: 2.5rem;
   }
 }
-</style>`
+</style>

@@ -1,79 +1,160 @@
 <template>
-  <div class="reward-page-bg">
-    <!-- 顶部信息 -->
-    <div class="top-bar">
-      <el-avatar :src="user.avatar" size="large" />
-      <div class="user-info">
-        <div class="nickname">{{ user.nickname }}</div>
-        <div class="level">Lv.{{ user.level }}</div>
+  <div class="reward-container">
+    <!-- 用户信息卡片 -->
+    <el-card class="user-card">
+      <div class="user-profile">
+        <el-avatar :src="user.avatar" :size="64" />
+        <div class="user-details">
+          <div class="user-name">{{ user.nickname }}</div>
+          <div class="user-level">Lv.{{ user.level }}</div>
+        </div>
+        <div class="score-display">
+          <el-icon><Star /></el-icon>
+          <span class="score">{{ rewardStatement.totalScore }} 分</span>
+          <el-button :icon="Refresh" circle @click="fetchReward" />
+        </div>
       </div>
-      <div class="score-info">
-        <el-icon><Star /></el-icon>
-        <span>{{ rewardStatement.totalScore }} 分</span>
-        <el-button :icon="Refresh" circle @click="fetchReward" />
-      </div>
-    </div>
+    </el-card>
 
-    <!-- 进度与成就 -->
-    <div class="progress-achievement">
-      <el-progress :percentage="progressPercent" status="success" style="width: 40vw;" />
-      <div class="badges-scroll">
-        <el-tooltip v-for="badge in badges" :key="badge.name" :content="badge.desc">
-          <el-avatar :src="badge.icon" :size="36" />
-        </el-tooltip>
+    <!-- 进度卡片 -->
+    <el-card class="progress-card">
+      <div class="progress-header">
+        <span class="title">成就进度</span>
+        <div class="badges">
+          <el-tooltip v-for="badge in badges" :key="badge.name" :content="badge.desc">
+            <el-avatar :src="badge.icon" :size="32" />
+          </el-tooltip>
+        </div>
       </div>
-    </div>
+      <el-progress :percentage="progressPercent" status="success" />
+    </el-card>
 
-    <!-- 主内容区 -->
-    <div class="main-content">
-      <!-- 左栏：奖励历史 -->
-      <div class="left-panel">
-        <h4>已解锁奖励</h4>
-        <el-scrollbar height="260px">
-          <ul>
+    <!-- 奖励展示区 -->
+    <div class="rewards-grid">
+      <!-- 已解锁奖励卡片 -->
+      <el-card class="reward-card">
+        <template #header>
+          <div class="card-header">
+            <el-icon><Unlock /></el-icon>
+            <span>已解锁奖励</span>
+          </div>
+        </template>
+        <el-scrollbar height="200px">
+          <ul class="reward-list">
             <li v-for="(reward, idx) in rewardStatement.unlockedRewards" :key="idx">
-              <el-icon><Unlock /></el-icon>
+              <el-icon><Check /></el-icon>
               <span>{{ reward }}</span>
             </li>
           </ul>
         </el-scrollbar>
-      </div>
+      </el-card>
 
-      <!-- 中栏：今日推荐/最新奖励 -->
-      <div class="center-panel">
-        <el-card class="highlight-card">
-          <div class="highlight-title">今日推荐</div>
-          <div class="highlight-content">{{ todayReward }}</div>
-        </el-card>
-      </div>
+      <!-- 今日推荐卡片 -->
+      <el-card class="reward-card highlight">
+        <template #header>
+          <div class="card-header">
+            <el-icon><Star /></el-icon>
+            <span>今日推荐</span>
+          </div>
+        </template>
+        <div class="highlight-content">
+          {{ todayReward }}
+        </div>
+      </el-card>
 
-      <!-- 右栏：待解锁奖励 -->
-      <div class="right-panel">
-        <h4>待解锁奖励</h4>
-        <el-scrollbar height="260px">
-          <ul>
+      <!-- 待解锁奖励卡片 -->
+      <el-card class="reward-card">
+        <template #header>
+          <div class="card-header">
+            <el-icon><Lock /></el-icon>
+            <span>待解锁奖励</span>
+          </div>
+        </template>
+        <el-scrollbar height="200px">
+          <ul class="reward-list">
             <li v-for="n in rewardStatement.lockedRewardsCount" :key="n">
               <el-icon><Lock /></el-icon>
               <span>神秘奖励 #{{ n }}</span>
             </li>
           </ul>
         </el-scrollbar>
-      </div>
+      </el-card>
     </div>
 
-    <!-- 底部功能区 -->
-    <div class="bottom-bar">
-      <el-button type="success" icon="el-icon-present">奖励兑换</el-button>
-      <el-button type="warning" icon="el-icon-trophy">排行榜</el-button>
-      <el-button type="info" icon="el-icon-date">每日签到</el-button>
-      <el-button type="primary" icon="el-icon-share">分享奖励</el-button>
-    </div>
+    <!-- 奖励兑换区 -->
+    <el-card class="exchange-card">
+      <template #header>
+        <div class="card-header">
+          <el-icon><Present /></el-icon>
+          <span>奖励兑换</span>
+        </div>
+      </template>
+      <div class="exchange-content">
+        <el-tabs v-model="activeTab" class="exchange-tabs">
+          <!-- 积分商城 -->
+          <el-tab-pane label="积分商城" name="shop">
+            <div class="shop-grid">
+              <el-card v-for="(item, index) in shopItems" :key="index" class="shop-item" :class="{ 'disabled': item.points > rewardStatement.totalScore }">
+                <div class="item-image">
+                  <el-avatar :src="item.image" :size="64" />
+                </div>
+                <div class="item-info">
+                  <h3>{{ item.name }}</h3>
+                  <p class="item-desc">{{ item.description }}</p>
+                  <div class="item-footer">
+                    <span class="points">{{ item.points }} 积分</span>
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      :disabled="item.points > rewardStatement.totalScore"
+                      @click="exchangeItem(item)"
+                    >
+                      兑换
+                    </el-button>
+                  </div>
+                </div>
+              </el-card>
+            </div>
+          </el-tab-pane>
+
+          <!-- 每日任务 -->
+          <el-tab-pane label="每日任务" name="tasks">
+            <div class="tasks-list">
+              <el-card v-for="(task, index) in dailyTasks" :key="index" class="task-item">
+                <div class="task-content">
+                  <div class="task-info">
+                    <h3>{{ task.name }}</h3>
+                    <p>{{ task.description }}</p>
+                  </div>
+                  <div class="task-reward">
+                    <span class="points">+{{ task.points }} 积分</span>
+                    <el-button 
+                      type="success" 
+                      size="small" 
+                      :disabled="task.completed"
+                      @click="completeTask(task)"
+                    >
+                      {{ task.completed ? '已完成' : '领取' }}
+                    </el-button>
+                  </div>
+                </div>
+                <el-progress 
+                  v-if="task.progress !== undefined" 
+                  :percentage="task.progress" 
+                  :status="task.completed ? 'success' : ''"
+                />
+              </el-card>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+      </div>
+    </el-card>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { Star, Refresh, Lock, Unlock } from '@element-plus/icons-vue'
+import { Star, Refresh, Lock, Unlock, Check, Present } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import store from '@/store'
@@ -134,121 +215,338 @@ const badges = computed(() => {
   return badgeList
 })
 
+const activeTab = ref('shop')
+
+// 商城商品列表
+const shopItems = ref([
+  {
+    name: '高级会员体验卡',
+    description: '7天高级会员体验资格',
+    points: 100,
+    image: 'https://img.icons8.com/color/48/000000/vip.png'
+  },
+  {
+    name: '专属头像框',
+    description: '限时专属头像框',
+    points: 50,
+    image: 'https://img.icons8.com/color/48/000000/frame.png'
+  },
+  {
+    name: '游戏道具礼包',
+    description: '包含多种游戏道具',
+    points: 80,
+    image: 'https://img.icons8.com/color/48/000000/gift.png'
+  },
+  {
+    name: '自定义称号',
+    description: '自定义个性称号',
+    points: 30,
+    image: 'https://img.icons8.com/color/48/000000/medal2.png'
+  }
+])
+
+// 每日任务列表
+const dailyTasks = ref([
+  {
+    name: '每日签到',
+    description: '完成每日签到',
+    points: 10,
+    completed: false
+  },
+  {
+    name: '分享游戏',
+    description: '分享游戏到社交媒体',
+    points: 20,
+    completed: false
+  },
+  {
+    name: '完成3场游戏',
+    description: '完成3场游戏对局',
+    points: 30,
+    progress: 0,
+    completed: false
+  },
+  {
+    name: '邀请好友',
+    description: '成功邀请1位好友',
+    points: 50,
+    completed: false
+  }
+])
+
+// 兑换商品
+const exchangeItem = (item) => {
+  ElMessage.success(`成功兑换 ${item.name}！`)
+  // TODO: 实现实际的兑换逻辑
+}
+
+// 完成任务
+const completeTask = (task) => {
+  task.completed = true
+  ElMessage.success(`完成任务：${task.name}，获得 ${task.points} 积分！`)
+  // TODO: 实现实际的任务完成逻辑
+}
+
 onMounted(fetchReward)
 </script>
 
 <style scoped>
-.reward-page-bg {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #769fcd 0%, #b9d7ea 100%); /* 更柔和的蓝调 */
-  padding: 32px 0 0 0;
-  box-sizing: border-box;
+.reward-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: transparent;
 }
-.top-bar {
+
+.user-card {
+  margin-bottom: 24px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.user-profile {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
   gap: 24px;
-  padding: 0 40px 16px 40px;
 }
-.user-info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+
+.user-details {
+  flex: 1;
 }
-.nickname {
-  font-size: 1.3em;
+
+.user-name {
+  font-size: 1.4em;
   font-weight: bold;
   color: #ffffff;
 }
-.level {
-  font-size: 1em;
+
+.user-level {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9em;
+}
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2em;
+  color: #E6A23C;
+}
+
+.score {
+  font-weight: bold;
   color: #ffffff;
 }
-.score-info {
-  margin-left: auto;
+
+.progress-card {
+  margin-bottom: 24px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.progress-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.badges {
+  display: flex;
   gap: 8px;
-  font-size: 1.1em;
-  color: #ff0000;
 }
-.progress-achievement {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  padding: 0 40px 24px 40px;
-}
-.badges-scroll {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.main-content {
+
+.rewards-grid {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr;
-  gap: 32px;
-  padding: 0 40px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
 }
-.left-panel, .right-panel {
-  background: #fffbe6;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  padding: 18px 16px;
-  min-height: 320px;
+
+.reward-card {
+  height: 100%;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
 }
-.left-panel h4, .right-panel h4 {
-  color: #d48806;
-  margin-bottom: 12px;
+
+.reward-card.highlight {
+  background: rgba(255, 249, 230, 0.1);
+  border: 1px solid rgba(230, 162, 60, 0.2);
 }
-.left-panel ul, .right-panel ul {
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.reward-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-.left-panel li, .right-panel li {
+
+.reward-list li {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
-  font-size: 1em;
-  color: #333;
+  gap: 8px;
+  padding: 8px 0;
+  color: rgba(255, 255, 255, 0.8);
 }
-.left-panel li:last-child, .right-panel li:last-child {
-  margin-bottom: 0;
-}
-.center-panel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.highlight-card {
-  width: 100%;
-  min-height: 220px;
-  background: linear-gradient(135deg, #fff9e6 0%, #ffe599 100%);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-.highlight-title {
-  font-size: 1.2em;
-  color: #d48806;
-  margin-bottom: 12px;
-  font-weight: bold;
-}
+
 .highlight-content {
-  font-size: 1.3em;
-  color: #333;
   text-align: center;
+  font-size: 1.2em;
+  color: #E6A23C;
+  padding: 24px;
   font-style: italic;
 }
-.bottom-bar {
+
+.action-buttons {
   display: flex;
   justify-content: center;
-  gap: 32px;
-  margin-top: 32px;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.exchange-card {
+  margin-top: 24px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.exchange-content {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-text {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.1em;
+  font-style: italic;
+}
+
+.exchange-tabs {
+  width: 100%;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.shop-item {
+  transition: all 0.3s;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.shop-item.disabled {
+  opacity: 0.6;
+}
+
+.item-image {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.item-info {
+  text-align: center;
+}
+
+.item-info h3 {
+  color: #ffffff;
+  margin: 8px 0;
+}
+
+.item-desc {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9em;
+  margin-bottom: 12px;
+}
+
+.item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.points {
+  color: #E6A23C;
+  font-weight: bold;
+}
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.task-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.task-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.task-info h3 {
+  color: #ffffff;
+  margin: 0 0 8px 0;
+}
+
+.task-info p {
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+.task-reward {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .rewards-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .user-profile {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .action-buttons {
+    flex-wrap: wrap;
+  }
+
+  .shop-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .task-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
 }
 </style>

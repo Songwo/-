@@ -2,37 +2,53 @@
   <el-container class="personal-container">
     <!-- 头部 -->
     <el-header class="header">
-      <el-button 
-        class="back-btn" 
-        type="text" 
-        @click="$router.go(-1)"
-      >
-        <el-icon :size="24" class="icon">
-          <ArrowLeft />
-        </el-icon>
-        返回
-      </el-button>
+      <div class="header-content">
+        <el-button 
+          class="back-btn" 
+          type="text" 
+          @click="$router.go(-1)"
+        >
+          <el-icon :size="24" class="icon">
+            <ArrowLeft />
+          </el-icon>
+          返回
+        </el-button>
 
-      <div class="user-id">用户ID: {{ userInfo.id }}</div>
+        <div class="user-id">
+          <el-icon><User /></el-icon>
+          <span>用户ID: {{ userInfo.id }}</span>
+        </div>
+      </div>
     </el-header>
 
     <!-- 主体内容 -->
     <el-main>
-      <el-row :gutter="20">
+      <el-row :gutter="30">
         <!-- 左侧信息栏 -->
         <el-col :xs="24" :sm="16" :md="18">
-          <el-card class="info-card">
+          <el-card class="info-card glass-effect">
             <template #header>
               <div class="card-header">
-                <el-avatar :size="60" :src="ToUrl.url+'/'+userInfo.avatar" @click="handleAvatarClick" />
-                <input
-                  type="file"
-                  ref="avatarInput"
-                  hidden
-                  accept="image/*"
-                  @change="uploadAvatar"
-                />
-                <div class="user-name">{{ userInfo.username }}</div>
+                <div class="avatar-container">
+                  <el-avatar 
+                    :size="80" 
+                    :src="ToUrl.url+'/'+userInfo.avatar" 
+                    @click="handleAvatarClick"
+                    class="avatar-hover"
+                  />
+                  <div class="avatar-hint">点击更换头像</div>
+                  <input
+                    type="file"
+                    ref="avatarInput"
+                    hidden
+                    accept="image/*"
+                    @change="uploadAvatar"
+                  />
+                </div>
+                <div class="user-info">
+                  <div class="user-name">{{ userInfo.username }}</div>
+                  <div class="user-email">{{ userInfo.email }}</div>
+                </div>
               </div>
             </template>
 
@@ -40,64 +56,141 @@
               <!-- 编辑状态：显示可编辑的表单 -->
               <el-form :model="editForm" ref="form" label-width="80px" class="edit-form">
                 <el-form-item label="用户名">
-                  <el-input v-model="editForm.username" placeholder="请输入用户名" />
+                  <el-input v-model="editForm.username" placeholder="请输入用户名">
+                    <template #prefix>
+                      <el-icon><User /></el-icon>
+                    </template>
+                  </el-input>
                 </el-form-item>
 
                 <el-form-item label="电子邮箱">
-                  <el-input v-model="editForm.email" placeholder="请输入电子邮箱" />
+                  <el-input v-model="editForm.email" placeholder="请输入电子邮箱">
+                    <template #prefix>
+                      <el-icon><Message /></el-icon>
+                    </template>
+                  </el-input>
                 </el-form-item>
               </el-form>
 
               <div class="form-actions">
-                <el-button @click="saveChanges" type="primary" style="margin-top: 0px;">保存</el-button>
-                <el-button @click="handleCancelEdit" style="margin-left: 10px;">取消</el-button>
+                <el-button @click="saveChanges" type="primary" class="action-button">
+                  <el-icon><Check /></el-icon>保存
+                </el-button>
+                <el-button @click="handleCancelEdit" class="action-button">
+                  <el-icon><Close /></el-icon>取消
+                </el-button>
               </div>
             </div>
 
             <!-- 非编辑状态：显示用户信息 -->
             <div v-else>
-              <el-descriptions :column="1" border>
-                <el-descriptions-item label="用户名">{{ userInfo.username }}</el-descriptions-item>
-                <el-descriptions-item label="电子邮箱">
-                  {{ userInfo.email }}
-                  <el-tag size="small" effect="dark" type="success">已验证</el-tag>
+              <el-descriptions :column="1" border class="user-descriptions">
+                <el-descriptions-item label="用户名">
+                  <el-icon><User /></el-icon>
+                  {{ userInfo.username }}
                 </el-descriptions-item>
-                <el-descriptions-item label="注册时间">{{ formatTime(userInfo.createTime) }}</el-descriptions-item>
-                <el-descriptions-item label="最后修改时间">{{ formatTime(userInfo.updateTime) }}</el-descriptions-item>
-                <el-descriptions-item label="个人积分">{{ userInfo.totalScore }}</el-descriptions-item>
+                <el-descriptions-item label="电子邮箱">
+                  <el-icon><Message /></el-icon>
+                  {{ userInfo.email }}
+                  <el-tag size="small" effect="dark" type="success" class="verified-tag">已验证</el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="注册时间">
+                  <el-icon><Calendar /></el-icon>
+                  {{ formatTime(userInfo.createTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item label="最后修改时间">
+                  <el-icon><Timer /></el-icon>
+                  {{ formatTime(userInfo.updateTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item label="个人积分">
+                  <el-icon><Star /></el-icon>
+                  {{ userInfo.totalScore }}
+                </el-descriptions-item>
               </el-descriptions>
-              <el-button @click="handleEditProfile" type="primary" style="margin-top: 20px;">编辑资料</el-button>
+              <el-button @click="handleEditProfile" type="primary" class="edit-button">
+                <el-icon><Edit /></el-icon>编辑资料
+              </el-button>
             </div>
           </el-card>
         </el-col>
 
         <!-- 右侧安全设置 -->
         <el-col :xs="24" :sm="8" :md="6">
-          <el-card class="security-card">
+          <el-card class="security-card glass-effect">
             <template #header>
-              <div class="security-title">安全设置</div>
+              <div class="security-title">
+                <el-icon><Lock /></el-icon>
+                安全设置
+              </div>
             </template>
 
-            <div class="security-item">
-              <el-icon><Message /></el-icon>
-              <span>邮箱验证</span>
-              <el-tag v-if="userInfo.emailVerified" type="success" effect="dark">已完成</el-tag>
-              <el-tag v-else type="danger" effect="dark">未验证</el-tag>
-              <el-button v-if="!userInfo.emailVerified" @click="handleVerifyEmail" size="small" type="primary" style="margin-left: 10px;">
-                验证邮箱
-              </el-button>
-            </div>
+            <div class="security-items">
+              <div class="security-item">
+                <div class="security-item-header">
+                  <el-icon><Message /></el-icon>
+                  <span>邮箱验证</span>
+                </div>
+                <div class="security-item-content">
+                  <el-tag v-if="userInfo.emailVerified" type="success" effect="dark">已完成</el-tag>
+                  <el-tag v-else type="danger" effect="dark">未验证</el-tag>
+                  <el-button 
+                    v-if="!userInfo.emailVerified" 
+                    @click="handleVerifyEmail" 
+                    size="small" 
+                    type="primary"
+                  >
+                    验证邮箱
+                  </el-button>
+                </div>
+              </div>
 
-            <div class="security-item">
-              <el-icon><Lock /></el-icon>
-              <span>登录密码</span>
-              <el-button @click="handleChangePassword" type="primary" size="small">修改</el-button>
-            </div>
+              <div class="security-item">
+                <div class="security-item-header">
+                  <el-icon><Lock /></el-icon>
+                  <span>登录密码</span>
+                </div>
+                <div class="security-item-content">
+                  <el-button @click="handleChangePassword" type="primary" size="small">
+                    修改密码
+                  </el-button>
+                </div>
+              </div>
 
-            <div class="security-item">
-              <el-icon><User /></el-icon>
-              <span>账户绑定</span>
-              <el-button @click="handleBindAccount" type="primary" size="small">管理</el-button>
+              <div class="security-item">
+                <div class="security-item-header">
+                  <el-icon><User /></el-icon>
+                  <span>账户绑定</span>
+                </div>
+                <div class="security-item-content">
+                  <el-button @click="handleBindAccount" type="primary" size="small">
+                    管理绑定
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </el-card>
+
+          <!-- 添加新的统计卡片 -->
+          <el-card class="stats-card glass-effect">
+            <template #header>
+              <div class="stats-title">
+                <el-icon><DataLine /></el-icon>
+                数据统计
+              </div>
+            </template>
+            <div class="stats-content">
+              <div class="stat-item">
+                <div class="stat-value">{{ userInfo.totalScore }}</div>
+                <div class="stat-label">总积分</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">收藏数</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">关注数</div>
+              </div>
             </div>
           </el-card>
         </el-col>
@@ -105,59 +198,83 @@
     </el-main>
 
     <!-- 修改密码对话框 -->
-    <el-dialog title="修改密码" v-model="passwordDialogVisible" width="30%">
-  <el-form label-width="100px">
-    <el-form-item label="当前密码" prop="currentPassword" :rules="[{ required: true, message: '请输入当前密码', trigger: 'blur' }]">
-      <el-input 
-        v-model="passwordForm.currentPassword" 
-        type="password"
-        placeholder="请输入当前密码" 
-      />
-    </el-form-item>
-    <el-form-item label="新密码" prop="newPassword" :rules="[{ required: true, message: '请输入新密码', trigger: 'blur' }]">
-      <el-input 
-        v-model="passwordForm.newPassword" 
-        type="password" 
-        placeholder="请输入新密码"
-      />
-    </el-form-item>
-    <el-form-item label="确认新密码" prop="confirmPassword" :rules="[{ required: true, message: '请确认新密码', trigger: 'blur' }, { validator: confirmPasswordValidator, trigger: 'blur' }]">
-      <el-input v-model="passwordForm.confirmPassword" 
-      type="password" 
-      placeholder="请确认新密码" />
-    </el-form-item>
-  </el-form>
-  <div slot="footer" class="dialog-footer">
-    <el-button @click="handleCancelPasswordChange">取消</el-button>
-    <el-button type="primary" @click="savePasswordChanges">确定</el-button>
-  </div>
-</el-dialog>
+    <el-dialog 
+      title="修改密码" 
+      v-model="passwordDialogVisible" 
+      width="30%"
+      class="custom-dialog"
+    >
+      <el-form label-width="100px" class="password-form">
+        <el-form-item label="当前密码" prop="currentPassword">
+          <el-input 
+            v-model="passwordForm.currentPassword" 
+            type="password"
+            placeholder="请输入当前密码"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input 
+            v-model="passwordForm.newPassword" 
+            type="password" 
+            placeholder="请输入新密码"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirmPassword">
+          <el-input 
+            v-model="passwordForm.confirmPassword" 
+            type="password" 
+            placeholder="请确认新密码"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="handleCancelPasswordChange">取消</el-button>
+          <el-button type="primary" @click="savePasswordChanges">确定</el-button>
+        </div>
+      </template>
+    </el-dialog>
 
     <!-- 账户绑定管理对话框 -->
-    <el-dialog title="账户绑定管理" v-model="accountBindingDialogVisible" width="40%">
-      <div v-if="bindedAccounts.length === 0">
-        <p>您尚未绑定任何账户。</p>
+    <el-dialog 
+      title="账户绑定管理" 
+      v-model="accountBindingDialogVisible" 
+      width="40%"
+      class="custom-dialog"
+    >
+      <div v-if="bindedAccounts.length === 0" class="no-accounts">
+        <el-empty description="您尚未绑定任何账户" />
       </div>
-      <div v-else>
+      <div v-else class="accounts-grid">
         <el-row :gutter="20">
           <el-col :span="12" v-for="(account, index) in bindedAccounts" :key="index">
-            <el-card>
-              <div>{{ account.name }}</div>
-              <el-button @click="unbindAccount(account)" type="danger" size="small">解绑</el-button>
+            <el-card class="account-card">
+              <div class="account-info">
+                <el-icon :size="24"><Platform /></el-icon>
+                <span>{{ account.name }}</span>
+              </div>
+              <el-button @click="unbindAccount(account)" type="danger" size="small">
+                解绑
+              </el-button>
             </el-card>
           </el-col>
         </el-row>
       </div>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="accountBindingDialogVisible = false">关闭</el-button>
-      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="accountBindingDialogVisible = false">关闭</el-button>
+        </div>
+      </template>
     </el-dialog>
   </el-container>
 </template>
 
 <script setup>
 import {  ref,onMounted } from 'vue'
-import { Message, Lock, User } from '@element-plus/icons-vue'
+import { Message, Lock, User, ArrowLeft, Calendar, Timer, Star, Edit, Close, DataLine, Platform } from '@element-plus/icons-vue'
 import { ElMessage, ElDialog, ElForm, ElFormItem, ElInput, ElButton, ElRow, ElCol, ElCard, ElTag } from 'element-plus';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router'
@@ -409,111 +526,397 @@ const handleVerifyEmail = () => {
 </script>
 
 <style scoped>
-.back-button {
-  position: absolute; /* 绝对定位按钮 */
-  left: 150px; /* 按钮距离左边的距离 */
-  top: 17%; /* 按钮垂直居中 */
-  transform: translateY(-50%); /* 精确垂直居中 */
-  font-size: 20px; /* 可以根据需要调整按钮的大小 */
-}
 .personal-container {
-  margin-top: 30px;
-  margin-left: 90px;
-  border-radius: 50px ;
-  height: 84vh;
-  width: 87vw;
-  background: #f5f7fa;
+  min-height: 100vh;
+  background: transparent;
+  padding: 20px;
 }
 
 .header {
+  background: transparent;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.header-content {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  background: #fff;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
-  border-radius: 20px ;
-  width: 87vw;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #fff;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  transform: translateX(-5px);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .user-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
-  color: #666;
+  color: #fff;
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .info-card {
   margin-bottom: 20px;
+  border-radius: 15px;
 }
 
 .card-header {
   display: flex;
   align-items: center;
   gap: 20px;
+  padding: 20px;
+}
+
+.avatar-container {
+  position: relative;
+  text-align: center;
+}
+
+.avatar-hover {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avatar-hover:hover {
+  transform: scale(1.05);
+}
+
+.avatar-hint {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #666;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.avatar-container:hover .avatar-hint {
+  opacity: 1;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .user-name {
   font-size: 24px;
-  font-weight: 500;
+  font-weight: 600;
+  color: #fff;
 }
 
-.security-card {
-  background: #fff;
+.user-email {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.security-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: #333;
-}
-
-.security-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 15px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.security-item:last-child {
-  border-bottom: none;
-}
-
-.el-descriptions {
+.user-descriptions {
   margin-top: 20px;
 }
 
-.el-tag {
-  margin-left: 10px;
+/* 添加表格样式 */
+:deep(.el-descriptions__body) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
 }
 
-/* 添加按钮文字样式 */
-.el-button {
-  color: #333;
+:deep(.el-descriptions__cell) {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #fff;
+}
+
+:deep(.el-descriptions__label) {
+  color: rgba(255, 255, 255, 0.8);
   font-weight: 500;
 }
 
-.el-button--primary {
+:deep(.el-descriptions__content) {
   color: #fff;
 }
 
-.el-button--danger {
-  color: #fff;
+.verified-tag {
+  margin-left: 10px;
 }
 
-.back-btn {
-    position: absolute;
-    left: 116px;
-    top: 104px;
-    padding: 0.5rem;
-    transition: all 0.3s ease;
-    color: #333;
-    font-weight: 500;
-  
-    &:hover {
-      transform: translateX(-3px);
-      color: var(--el-color-primary);
-      .icon {
-        color: var(--el-color-primary);
-      }
-    }
+.edit-button {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.security-card {
+  margin-bottom: 20px;
+  border-radius: 15px;
+}
+
+.security-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.security-items {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.security-item {
+  padding: 15px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.security-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.security-item-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stats-card {
+  border-radius: 15px;
+}
+
+.stats-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stats-content {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  padding: 15px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+  margin-top: 5px;
+}
+
+.custom-dialog {
+  border-radius: 15px;
+}
+
+.password-form {
+  padding: 20px;
+}
+
+.dialog-footer {
+  padding: 20px;
+  text-align: right;
+}
+
+.no-accounts {
+  padding: 40px 0;
+}
+
+.accounts-grid {
+  padding: 20px 0;
+}
+
+.account-card {
+  margin-bottom: 15px;
+  border-radius: 10px;
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+@media (max-width: 768px) {
+  .personal-container {
+    padding: 10px;
   }
+  
+  .card-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .stats-content {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 修改按钮文字颜色 */
+:deep(.el-button) {
+  color: #fff;
+}
+
+:deep(.el-button--primary) {
+  color: #fff;
+}
+
+:deep(.el-button--danger) {
+  color: #fff;
+}
+
+:deep(.el-button--text) {
+  color: #fff;
+}
+
+:deep(.el-button--text:hover) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 表格样式 */
+:deep(.el-descriptions__body) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+}
+
+:deep(.el-descriptions__cell) {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #fff;
+}
+
+:deep(.el-descriptions__label) {
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+:deep(.el-descriptions__content) {
+  color: #fff;
+}
+
+/* 输入框文字颜色 */
+:deep(.el-input__inner) {
+  color: #fff;
+}
+
+:deep(.el-input__prefix) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 对话框标题和内容 */
+:deep(.el-dialog__title) {
+  color: #fff;
+}
+
+:deep(.el-dialog__body) {
+  color: #fff;
+}
+
+/* 编辑表单样式 */
+.edit-form {
+  padding: 20px;
+}
+
+:deep(.el-form-item__label) {
+  color: #fff !important;
+  font-weight: 500;
+}
+
+:deep(.el-form-item__content) {
+  margin-left: 120px !important;
+}
+
+:deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+:deep(.el-input__inner) {
+  color: #fff;
+}
+
+:deep(.el-input__prefix) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 0 20px;
+}
+
+/* 取消按钮样式 */
+:deep(.el-button--default) {
+  background-color: #ffffff !important;
+  border-color: #dcdfe6 !important;
+  color: #333333 !important;
+}
+
+:deep(.el-button--default:hover) {
+  background-color: #f5f7fa !important;
+  border-color: #dcdfe6 !important;
+  color: #333333 !important;
+}
+
+:deep(.el-button--default:active) {
+  background-color: #f5f7fa !important;
+  border-color: #dcdfe6 !important;
+  color: #333333 !important;
+}
 </style>

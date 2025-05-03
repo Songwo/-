@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 @Document(collection = "posts")
@@ -24,8 +25,10 @@ public class Post {
     private String title;
     private String section;
     private String content;
+    private String coverImage; // 帖子封面图片
     private int replyCount = 0;
     private String avatar;
     @CreatedDate
     private Date timestamp; // 自动生成创建时间
+    private List<Comment> comments; // 帖子评论列表
 }

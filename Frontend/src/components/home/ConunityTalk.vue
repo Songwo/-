@@ -53,7 +53,7 @@
                   class="search-input"
                 />
               </div>
-              <el-button type="primary" @click="openPostDialog">
+              <el-button v-if="store.state.token" type="primary" @click="openPostDialog">
                 <el-icon class="mr-5"><Plus /></el-icon>新建帖子
               </el-button>
             </div>
@@ -62,41 +62,49 @@
           <div v-loading="loadingPosts" class="post-list">
             <transition-group name="post-list">
               <el-card v-for="post in displayedPosts" :key="post.id" class="post-card" shadow="hover" @click="selectPost(post)">
-                <template #header>
-                  <div class="post-header">
-                    <el-tag :color="getSectionColor(post.section)" effect="dark" class="section-tag">
-                      {{ post.section }}
-                    </el-tag>
-                    <h3 class="post-title">{{ post.title }}</h3>
+                <div class="post-content">
+                  <div class="post-cover" v-if="post.coverImage">
+                    <img :src="ToUrl.url + '/' + post.coverImage" :alt="post.title" />
+                  </div>
+                  <div class="post-info">
+                    <div class="post-header">
+                      <el-tag :color="getSectionColor(post.section)" effect="dark" class="section-tag">
+                        {{ post.section }}
+                      </el-tag>
+                      <h3 class="post-title">{{ post.title }}</h3>
+                    </div>
+                    <p class="post-excerpt" v-html="renderMarkdown(truncateContent(post.content))"></p>
+                    <div class="post-meta">
+                      <div class="meta-item">
+                        <el-avatar :size="24" :src="ToUrl.url + '/' + post.avatar" />
+                        <span class="author">{{ post.username }}</span>
+                      </div>
+                      <div class="meta-item">
+                        <el-icon><Clock /></el-icon>
+                        <span>{{ formatTime(post.timestamp) }}</span>
+                      </div>
+                      <div class="meta-item">
+                        <el-icon><ChatLineRound /></el-icon>
+                        <span>{{ post.replyCount }} 条回复</span>
+                      </div>
+                    </div>
                     <el-button type="primary" size="small" class="detail-btn" @click.stop="openDetailDialog(post)">
                       查看详情
                     </el-button>
                   </div>
-                </template>
-
-                <div class="post-content">
-                  <p class="post-excerpt">{{ truncateContent(post.content) }}</p>
-                  <div class="post-meta">
-                    <div class="meta-item">
-                      <el-avatar :size="24" :src="ToUrl.url + '/' + post.avatar" />
-                      <span class="author">{{ post.username }}</span>
-                    </div>
-                    <div class="meta-item">
-                      <el-icon>
-                        <Clock />
-                      </el-icon>
-                      <span>{{ formatTime(post.timestamp) }}</span>
-                    </div>
-                    <div class="meta-item">
-                      <el-icon>
-                        <ChatLineRound />
-                      </el-icon>
-                      <span>{{ post.replyCount }} 条回复</span>
-                    </div>
-                  </div>
                 </div>
               </el-card>
             </transition-group>
+
+            <!-- 未登录用户的提示卡片 -->
+            <div v-if="!store.state.token" class="more-content-prompt">
+              <el-divider>
+                <el-icon><InfoFilled /></el-icon>
+                更多精彩内容
+              </el-divider>
+              <p class="prompt-text">登录后可以查看更多帖子和完整内容</p>
+              <el-button type="primary" @click="router.push('/login')">立即登录</el-button>
+            </div>
 
             <el-pagination
               v-if="filteredPosts.length > postsPerPage"
@@ -137,7 +145,7 @@
         </el-card>
 
         <!-- 用户板块 -->
-        <el-card class="user-card" shadow="hover">
+        <el-card v-if="store.state.token" class="user-card" shadow="hover">
           <template #header>
             <div class="user-header">
               <h3><el-icon><User /></el-icon> 用户信息</h3>
@@ -162,59 +170,97 @@
         </el-card>
 
         <transition name="slide-fade">
-          <el-card v-if="selectedPost" class="detail-card" shadow="hover" v-loading="loadingComments">
+          <el-card v-if="selectedPost" 
+            class="detail-card" 
+            shadow="hover" 
+            v-loading="loadingComments"
+          >
             <template #header>
               <div class="detail-header">
                 <h3>帖子详情</h3>
-                <el-button type="info" size="small" circle @click="selectedPost = null">
-                  <el-icon>
-                    <Close />
-                  </el-icon>
-                </el-button>
+                <el-icon class="close-icon" @click.stop="selectedPost = null"><Close /></el-icon>
               </div>
             </template>
 
             <!-- 帖子内容 -->
             <div class="post-detail">
-              <h4 class="detail-title">{{ selectedPost.title }}</h4>
+              <div class="post-cover" v-if="selectedPost?.coverImage">
+                <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" />
+              </div>
               <div class="detail-meta">
                 <el-avatar :size="32" :src="ToUrl.url + '/' + selectedPost.avatar" />
                 <div class="meta-info">
-                  <span class="author">{{ selectedPost.authorName }}</span>
+                  <span class="author">{{ selectedPost.username }}</span>
                   <span class="time">{{ formatTime(selectedPost.timestamp) }}</span>
                 </div>
               </div>
               <el-divider />
-              <div class="detail-content">
-                {{ selectedPost.content }}
-              </div>
+              <div class="content-text" v-html="renderMarkdown(selectedPost.content)"></div>
             </div>
 
             <!-- 评论区 -->
             <div class="comment-section">
               <h4 class="comment-title">评论（{{ selectedPost.comments?.length || 0 }}）</h4>
-              <div v-loading="loadingComments" class="comment-list">
-                <div v-for="comment in selectedPost.comments" :key="comment.id" class="comment-item">
-                  <el-avatar :size="32" :src="ToUrl.url + '/' + comment.avatar" />
-                  <div class="comment-content">
-                    <div class="comment-header">
-                      <span class="author">{{ comment.username }}</span>
-                      <span class="time">{{ formatTime(comment.timestamp) }}</span>
+              
+              <!-- 未登录用户的评论区提示 -->
+              <div v-if="!store.state.token" class="comment-login-prompt">
+                <el-empty description="登录后查看完整评论">
+                  <template #image>
+                    <el-icon :size="48"><ChatDotSquare /></el-icon>
+                  </template>
+                  <template #extra>
+                    <div class="prompt-actions">
+                      <p class="prompt-text">参与讨论，分享你的见解</p>
+                      <el-button type="primary" @click="router.push('/login')">去登录</el-button>
                     </div>
-                    <p class="comment-text">{{ comment.content }}</p>
-                  </div>
-                </div>
-
-                <el-empty v-if="!selectedPost.comments?.length" description="暂无评论" />
+                  </template>
+                </el-empty>
               </div>
 
-              <!-- 评论输入 -->
-              <div class="comment-editor">
-                <el-input v-model="newComment" type="textarea" :rows="3" placeholder="请输入您的评论..." resize="none" />
-                <div class="editor-actions">
-                  <el-button type="primary" :loading="postingComment" @click="submitComment">
-                    发表评论
-                  </el-button>
+              <!-- 登录用户可见的评论列表 -->
+              <div v-else>
+                <div class="comment-list">
+                  <el-scrollbar height="300px">
+                    <div 
+                      v-for="comment in selectedPost.comments" 
+                      :key="comment.id" 
+                      class="comment-item"
+                    >
+                      <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" />
+                      <div class="comment-content">
+                        <div class="comment-header">
+                          <span class="author">{{ comment.username }}</span>
+                          <span class="time">{{ formatTime(comment.timestamp) }}</span>
+                        </div>
+                        <p class="comment-text">{{ comment.content }}</p>
+                      </div>
+                    </div>
+                    <el-empty 
+                      v-if="!selectedPost.comments?.length" 
+                      description="暂无评论" 
+                      :image-size="80"
+                    />
+                  </el-scrollbar>
+                </div>
+
+                <!-- 评论输入框 -->
+                <div class="comment-editor">
+                  <el-input
+                    v-model="newComment.content"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入您的评论..."
+                    resize="none"
+                  />
+                  <div class="editor-actions">
+                    <el-button 
+                      type="primary" 
+                      :loading="postingComment" 
+                      @click="submitComment"
+                    >
+                      发表评论
+                    </el-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -229,8 +275,34 @@
     </el-row>
 
     <!-- 新建帖子对话框 -->
-    <el-dialog v-model="showPostDialog" title="新建帖子" width="800px">
+    <el-dialog v-model="showPostDialog" title="新建帖子" width="90%">
       <el-form :model="newPost" :rules="postRules" label-width="80px" ref="postForm">
+        <el-form-item label="封面" prop="coverImage">
+          <el-upload
+            class="cover-uploader"
+            :action="ToUrl.url + '/upload/post-cover'"
+            :headers="{ 'Authorization': `Bearer ${store.state.token}` }"
+            :show-file-list="false"
+            :on-success="(res) => {
+              newPost.coverImage = res.data; 
+              console.log(newPost.coverImage);
+            }"
+            :before-upload="(file) => {
+              const isImage = file.type.startsWith('image/')
+              if (!isImage) {
+                ElMessage.error('请上传图片文件')
+                return false
+              }
+              return true
+            }"
+          >
+            <img v-if="newPost.coverImage" :src="ToUrl.url + '/' + newPost.coverImage" class="cover-image" @click.stop="previewImage" />
+            <div v-else class="cover-uploader-icon">
+              <el-icon><Plus /></el-icon>
+              <div class="upload-text">点击上传封面</div>
+            </div>
+          </el-upload>
+        </el-form-item>
         <el-form-item label="标题" required prop="title">
           <el-input v-model="newPost.title" />
         </el-form-item>
@@ -241,7 +313,17 @@
           </el-select>
         </el-form-item>
         <el-form-item label="内容" required prop="content">
-          <el-input v-model="newPost.content" type="textarea" :rows="4" />
+          <div class="editor-container">
+            <MdEditor
+              v-model="mdContent"
+              :toolbars="mdConfig.toolbars"
+              @onUploadImg="onUploadImg"
+              preview-theme="github"
+              code-theme="atom-one-dark"
+              :showCodeRowNumber="true"
+              style="height: 500px"
+            />
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -257,19 +339,15 @@
     width="1200px"
     class="post-detail-dialog"
     @closed="selectedPost = null"
-    :show-close="false"
+    :show-close="true"
+    :title="selectedPost?.title"
   >
-    <template #header>
-      <div class="dialog-header">
-        <span>{{ selectedPost?.title }}</span>
-        <el-button type="info" size="small" circle @click="detailVisible = false">
-          <el-icon><Close /></el-icon>
-        </el-button>
-      </div>
-    </template>
     <div v-loading="loadingComments" class="dialog-content">
       <!-- 帖子内容 -->
       <div class="post-content">
+        <div class="post-cover" v-if="selectedPost?.coverImage">
+          <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" />
+        </div>
         <div class="post-meta">
           <el-avatar :size="32" :src="ToUrl.url+'/'+selectedPost.avatar" />
           <div class="meta-info">
@@ -278,56 +356,72 @@
           </div>
         </div>
         <el-divider />
-        <div class="content-text">
-          {{ selectedPost.content }}
-        </div>
+        <div class="content-text" v-html="renderMarkdown(selectedPost.content)"></div>
       </div>
 
       <!-- 评论区 -->
       <div class="comment-wrapper">
         <h4 class="comment-title">评论（{{ selectedPost.comments?.length || 0 }}）</h4>
         
-        <div class="comment-list">
-          <el-scrollbar height="300px">
-            <div 
-              v-for="comment in selectedPost.comments" 
-              :key="comment.id" 
-              class="comment-item"
-            >
-              <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" />
-              <div class="comment-content">
-                <div class="comment-header">
-                  <span class="author">{{ comment.username }}</span>
-                  <span class="time">{{ formatTime(comment.timestamp) }}</span>
-                </div>
-                <p class="comment-text">{{ comment.content }}</p>
+        <!-- 未登录用户的评论区提示 -->
+        <div v-if="!store.state.token" class="comment-login-prompt">
+          <el-empty description="登录后查看完整评论">
+            <template #image>
+              <el-icon :size="48"><ChatDotSquare /></el-icon>
+            </template>
+            <template #extra>
+              <div class="prompt-actions">
+                <p class="prompt-text">参与讨论，分享你的见解</p>
+                <el-button type="primary" @click="router.push('/login')">去登录</el-button>
               </div>
-            </div>
-            <el-empty 
-              v-if="!selectedPost.comments?.length" 
-              description="暂无评论" 
-              :image-size="80"
-            />
-          </el-scrollbar>
+            </template>
+          </el-empty>
         </div>
 
-        <!-- 评论输入 -->
-        <div class="comment-editor">
-          <el-input
-            v-model="newComment"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入您的评论..."
-            resize="none"
-          />
-          <div class="editor-actions">
-            <el-button 
-              type="primary" 
-              :loading="postingComment" 
-              @click="submitComment"
-            >
-              发表评论
-            </el-button>
+        <!-- 登录用户可见的评论列表 -->
+        <div v-else>
+          <div class="comment-list">
+            <el-scrollbar height="300px">
+              <div 
+                v-for="comment in selectedPost.comments" 
+                :key="comment.id" 
+                class="comment-item"
+              >
+                <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" />
+                <div class="comment-content">
+                  <div class="comment-header">
+                    <span class="author">{{ comment.username }}</span>
+                    <span class="time">{{ formatTime(comment.timestamp) }}</span>
+                  </div>
+                  <p class="comment-text">{{ comment.content }}</p>
+                </div>
+              </div>
+              <el-empty 
+                v-if="!selectedPost.comments?.length" 
+                description="暂无评论" 
+                :image-size="80"
+              />
+            </el-scrollbar>
+          </div>
+
+          <!-- 评论输入框 -->
+          <div class="comment-editor">
+            <el-input
+              v-model="newComment.content"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入您的评论..."
+              resize="none"
+            />
+            <div class="editor-actions">
+              <el-button 
+                type="primary" 
+                :loading="postingComment" 
+                @click="submitComment"
+              >
+                发表评论
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -344,12 +438,21 @@ import {
 } from 'element-plus'
 import { 
   Clock, ChatLineRound, Close, Star, Document, 
-  User, Plus, Search
+  User, Plus, Search, InfoFilled, ChatDotSquare
 } from '@element-plus/icons-vue'
 import axios from 'axios'
 import store from '@/store'
 import ToUrl from '@/api/api'
 import '@/assets/styles/forum-theme.css'
+import 'md-editor-v3/lib/style.css'
+import { MdEditor } from 'md-editor-v3'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/atom-one-dark.css'
+import * as marked from 'marked'
+import { ElImageViewer } from 'element-plus'
+import { useRouter } from 'vue-router'
+
+const router = useRouter();
 
 // 论坛板块
 const forumSections = [
@@ -367,7 +470,11 @@ const loadingPosts = ref(false)
 const loadingComments = ref(false)
 const postForm = ref(null)
 // 评论相关状态
-const newComment = ref('')
+const newComment = ref({
+  content: '',
+  images: [],
+  code: null
+})
 const postingComment = ref(false)
 // 新建帖子相关状态
 const showPostDialog = ref(false)
@@ -377,7 +484,8 @@ const newPost = ref({
   title: '',
   section: '',
   content: '',
-  avatar: store.state.avatar
+  avatar: store.state.avatar,
+  coverImage: ''
 })
 const postingPost = ref(false)
 
@@ -390,23 +498,88 @@ const postsPerPage = 5
 const userPostCount = ref(0)
 const userCommentCount = ref(0)
 
-// 修改打开详情方法
+// 评论相关状态
+const showCodeEditor = ref(false)
+const codeLanguage = ref('javascript')
+
+const supportedLanguages = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'php', label: 'PHP' },
+  { value: 'ruby', label: 'Ruby' },
+  { value: 'swift', label: 'Swift' },
+  { value: 'go', label: 'Go' },
+  { value: 'rust', label: 'Rust' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'html', label: 'HTML' },
+  { value: 'css', label: 'CSS' },
+  { value: 'xml', label: 'XML' },
+  { value: 'json', label: 'JSON' }
+]
+
+// 添加 Markdown 编辑器配置
+const mdContent = ref('')
+const mdConfig = {
+  toolbars: [
+    'bold', 'underline', 'italic', 'strikethrough', '|',
+    'title', 'sub', 'sup', 'quote', 'unordered', 'ordered', '|',
+    'link', 'image', 'table', 'code', 'codeBlock', '|',
+    'preview', 'fullscreen', '|',
+    'undo', 'redo', '|',
+    'save'
+  ]
+}
+
+// 图片上传处理函数
+const onUploadImg = async (files, callback) => {
+  const res = []
+  for (const file of files) {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await axios.post(ToUrl.url + '/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${store.state.token}`
+        }
+      })
+      res.push(ToUrl.url + '/' + response.data.data)
+    } catch (error) {
+      ElMessage.error('图片上传失败')
+    }
+  }
+  callback(res)
+}
+
+// 打开详情方法
 const openDetailDialog = async (post) => {
-  selectedPost.value = post
-  detailVisible.value = true
+  if (!store.state.token && post.content.length > 200) {
+    ElMessage.warning('登录后可查看完整内容');
+    router.push('/login');
+    return;
+  }
+  
+  selectedPost.value = post;
+  detailVisible.value = true;
   
   // 获取评论
   if (post.replyCount > 0) {
-    loadingComments.value = true
+    loadingComments.value = true;
     try {
-      const response = await axios.get(ToUrl.url+`/comments/find/${post.id}`, {
-        headers: { 'Authorization': `Bearer ${store.state.token}` }
-      })
-      selectedPost.value.comments = response.data.data || []
+      const response = await axios.get(ToUrl.url + `/comments/find/${post.id}`);
+      selectedPost.value.comments = response.data.data || [];
+      
+      // 未登录用户只显示部分评论
+      if (!store.state.token) {
+        selectedPost.value.comments = selectedPost.value.comments.slice(0, 3);
+      }
     } catch (error) {
-      ElMessage.error('获取评论失败')
+      ElMessage.error('获取评论失败');
     } finally {
-      loadingComments.value = false
+      loadingComments.value = false;
     }
   }
 }
@@ -414,37 +587,73 @@ const openDetailDialog = async (post) => {
 // 获取帖子方法增强
 const fetchPosts = async () => {
   try {
-    loadingPosts.value = true
-    const response = await axios.get(ToUrl.url + '/post/findAll', {
-      headers: { 'Authorization': `Bearer ${store.state.token}` }
-    })
-    posts.value = response.data.data
+    loadingPosts.value = true;
+    let response;
     
-    // 获取用户帖子和评论统计
-    userPostCount.value = posts.value.filter(post => post.authorId === store.state.id).length
-    fetchUserComments()
+    const headers = store.state.token ? { 'Authorization': `Bearer ${store.state.token}` } : {};
+    
+    if (filterSection.value) {
+      // 按板块查询
+      response = await axios.get(ToUrl.url + '/post/findBySection', {
+        params: { section: filterSection.value },
+        headers
+      });
+    } else {
+      // 查询所有
+      response = await axios.get(ToUrl.url + '/post/findAll', {
+        headers
+      });
+    }
+    
+    posts.value = response.data.data;
+    
+    // 只有登录后才获取用户统计信息
+    if (store.state.token) {
+      fetchUserStats();
+    }
   } catch (error) {
-    ElMessage.error('获取帖子列表失败')
+    ElMessage.error('获取帖子列表失败');
   } finally {
-    loadingPosts.value = false
+    loadingPosts.value = false;
   }
 }
 
-// 获取用户评论数
-const fetchUserComments = async () => {
+// 获取用户统计信息
+const fetchUserStats = async () => {
   try {
-    const response = await axios.get(ToUrl.url + `/comments/user/${store.state.id}`, {
+    const response = await axios.get(ToUrl.url + `/api/stats/${store.state.id}`, {
       headers: { 'Authorization': `Bearer ${store.state.token}` }
-    })
-    userCommentCount.value = response.data.data?.length || 0
+    });
+    if (response.data.code === 200) {
+      const stats = response.data.data;
+      userPostCount.value = stats.postCount;
+      userCommentCount.value = stats.commentCount;
+    }
   } catch (error) {
-    console.error('获取用户评论失败', error)
+    console.error('获取用户统计信息失败', error);
+    ElMessage.error('获取用户统计信息失败');
   }
 }
 
 // 搜索过滤
-const filterPosts = () => {
-  currentPage.value = 1
+const filterPosts = async () => {
+  if (!searchQuery.value.trim()) {
+    fetchPosts();
+    return;
+  }
+
+  try {
+    loadingPosts.value = true;
+    const response = await axios.get(ToUrl.url + '/post/search', {
+      params: { keyword: searchQuery.value },
+      headers: { 'Authorization': `Bearer ${store.state.token}` }
+    });
+    posts.value = response.data.data;
+  } catch (error) {
+    ElMessage.error('搜索失败');
+  } finally {
+    loadingPosts.value = false;
+  }
 }
 
 // 排序功能
@@ -474,7 +683,7 @@ const filteredPosts = computed(() => {
   }
   
   // 排序
-  return filtered.sort((a, b) => {
+  filtered = filtered.sort((a, b) => {
     if (sortOption.value === 'newest') {
       return new Date(b.timestamp) - new Date(a.timestamp)
     } else if (sortOption.value === 'oldest') {
@@ -484,6 +693,13 @@ const filteredPosts = computed(() => {
     }
     return 0
   })
+
+  // 未登录用户只显示部分帖子
+  if (!store.state.token) {
+    filtered = filtered.slice(0, 5) // 只显示前5条帖子
+  }
+  
+  return filtered
 })
 
 // 分页后的帖子
@@ -492,12 +708,29 @@ const displayedPosts = computed(() => {
   return filteredPosts.value.slice(startIndex, startIndex + postsPerPage)
 })
 
-// 热门帖子
-const trendingPosts = computed(() => {
-  return [...posts.value]
-    .sort((a, b) => b.replyCount - a.replyCount)
-    .slice(0, 5)
-})
+// 获取热门帖子
+const fetchHotPosts = async () => {
+  try {
+    const headers = store.state.token ? { 'Authorization': `Bearer ${store.state.token}` } : {};
+    const response = await axios.get(ToUrl.url + '/post/hot', {
+      params: { limit: 5 },
+      headers
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error('获取热门帖子失败', error);
+    return [];
+  }
+}
+
+// trendingPosts计算属性
+const trendingPosts = ref([]);
+
+// 在mounted中调用获取热门帖子
+onMounted(async () => {
+  fetchPosts();
+  trendingPosts.value = await fetchHotPosts();
+});
 
 // 获取独立作者数
 const getUniqueAuthors = () => {
@@ -517,60 +750,112 @@ const formatTime = (timestamp) => {
   }).replace(/\//g, '-')
 }
 
-// 修改后的selectPost方法
+// selectPost方法
 const selectPost = async (post) => {
-  selectedPost.value = post;
-  if (post.replyCount > 0) {
-    loadingComments.value = true;
-    try {
-      const response = await axios.get(ToUrl.url + `/comments/find/${post.id}`, {
-        headers: { 'Authorization': `Bearer ${store.state.token}` }
-      });
-      selectedPost.value.comments = response.data.data || [];
-    } catch (error) {
-      ElMessage.error('获取评论失败');
-    } finally {
-      loadingComments.value = false;
+  try {
+    const headers = store.state.token ? { 'Authorization': `Bearer ${store.state.token}` } : {};
+    const response = await axios.get(ToUrl.url + `/post/findById`, {
+      params: { id: post.id },
+      headers
+    });
+    selectedPost.value = response.data.data;
+    
+    // 获取评论
+    if (post.replyCount > 0) {
+      loadingComments.value = true;
+      try {
+        const commentsResponse = await axios.get(ToUrl.url + `/comments/find/${post.id}`, {
+          headers
+        });
+        selectedPost.value.comments = commentsResponse.data.data || [];
+      } catch (error) {
+        ElMessage.error('获取评论失败');
+      } finally {
+        loadingComments.value = false;
+      }
+    } else {
+      selectedPost.value.comments = [];
     }
-  } else {
-    selectedPost.value.comments = [];
+  } catch (error) {
+    ElMessage.error('获取帖子详情失败');
   }
 };
+
+// 处理代码高亮
+const highlightCode = (code, language) => {
+  try {
+    return hljs.highlight(code, { language }).value
+  } catch (error) {
+    return hljs.highlightAuto(code).value
+  }
+}
 
 // 提交评论
 const submitComment = async () => {
   try {
+    // 检查登录状态
+    if (!store.state.token) {
+      ElMessage.warning('请先登录后再发表评论');
+      router.push('/login');
+      return;
+    }
+
     if (!selectedPost.value?.id) {
       ElMessage.warning('请先选择要评论的帖子')
       return
     }
 
-    if (!newComment.value.trim()) {
+    if (!newComment.value.content.trim()) {
       ElMessage.warning('评论内容不能为空')
       return
     }
 
     postingComment.value = true
-    const res = await axios.post(ToUrl.url + '/comments/insert', {
+    const commentData = {
       authorId: store.state.id,
       username: store.state.user,
       postId: selectedPost.value.id,
-      content: newComment.value,
-      avatar: store.state.avatar
-    }, {
+      content: newComment.value.content,
+      avatar: store.state.avatar,
+      timestamp: new Date().toISOString()
+    }
+
+    const res = await axios.post(ToUrl.url + '/comments/insert', commentData, {
       headers: { 'Authorization': `Bearer ${store.state.token}` }
     })
 
-    // 更新本地数据
-    selectedPost.value.comments.unshift({
-      ...res.data.data,
-      username: store.state.user,
-      avatar: store.state.avatar,
-    })
-    selectedPost.value.replyCount++
-    newComment.value = ''
+    if (res.data.code === 200) {
+      // 更新本地数据
+      if (!selectedPost.value.comments) {
+        selectedPost.value.comments = []
+      }
+      
+      // 使用返回的数据或本地构建的数据
+      const commentResponse = {
+        ...commentData,
+        id: res.data.data?.id || Date.now().toString() // 如果后端没有返回id，使用时间戳作为临时id
+      }
+      
+      selectedPost.value.comments.unshift(commentResponse)
+      selectedPost.value.replyCount = (selectedPost.value.replyCount || 0) + 1
+      
+      // 重置评论表单
+      newComment.value = {
+        content: '',
+        images: [],
+        code: null
+      }
+      
+      // 重新获取用户统计信息
+      fetchUserStats()
+      
+      ElMessage.success('评论发表成功')
+    } else {
+      throw new Error(res.data.message || '评论发表失败')
+    }
   } catch (error) {
-    ElMessage.error('评论发表失败')
+    console.error('评论发表失败:', error)
+    ElMessage.error(error.message || '评论发表失败')
   } finally {
     postingComment.value = false
   }
@@ -578,6 +863,11 @@ const submitComment = async () => {
 
 // 新建帖子
 const openPostDialog = () => {
+  if (!store.state.token) {
+    ElMessage.warning('请先登录后再发布帖子');
+    router.push('/login');
+    return;
+  }
   showPostDialog.value = true
 }
 // 在setup()中添加验证规则
@@ -595,30 +885,89 @@ const postRules = {
   ]
 }
 
+// 处理封面上传
+const handleCoverUpload = async (file) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await axios.post(ToUrl.url + '/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${store.state.token}`
+      }
+    })
+    newPost.value.coverImage = response.data.data
+    return true
+  } catch (error) {
+    ElMessage.error('封面上传失败')
+    return false
+  }
+}
+
+const handleEditorCreated = (editor) => {
+  editorRef.value = editor
+}
+
 const submitPost = async () => {
   try {
-    postingPost.value = true
-    await postForm.value.validate()
+    postingPost.value = true;
+    
+    // 检查必填字段
+    if (!newPost.value.title.trim()) {
+      ElMessage.warning('请输入标题');
+      return;
+    }
+    
+    if (!newPost.value.section) {
+      ElMessage.warning('请选择板块');
+      return;
+    }
+    
+    if (!mdContent.value.trim()) {
+      ElMessage.warning('请输入内容');
+      return;
+    }
+    
+    // 使用 Markdown 内容
+    newPost.value.content = mdContent.value;
+    
     const res = await axios.post(ToUrl.url + '/post/insertPost', newPost.value, {
       headers: { 'Authorization': `Bearer ${store.state.token}` }
-    })
-    // console.log(res.data.data);
-    // 构造完整帖子对象
-    const newPostData = {
-      ...res.data.data,
-      comments: [],       // 初始化评论数组
+    });
+    
+    if (res.data.code === 200) {
+      const newPostData = {
+        ...res.data.data,
+        comments: []
+      };
+      posts.value.unshift(newPostData);
+      selectPost(newPostData);
+      showPostDialog.value = false;
+      
+      // 重置表单
+      newPost.value = { 
+        title: '', 
+        section: '', 
+        content: '',
+        coverImage: '',
+        authorId: store.state.id,
+        username: store.state.user,
+        avatar: store.state.avatar
+      };
+      mdContent.value = '';
+      
+      // 重新获取用户统计信息
+      fetchUserStats();
+      
+      ElMessage.success('帖子发布成功');
+    } else {
+      throw new Error(res.data.message || '发布失败');
     }
-    posts.value.unshift(newPostData)
-    selectPost(newPostData) // 选中新帖子
-    showPostDialog.value = false
-    newPost.value = { title: '', section: '', content: '' }
-    ElMessage.success('帖子发布成功')
   } catch (error) {
-    if (error.name !== 'Error') { // 过滤验证错误
-      ElMessage.error('帖子发布失败请按照规则进行填写！！')
-    }
+    console.error('发布失败:', error);
+    ElMessage.error(error.message || '发布失败，请检查网络连接');
   } finally {
-    postingPost.value = false
+    postingPost.value = false;
   }
 }
 
@@ -639,6 +988,30 @@ const handlePageChange = (page) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+// 修改帖子内容显示方法
+const renderMarkdown = (content) => {
+  try {
+    if (!store.state.token && content.length > 200) {
+      // 未登录用户只显示前200个字符
+      content = content.slice(0, 200) + '\n\n**... 登录后查看完整内容**'
+    }
+    return marked.marked(content)
+  } catch (error) {
+    return content
+  }
+}
+
+// previewImage 方法
+const previewImage = () => {
+  if (newPost.value.coverImage) {
+    const imageUrl = ToUrl.url + '/' + newPost.value.coverImage;
+    ElImageViewer.createVNode({
+      urlList: [imageUrl],
+      initialIndex: 0
+    });
+  }
+}
+
 onMounted(() => {
   fetchPosts()
 })
@@ -652,7 +1025,7 @@ onMounted(() => {
 
   .header-card {
     margin-bottom: 24px;
-    background: linear-gradient(135deg, #67827c, #a9e9d6);
+    background: linear-gradient(135deg, #7c3aed, #b5a0f4);
     border: none;
     border-radius: 12px;
     overflow: hidden;
@@ -751,59 +1124,94 @@ onMounted(() => {
       margin-bottom: 16px;
       transition: all 0.3s;
       cursor: pointer;
-      border: none;
-      border-radius: 8px;
-      overflow: hidden;
-
+      
       &:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
       }
-
-      &.active {
-        border-left: 4px solid #7c3aed;
-        background-color: #f8faf9;
-      }
-
-      .post-header {
-        display: flex;
-        align-items: center;
-
-        .section-tag {
-          margin-right: 12px;
-          border: none;
-          border-radius: 4px;
-        }
-
-        .post-title {
-          margin: 0;
-          color: #333333 !important;
-          font-weight: 600;
-        }
-      }
-
+      
       .post-content {
-        .post-excerpt {
-          color: #333333 !important;
-          line-height: 1.6;
-          margin: 12px 0;
-        }
-
-        .post-meta {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        
+        .post-cover {
+          flex-shrink: 0;
+          width: 200px;
+          height: 150px;
+          border-radius: 8px;
+          overflow: hidden;
           display: flex;
-          gap: 20px;
-          color: #666666 !important;
-          font-size: 0.9em;
-
-          .meta-item {
+          align-items: center;
+          justify-content: center;
+          
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+            
+            &:hover {
+              transform: scale(1.05);
+            }
+          }
+        }
+        
+        .post-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          
+          .post-header {
             display: flex;
             align-items: center;
-            gap: 6px;
-
-            .el-avatar {
-              margin-right: 6px;
-              border: 2px solid #f0f0f0;
+            gap: 12px;
+            margin-bottom: 12px;
+            
+            .post-title {
+              margin: 0;
+              font-size: 1.2rem;
+              color: #333;
             }
+          }
+          
+          .post-excerpt {
+            color: #666;
+            line-height: 1.6;
+            margin: 0 0 12px;
+            flex: 1;
+          }
+          
+          .post-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 12px;
+            align-items: center;
+            
+            .meta-item {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              color: #666;
+              font-size: 14px;
+              
+              .el-avatar {
+                margin-right: 4px;
+              }
+              
+              .author {
+                font-weight: 500;
+                color: #333;
+              }
+              
+              .el-icon {
+                font-size: 16px;
+              }
+            }
+          }
+          
+          .detail-btn {
+            align-self: flex-end;
           }
         }
       }
@@ -851,6 +1259,7 @@ onMounted(() => {
         }
         
         .trending-rank {
+          flex-shrink: 0;
           width: 24px;
           height: 24px;
           display: flex;
@@ -866,6 +1275,7 @@ onMounted(() => {
         
         .trending-content {
           flex: 1;
+          min-width: 0;
           
           .trending-title {
             font-weight: 500;
@@ -933,13 +1343,54 @@ onMounted(() => {
     max-height: calc(100vh - 120px);
     overflow-y: auto;
 
+    :deep(.el-card__header) {
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+    }
+
     .detail-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+
+      h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .close-icon {
+        font-size: 18px;
+        color: #666;
+        cursor: pointer;
+        transition: all 0.3s;
+        
+        &:hover {
+          color: #7c3aed;
+          transform: scale(1.1);
+        }
+      }
     }
 
     .post-detail {
+      .post-cover {
+        margin-bottom: 16px;
+        border-radius: 8px;
+        overflow: hidden;
+        height: 200px;
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform 0.3s ease;
+
+          &:hover {
+            transform: scale(1.05);
+          }
+        }
+      }
       .detail-title {
         color: #333333 !important;
         margin: 0 0 16px;
@@ -967,10 +1418,70 @@ onMounted(() => {
 
       .detail-content {
         line-height: 1.8;
-        color: #333333 !important;
-        white-space: pre-wrap;
-        max-height: 300px;
-        overflow-y: auto;
+        color: #333333;
+        
+        :deep(h1, h2, h3, h4, h5, h6) {
+          margin: 1.5em 0 0.5em;
+          font-weight: 600;
+          line-height: 1.25;
+        }
+        
+        :deep(p) {
+          margin: 1em 0;
+        }
+        
+        :deep(ul, ol) {
+          padding-left: 2em;
+          margin: 1em 0;
+        }
+        
+        :deep(code) {
+          background-color: #f6f8fa;
+          padding: 0.2em 0.4em;
+          border-radius: 3px;
+          font-family: 'Fira Code', monospace;
+        }
+        
+        :deep(pre) {
+          background-color: #282c34;
+          padding: 16px;
+          border-radius: 6px;
+          overflow: auto;
+          
+          code {
+            background-color: transparent;
+            padding: 0;
+            color: #abb2bf;
+          }
+        }
+        
+        :deep(blockquote) {
+          margin: 1em 0;
+          padding: 0 1em;
+          color: #666;
+          border-left: 0.25em solid #dfe2e5;
+        }
+        
+        :deep(table) {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 1em 0;
+          
+          th, td {
+            border: 1px solid #dfe2e5;
+            padding: 6px 13px;
+          }
+          
+          th {
+            background-color: #f6f8fa;
+          }
+        }
+        
+        :deep(img) {
+          max-width: 100%;
+          border-radius: 4px;
+          margin: 1em 0;
+        }
       }
     }
 
@@ -1009,10 +1520,55 @@ onMounted(() => {
               }
             }
 
-            .comment-text {
-              margin: 0;
-              color: #333333 !important;
-              line-height: 1.6;
+            .comment-body {
+              .comment-text {
+                margin: 0;
+                color: #333333 !important;
+                line-height: 1.6;
+              }
+
+              .comment-images {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 12px;
+
+                .comment-image {
+                  width: 120px;
+                  height: 120px;
+                  border-radius: 4px;
+                  cursor: pointer;
+                }
+              }
+
+              .code-block {
+                margin: 12px 0;
+                background: #282c34;
+                border-radius: 6px;
+                overflow: hidden;
+
+                .code-header {
+                  padding: 8px 16px;
+                  background: rgba(255, 255, 255, 0.05);
+                  
+                  .language {
+                    color: #abb2bf;
+                    font-size: 0.9em;
+                    text-transform: uppercase;
+                  }
+                }
+
+                pre {
+                  margin: 0;
+                  padding: 16px;
+                  
+                  code {
+                    font-family: 'Fira Code', monospace;
+                    font-size: 0.9em;
+                    line-height: 1.5;
+                  }
+                }
+              }
             }
           }
         }
@@ -1020,6 +1576,24 @@ onMounted(() => {
 
       .comment-editor {
         margin-top: 24px;
+
+        .editor-toolbar {
+          margin: 12px 0;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .code-editor {
+          margin-top: 12px;
+          border: 1px solid #eee;
+          border-radius: 4px;
+          padding: 12px;
+
+          .code-toolbar {
+            margin-bottom: 12px;
+          }
+        }
 
         .editor-actions {
           margin-top: 12px;
@@ -1038,15 +1612,20 @@ onMounted(() => {
 }
 
 .post-detail-dialog {
-  :deep(.el-dialog__body) {
+  :deep(.el-dialog__header) {
     padding: 20px;
+    border-bottom: 1px solid #eee;
+    margin-right: 0;
   }
 
-  .dialog-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-right: 20px;
+  :deep(.el-dialog__title) {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  :deep(.el-dialog__headerbtn) {
+    top: 20px;
   }
 
   .dialog-content {
@@ -1059,6 +1638,17 @@ onMounted(() => {
   }
 
   .post-content {
+    .post-cover {
+      margin: -20px -20px 20px;
+      height: 300px;
+      border-radius: 0;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
     .post-meta {
       display: flex;
       align-items: center;
@@ -1083,8 +1673,70 @@ onMounted(() => {
 
     .content-text {
       line-height: 1.8;
-      color: #333333 !important;
-      white-space: pre-wrap;
+      color: #333333;
+      
+      :deep(h1, h2, h3, h4, h5, h6) {
+        margin: 1.5em 0 0.5em;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+      
+      :deep(p) {
+        margin: 1em 0;
+      }
+      
+      :deep(ul, ol) {
+        padding-left: 2em;
+        margin: 1em 0;
+      }
+      
+      :deep(code) {
+        background-color: #f6f8fa;
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+        font-family: 'Fira Code', monospace;
+      }
+      
+      :deep(pre) {
+        background-color: #282c34;
+        padding: 16px;
+        border-radius: 6px;
+        overflow: auto;
+        
+        code {
+          background-color: transparent;
+          padding: 0;
+          color: #abb2bf;
+        }
+      }
+      
+      :deep(blockquote) {
+        margin: 1em 0;
+        padding: 0 1em;
+        color: #666;
+        border-left: 0.25em solid #dfe2e5;
+      }
+      
+      :deep(table) {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1em 0;
+        
+        th, td {
+          border: 1px solid #dfe2e5;
+          padding: 6px 13px;
+        }
+        
+        th {
+          background-color: #f6f8fa;
+        }
+      }
+      
+      :deep(img) {
+        max-width: 100%;
+        border-radius: 4px;
+        margin: 1em 0;
+      }
     }
   }
 
@@ -1133,10 +1785,55 @@ onMounted(() => {
             }
           }
 
-          .comment-text {
-            margin: 0;
-            color: #333333 !important;
-            line-height: 1.6;
+          .comment-body {
+            .comment-text {
+              margin: 0;
+              color: #333333 !important;
+              line-height: 1.6;
+            }
+
+            .comment-images {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              margin-bottom: 12px;
+
+              .comment-image {
+                width: 120px;
+                height: 120px;
+                border-radius: 4px;
+                cursor: pointer;
+              }
+            }
+
+            .code-block {
+              margin: 12px 0;
+              background: #282c34;
+              border-radius: 6px;
+              overflow: hidden;
+
+              .code-header {
+                padding: 8px 16px;
+                background: rgba(255, 255, 255, 0.05);
+                
+                .language {
+                  color: #abb2bf;
+                  font-size: 0.9em;
+                  text-transform: uppercase;
+                }
+              }
+
+              pre {
+                margin: 0;
+                padding: 16px;
+                
+                code {
+                  font-family: 'Fira Code', monospace;
+                  font-size: 0.9em;
+                  line-height: 1.5;
+                }
+              }
+            }
           }
         }
       }
@@ -1249,6 +1946,303 @@ onMounted(() => {
 
   .el-button {
     font-weight: 500;
+  }
+}
+
+.cover-uploader {
+  :deep(.el-upload) {
+    border: 1px dashed #d9d9d9;
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    width: 300px;
+    height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    &:hover {
+      border-color: #7c3aed;
+    }
+  }
+  
+  .cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .cover-uploader-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #8c939d;
+    
+    .el-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .upload-text {
+      font-size: 14px;
+    }
+  }
+}
+
+.cover-preview {
+  margin-top: 12px;
+  text-align: center;
+  
+  .preview-image {
+    width: 300px;
+    height: 180px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    
+    &:hover {
+      transform: scale(1.02);
+    }
+  }
+  
+  .preview-tip {
+    margin-top: 8px;
+    color: #666;
+    font-size: 12px;
+  }
+}
+
+.editor-container {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+  width: 100%;
+
+  :deep(.md-editor) {
+    border: none;
+    width: 100%;
+  }
+
+  :deep(.md-editor-preview) {
+    background-color: #fff;
+  }
+
+  :deep(.md-editor-fullscreen) {
+    position: fixed;
+    top: 60px; /* 导航栏高度 */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+    background: #fff;
+  }
+}
+
+.content-text {
+  line-height: 1.8;
+  color: #333333;
+  
+  :deep(h1, h2, h3, h4, h5, h6) {
+    margin: 1.5em 0 0.5em;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  
+  :deep(p) {
+    margin: 1em 0;
+  }
+  
+  :deep(ul, ol) {
+    padding-left: 2em;
+    margin: 1em 0;
+  }
+  
+  :deep(code) {
+    background-color: #f6f8fa;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: 'Fira Code', monospace;
+  }
+  
+  :deep(pre) {
+    background-color: #282c34;
+    padding: 16px;
+    border-radius: 6px;
+    overflow: auto;
+    
+    code {
+      background-color: transparent;
+      padding: 0;
+      color: #abb2bf;
+    }
+  }
+  
+  :deep(blockquote) {
+    margin: 1em 0;
+    padding: 0 1em;
+    color: #666;
+    border-left: 0.25em solid #dfe2e5;
+  }
+  
+  :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+    
+    th, td {
+      border: 1px solid #dfe2e5;
+      padding: 6px 13px;
+    }
+    
+    th {
+      background-color: #f6f8fa;
+    }
+  }
+  
+  :deep(img) {
+    max-width: 100%;
+    border-radius: 4px;
+    margin: 1em 0;
+  }
+}
+
+.login-prompt-card {
+  grid-column: 1 / -1;
+  margin-top: 1rem;
+  padding: 2rem;
+  text-align: center;
+  background: linear-gradient(to bottom, #fefefe, #f8f9fa);
+  border: 1px dashed #dfe6ee;
+}
+
+.login-prompt {
+  margin-top: 1.5rem;
+  padding: 2rem;
+  text-align: center;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dfe6ee;
+}
+
+:deep(.el-empty__description) {
+  margin-top: 0.5rem;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+:deep(.el-empty__bottom) {
+  margin-top: 1rem;
+}
+
+.more-content-prompt {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem 1rem;
+  margin-top: 1rem;
+  background: linear-gradient(to bottom, #fefefe, #f8f9fa);
+  border: 1px dashed #dfe6ee;
+  border-radius: 8px;
+
+  .el-divider {
+    margin: 1rem 0;
+    
+    :deep(.el-divider__text) {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #666;
+      font-size: 1.1rem;
+      font-weight: 600;
+      
+      .el-icon {
+        font-size: 1.3rem;
+        color: #409EFF;
+      }
+    }
+  }
+
+  .prompt-text {
+    color: #409EFF;
+    margin: 1rem 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    background: linear-gradient(to right, #409EFF, #67C23A);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 2s infinite;
+    text-shadow: 0 0 1px rgba(0,0,0,0.1);
+  }
+}
+
+.comment-login-prompt {
+  padding: 3rem 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dfe6ee;
+
+  :deep(.el-empty__image) {
+    .el-icon {
+      color: #409EFF;
+      font-size: 3rem;
+    }
+  }
+
+  :deep(.el-empty__description) {
+    color: #409EFF;
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin: 1rem 0;
+  }
+
+  .prompt-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+
+    .prompt-text {
+      color: #409EFF;
+      font-size: 1rem;
+      font-weight: 500;
+      margin: 0;
+      background: linear-gradient(to right, #409EFF, #67C23A);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+// 修改帖子内容中的登录提示样式
+:deep(.content-text) {
+  p:last-child {
+    strong {
+      display: block;
+      margin-top: 1rem;
+      padding: 0.5rem;
+      color: #409EFF;
+      font-size: 1.1rem;
+      text-align: center;
+      background: #ecf5ff;
+      border-radius: 4px;
+      border: 1px dashed #409EFF;
+      animation: shimmer 2s infinite;
+    }
   }
 }
 </style>
