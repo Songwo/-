@@ -1,13 +1,21 @@
 <template>
   <el-container class="admin-container">
+    <!-- 加载进度条 -->
+    <div class="loading-progress" v-if="isLoading">
+      <el-progress 
+        :percentage="progress" 
+        :show-text="false" 
+        :stroke-width="2" 
+        :color="'#409EFF'"
+      />
+    </div>
+
     <!-- 侧边栏 -->
     <el-aside width="200px" class="admin-aside">
-      <!-- 系统管理员展示 -->
-      <div class="admin-header">
-        <el-avatar :size="60" :src="computedAvatarUrl" />
-        <span class="admin-name">系统管理员</span>
-        <!-- 退出按钮 -->
-        <el-button class="logout-btn" @click="logout">退出</el-button>
+      <!-- 渐变标题 -->
+      <div class="admin-title">
+        <img src="@/assets/logo/logo/信息.png" alt="Logo" class="admin-logo" />
+        <span>白帽工坊管理平台</span>
       </div>
 
       <el-menu 
@@ -16,110 +24,195 @@
         background-color="#f0f8ff" 
         class="admin-menu"
       >
-        <!-- 评论管理 -->
-        <RouterLink :to="commentPath" class="router-link">
-          <el-menu-item index="1">
+        <!-- 首页 -->
+        <RouterLink :to="homePath" class="router-link">
+          <el-menu-item index="0">
             <el-icon>
-              <ChatDotRound />
+              <HomeFilled />
             </el-icon>
-            <span>评论管理</span>
+            <span>首页</span>
           </el-menu-item>
         </RouterLink>
+
+        <!-- 内容管理 -->
+        <el-sub-menu index="1">
+          <template #title>
+            <el-icon><Document /></el-icon>
+            <span>内容管理</span>
+          </template>
+          <RouterLink :to="commentPath" class="router-link">
+            <el-menu-item index="1-1">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>评论管理</span>
+            </el-menu-item>
+          </RouterLink>
+          <RouterLink :to="videoPath" class="router-link">
+            <el-menu-item index="1-2">
+              <el-icon><VideoCamera /></el-icon>
+              <span>视频管理</span>
+            </el-menu-item>
+          </RouterLink>
+          <RouterLink :to="announcementPath" class="router-link">
+            <el-menu-item index="1-3">
+              <el-icon><Bell /></el-icon>
+              <span>公告管理</span>
+            </el-menu-item>
+          </RouterLink>
+        </el-sub-menu>
 
         <!-- 用户管理 -->
-        <RouterLink :to="userPath" class="router-link">
-          <el-menu-item index="2">
-            <el-icon>
-              <User />
-            </el-icon>
+        <el-sub-menu index="2">
+          <template #title>
+            <el-icon><User /></el-icon>
             <span>用户管理</span>
-          </el-menu-item>
-        </RouterLink>
+          </template>
+          <RouterLink :to="userPath" class="router-link">
+            <el-menu-item index="2-1">
+              <el-icon><User /></el-icon>
+              <span>用户列表</span>
+            </el-menu-item>
+          </RouterLink>
+          <RouterLink :to="rewardPath" class="router-link">
+            <el-menu-item index="2-2">
+              <el-icon><Trophy /></el-icon>
+              <span>奖励管理</span>
+            </el-menu-item>
+          </RouterLink>
+        </el-sub-menu>
+
+        <!-- 系统管理 -->
+        <el-sub-menu index="3">
+          <template #title>
+            <el-icon><Setting /></el-icon>
+            <span>系统管理</span>
+          </template>
+          <RouterLink :to="categoryPath" class="router-link">
+            <el-menu-item index="3-1">
+              <el-icon><Folder /></el-icon>
+              <span>分类管理</span>
+            </el-menu-item>
+          </RouterLink>
+          <RouterLink :to="questionPath" class="router-link">
+            <el-menu-item index="3-2">
+              <el-icon><EditPen /></el-icon>
+              <span>题目管理</span>
+            </el-menu-item>
+          </RouterLink>
+          <RouterLink :to="bugPath" class="router-link">
+            <el-menu-item index="3-3">
+              <el-icon><Warning /></el-icon>
+              <span>漏洞管理</span>
+            </el-menu-item>
+          </RouterLink>
+        </el-sub-menu>
 
         <!-- 数据分析 -->
-        <RouterLink :to="dataPath" class="router-link">
-          <el-menu-item index="3">
-            <el-icon>
-              <DataAnalysis />
-            </el-icon>
+        <el-sub-menu index="4">
+          <template #title>
+            <el-icon><DataAnalysis /></el-icon>
             <span>数据分析</span>
-          </el-menu-item>
-        </RouterLink>
+          </template>
+          <RouterLink :to="dataPath" class="router-link">
+            <el-menu-item index="4-1">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>数据统计</span>
+            </el-menu-item>
+          </RouterLink>
+          <RouterLink :to="trendPath" class="router-link">
+            <el-menu-item index="4-2">
+              <el-icon><TrendCharts /></el-icon>
+              <span>趋势分析</span>
+            </el-menu-item>
+          </RouterLink>
+        </el-sub-menu>
 
-        <!-- 视频管理 -->
-        <RouterLink :to="videoPath" class="router-link">
-          <el-menu-item index="4">
-            <el-icon>
-              <VideoCamera />
-            </el-icon>
-            <span>视频管理</span>
-          </el-menu-item>
-        </RouterLink>
-
-        <!-- 漏洞管理 -->
-        <RouterLink :to="bugPath" class="router-link">
+        <!-- 帮助中心 -->
+        <RouterLink :to="helpPath" class="router-link">
           <el-menu-item index="5">
-            <el-icon>
-              <Warning />
-            </el-icon>
-            <span>漏洞管理</span>
+            <el-icon><QuestionFilled /></el-icon>
+            <span>帮助中心</span>
           </el-menu-item>
         </RouterLink>
 
-        <!-- 分类管理 -->
-        <RouterLink :to="categoryPath" class="router-link">
+        <!-- 文档中心 -->
+        <RouterLink :to="documentPath" class="router-link">
           <el-menu-item index="6">
-            <el-icon>
-              <Folder />
-            </el-icon>
-            <span>分类管理</span>
+            <el-icon><Document /></el-icon>
+            <span>文档中心</span>
           </el-menu-item>
         </RouterLink>
-
-        <!-- 题目管理 -->
-        <RouterLink :to="questionPath" class="router-link">
-          <el-menu-item index="7">
-            <el-icon>
-              <EditPen />
-            </el-icon>
-            <span>题目管理</span>
-          </el-menu-item>
-        </RouterLink>
-
-        <!-- 奖励管理 -->
-        <RouterLink :to="rewardPath" class="router-link">
-          <el-menu-item index="8">
-            <el-icon>
-              <Trophy />
-            </el-icon>
-            <span>奖励管理</span>
-          </el-menu-item>
-        </RouterLink>
-
-        <!-- 公告管理 -->
-        <RouterLink :to="announcementPath" class="router-link">
-          <el-menu-item index="9">
-            <el-icon>
-              <EditPen />
-            </el-icon>
-            <span>公告管理</span>
-          </el-menu-item>
-        </RouterLink>
-
       </el-menu>
     </el-aside>
 
     <el-main class="admin-main">
-      <RouterView></RouterView>
+      <!-- 面包屑导航 -->
+      <div class="breadcrumb-container">
+        <el-breadcrumb separator=">" class="breadcrumb">
+          <el-breadcrumb-item v-for="(item, index) in breadcrumbList" :key="index">
+            <span 
+              class="breadcrumb-link" 
+              @click="handleBreadcrumbClick(index)"
+              :class="{ 'last-item': index === breadcrumbList.length - 1 }"
+            >
+              {{ item }}
+            </span>
+          </el-breadcrumb-item>
+        </el-breadcrumb>
+        <div class="admin-info">
+          <div class="info-item">
+            <el-icon><Calendar /></el-icon>
+            <span>{{ currentDate }}</span>
+          </div>
+          <div class="info-item">
+            <el-icon><Clock /></el-icon>
+            <span>{{ currentTime }}</span>
+          </div>
+          <el-dropdown trigger="click" @command="handleCommand">
+            <span class="avatar-dropdown">
+              <el-avatar :size="32" :src="computedAvatarUrl" />
+              <span class="admin-name">{{ store.state.username || '管理员' }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon>
+                  个人信息
+                </el-dropdown-item>
+                <el-dropdown-item command="settings">
+                  <el-icon><Setting /></el-icon>
+                  系统设置
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button type="text" @click="toggleFullScreen">
+            <el-icon><FullScreen /></el-icon>
+          </el-button>
+        </div>
+      </div>
+
+      <!-- 路由视图，添加过渡动画 -->
+      <transition name="fade-slide" mode="out-in">
+        <RouterView v-slot="{ Component }">
+          <component :is="Component" />
+        </RouterView>
+      </transition>
     </el-main>
   </el-container>
 </template>
 
 <script setup>
-import { useRoute,useRouter } from 'vue-router';
-import ToUrl from '@/api/api';
-import store from '@/store';
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import ToUrl from '@/api/api'
+import store from '@/store'
 import {
+  HomeFilled,
   ChatDotRound,
   User,
   DataAnalysis,
@@ -128,72 +221,248 @@ import {
   Folder,
   EditPen,
   Trophy,
-} from '@element-plus/icons-vue';
-import { ElMessageBox } from 'element-plus';
-import { ref, computed } from 'vue';
-
+  ArrowDown,
+  FullScreen,
+  Setting,
+  SwitchButton,
+  Document,
+  Bell,
+  Calendar,
+  Clock,
+  TrendCharts,
+  QuestionFilled
+} from '@element-plus/icons-vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 const router = useRouter()
-// 获取当前路由
-const route = useRoute();
+const route = useRoute()
 
 // 动态路径
-const commentPath = ref('/backMange/comment');
-const userPath = ref('/backMange/user');
-const dataPath = ref('/backMange/data');
-const videoPath = ref('/backMange/video');
-const bugPath = ref('/backMange/bug');
-const categoryPath = ref('/backMange/category');
-const questionPath = ref('/backMange/ques');
-const rewardPath = ref('/backMange/reword');
-const announcementPath = ref('/backMange/announcement');
+const homePath = ref('/backMange/home')
+const commentPath = ref('/backMange/comment')
+const userPath = ref('/backMange/user')
+const dataPath = ref('/backMange/data')
+const videoPath = ref('/backMange/video')
+const bugPath = ref('/backMange/bug')
+const categoryPath = ref('/backMange/category')
+const questionPath = ref('/backMange/ques')
+const rewardPath = ref('/backMange/reword')
+const announcementPath = ref('/backMange/announcement')
+const trendPath = ref('/backMange/trend')
+const helpPath = ref('/backMange/help')
+const documentPath = ref('/backMange/document')
+
+// 加载进度相关
+const isLoading = ref(false)
+const progress = ref(0)
+let progressTimer = null
+
+// 当前日期和时间
+const currentDate = ref('')
+const currentTime = ref('')
+
+// 开始加载进度
+const startLoading = () => {
+  isLoading.value = true
+  progress.value = 0
+  clearInterval(progressTimer)
+  progressTimer = setInterval(() => {
+    if (progress.value < 90) {
+      progress.value += Math.random() * 10
+    }
+  }, 200)
+}
+
+// 完成加载进度
+const finishLoading = () => {
+  progress.value = 100
+  clearInterval(progressTimer)
+  setTimeout(() => {
+    isLoading.value = false
+  }, 300)
+}
+
+// 路由更新时触发加载进度
+router.beforeEach((to, from, next) => {
+  startLoading()
+  next()
+})
+
+router.afterEach(() => {
+  setTimeout(finishLoading, 500)
+})
+
+// 组件挂载时触发加载进度
+onMounted(() => {
+  startLoading()
+  setTimeout(finishLoading, 1000)
+  updateDateTime()
+  // 每秒更新一次时间
+  setInterval(updateDateTime, 1000)
+})
+
 // 头像动态绑定
-const xava = ref("");  // 从 store 获取头像路径
-xava.value=store.state.avatar;
-/* console.log(xava.value) */
-const computedAvatarUrl = computed(() => ToUrl.url + "/" + xava.value);
-/* console.log(computedAvatarUrl.value); */
+const computedAvatarUrl = computed(() => {
+  const avatar = store.state.avatar
+  return avatar ? `${ToUrl.url}/${avatar}` : 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+})
+
+// 处理下拉菜单命令
+const handleCommand = (command) => {
+  switch (command) {
+    case 'profile':
+      // 跳转到个人信息页面
+      router.push('/backMange/profile')
+      break
+    case 'settings':
+      // 跳转到系统设置页面
+      router.push('/backMange/settings')
+      break
+    case 'logout':
+      // 退出登录
+      ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        store.dispatch('logout')
+        router.push('/login')
+        ElMessage.success('退出成功')
+      }).catch(() => {})
+      break
+  }
+}
+
+// 面包屑导航点击处理
+const handleBreadcrumbClick = (index) => {
+  const paths = route.path.split('/').filter(Boolean);
+  let targetPath = '';
+  
+  if (index === 0) {
+    targetPath = '/backMange/home';
+  } else if (index === 1) {
+    switch (paths[1]) {
+      case 'comment':
+      case 'video':
+      case 'announcement':
+        targetPath = '/backMange/comment';
+        break;
+      case 'user':
+      case 'reword':
+        targetPath = '/backMange/user';
+        break;
+      case 'category':
+      case 'ques':
+      case 'bug':
+        targetPath = '/backMange/category';
+        break;
+      case 'data':
+        targetPath = '/backMange/data';
+        break;
+      default:
+        targetPath = '/backMange/home';
+    }
+  } else if (index === 2) {
+    targetPath = '/' + paths.join('/');
+  }
+  
+  router.push(targetPath);
+};
+
+// 面包屑导航
+const breadcrumbList = computed(() => {
+  const path = route.path;
+  const paths = path.split('/').filter(Boolean);
+  const result = ['后台管理'];
+  
+  if (paths[1] === 'home') {
+    result.push('首页');
+  } else if (paths[1] === 'comment') {
+    result.push('内容管理', '评论管理');
+  } else if (paths[1] === 'video') {
+    result.push('内容管理', '视频管理');
+  } else if (paths[1] === 'announcement') {
+    result.push('内容管理', '公告管理');
+  } else if (paths[1] === 'user') {
+    result.push('用户管理', '用户列表');
+  } else if (paths[1] === 'reword') {
+    result.push('用户管理', '奖励管理');
+  } else if (paths[1] === 'category') {
+    result.push('系统管理', '分类管理');
+  } else if (paths[1] === 'ques') {
+    result.push('系统管理', '题目管理');
+  } else if (paths[1] === 'bug') {
+    result.push('系统管理', '漏洞管理');
+  } else if (paths[1] === 'data') {
+    result.push('数据分析', '数据统计');
+  } else if (paths[1] === 'trend') {
+    result.push('数据分析', '趋势分析');
+  }
+  
+  return result;
+});
 
 // 动态设置 default-active
 const activeMenu = computed(() => {
-  // 这里根据当前路由的路径来判断应该激活哪个菜单项
-  switch (route.path) {
+  const path = route.path;
+  switch (path) {
+    case '/backMange/home':
+      return '0';
     case '/backMange/comment':
-      return '1';
-    case '/backMange/user':
-      return '2';
-    case '/backMange/data':
-      return '3';
+      return '1-1';
     case '/backMange/video':
-      return '4';
-    case '/backMange/bug':
-      return '5';
-    case '/backMange/category':
-      return '6';
-    case '/backMange/ques':
-      return '7';
-    case '/backMange/reword':
-      return '8';
+      return '1-2';
     case '/backMange/announcement':
-      return '9';
+      return '1-3';
+    case '/backMange/user':
+      return '2-1';
+    case '/backMange/reword':
+      return '2-2';
+    case '/backMange/category':
+      return '3-1';
+    case '/backMange/ques':
+      return '3-2';
+    case '/backMange/bug':
+      return '3-3';
+    case '/backMange/data':
+      return '4-1';
+    case '/backMange/trend':
+      return '4-2';
+    case '/backMange/help':
+      return '5';
+    case '/backMange/document':
+      return '6';
     default:
-      return '1';  // 默认激活第一个菜单
+      return '0';
   }
 });
-// 退出登录
-const logout = () => {
-  ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    // 清除登录状态（根据实际项目调整）
-    // 跳转到登录页
-    // 退出登录
-    store.dispatch('logout');  // 清除 token 和用户信息
-    router.push('/')
-    ElMessage.success('退出成功')
-  }).catch(() => {})
+
+// 全屏切换
+const toggleFullScreen = () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen()
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen()
+    }
+  }
+}
+
+// 更新当前日期和时间
+const updateDateTime = () => {
+  const now = new Date()
+  currentDate.value = now.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'long'
+  })
+  currentTime.value = now.toLocaleString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
 }
 </script>
 
@@ -208,12 +477,84 @@ const logout = () => {
   border-right: 1px solid #e6f0ff;
   display: flex;
   flex-direction: column;
+  width: 220px !important;
+}
+
+.admin-title {
+  font-size: 18px;
+  font-weight: bold;
+  background: linear-gradient(90deg, #6028e1, #a8a9f6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  margin: 30px 0 20px 0;
+  letter-spacing: 2px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.admin-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
 }
 
 .admin-menu {
   border-right: none;
   flex: 1;
   overflow-y: auto;
+}
+
+:deep(.el-sub-menu__title) {
+  height: 50px;
+  line-height: 50px;
+  margin: 4px 0;
+  border-radius: 4px;
+  transition: all 0.3s;
+  padding: 0 20px !important;
+}
+
+:deep(.el-sub-menu__title:hover) {
+  background-color: #f5f7fa;
+}
+
+:deep(.el-menu-item) {
+  height: 45px;
+  line-height: 45px;
+  margin: 2px 0;
+  border-radius: 4px;
+  transition: all 0.3s;
+  padding: 0 20px !important;
+}
+
+:deep(.el-menu-item.is-active) {
+  background-color: #e6f0ff !important;
+  color: #409EFF !important;
+  font-weight: 500;
+}
+
+:deep(.el-menu-item:hover) {
+  background-color: #f5f7fa;
+}
+
+:deep(.el-menu-item .el-icon),
+:deep(.el-sub-menu__title .el-icon) {
+  margin-right: 12px;
+  font-size: 18px;
+}
+
+:deep(.el-menu-item span),
+:deep(.el-sub-menu__title span) {
+  font-size: 14px;
+}
+
+.router-link {
+  text-decoration: none;
+  color: inherit;
 }
 
 .admin-main {
@@ -224,49 +565,170 @@ const logout = () => {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-/* 系统管理员展示 */
-.admin-header {
+.breadcrumb-container {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  padding: 20px 0;
-  background-color: #e6f7ff;
-  border-bottom: 1px solid #d9ecff;
-  position: relative;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: #f5f7fa;
+  border-radius: 4px;
 }
 
-.admin-header .el-avatar {
-  margin-bottom: 10px;
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+:deep(.el-breadcrumb__item) {
+  display: flex;
+  align-items: center;
+}
+
+:deep(.el-breadcrumb__inner) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #606266;
+  transition: color 0.3s;
+}
+
+:deep(.el-breadcrumb__separator) {
+  margin: 0 8px;
+  color: #909399;
+}
+
+.breadcrumb-link {
+  cursor: pointer;
+  color: #409EFF;
+  transition: color 0.3s;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.breadcrumb-link:hover {
+  color: #66b1ff;
+}
+
+.breadcrumb-link.last-item {
+  color: #606266;
+  cursor: default;
+}
+
+.breadcrumb-link.last-item:hover {
+  color: #606266;
+}
+
+.admin-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #606266;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.info-item .el-icon {
+  font-size: 16px;
+  color: #909399;
+}
+
+.avatar-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+  color: #303133;
+}
+
+.avatar-dropdown:hover {
+  background-color: #e6f0ff;
+}
+
+.avatar-dropdown .el-icon {
+  font-size: 12px;
+  color: #909399;
 }
 
 .admin-name {
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 14px;
+  color: #303133;
+  font-weight: 500;
+}
+
+:deep(.el-button--text) {
+  color: #303133;
+}
+
+:deep(.el-button--text:hover) {
   color: #409EFF;
 }
 
-/* 退出按钮样式 */
-.logout-btn {
-  position: absolute;
-  top: 95px;
-  right: -5px;
-  background-color: #f56c6c;
-  color: white;
-  border: none;
-  font-size: 14px;
+:deep(.el-dropdown-menu__item) {
+  color: #303133;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.logout-btn:hover {
-  background-color: #f44336;
+:deep(.el-dropdown-menu__item:hover) {
+  background-color: #e6f0ff;
+  color: #409EFF;
 }
 
-/* 全局样式 */
-:root {
-  --el-color-primary: #6cb6ff;
-  --el-color-primary-light-3: #8ec5ff;
+:deep(.el-dropdown-menu__item .el-icon) {
+  font-size: 16px;
+  margin-right: 4px;
 }
 
-.router-link {
-  text-decoration: none;
+.loading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+}
+
+:deep(.el-progress-bar__outer) {
+  background-color: transparent;
+}
+
+:deep(.el-progress-bar__inner) {
+  transition: width 0.3s ease;
+}
+
+/* 页面切换动画 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.fade-slide-enter-to,
+.fade-slide-leave-from {
+  opacity: 1;
+  transform: translateX(0);
 }
 </style>

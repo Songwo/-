@@ -11,7 +11,11 @@
       <el-table-column prop="title" label="标题" />
       <el-table-column prop="username" label="作者" />
       <el-table-column prop="section" label="类别" />
-      <el-table-column prop="timestamp" label="上传时间" />
+      <el-table-column prop="timestamp" label="上传时间">
+        <template #default="scope">
+          {{ formatTime(scope.row.timestamp) }}
+        </template>
+      </el-table-column>
       <el-table-column label="评论管理" width="120">
         <template #default="scope">
           <el-button link type="primary" size="small" @click="showComments(scope.row)">管理评论</el-button>
@@ -92,8 +96,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 import store from '@/store'
 import ToUrl from '@/api/api'
@@ -126,6 +130,18 @@ const postRules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   section: [{ required: true, message: '请选择分类', trigger: 'change' }],
   content: [{ required: true, message: '请输入内容', trigger: 'blur' }]
+}
+
+// 时间格式化函数
+const formatTime = (timestamp) => {
+  if (!timestamp) return '-'
+  
+  const date = new Date(timestamp)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
 }
 
 // 打开新增帖子对话框
@@ -338,7 +354,10 @@ const showComments = async (selectedPost) => {
   }
   commentDialogVisible.value = true;
 };
-loadPost();
+
+onMounted(() => {
+  loadPost();
+})
 </script>
 
 <style scoped>

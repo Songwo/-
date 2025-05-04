@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'; // 使用 type 导入
 import store from '../store';
 import { ElMessage } from 'element-plus';
 
-const routes: RouteRecordRaw[] = [  // 指定 RouteRecordRaw 类型
+const routes: RouteRecordRaw[] = [  //使用RouteRecordRaw 类型
   {
     path: '/',
     redirect: '/root/home'
@@ -20,57 +20,97 @@ const routes: RouteRecordRaw[] = [  // 指定 RouteRecordRaw 类型
     meta: { requiresAuth: true },
     children: [
       {
+        path: '',
+        redirect: 'home'
+      },
+      {
+        path: 'home',
+        name: 'backMangeHome',
+        component: () => import('@/components/backMange/home.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'comment',
         name: 'comment',
-        component: () => import('@/components/backMange/CommentMange.vue'),
+        component: () => import('@/components/backMange/DateMange/CommentMange.vue'),
         meta: { requiresAuth: true }
       },
       {
         path: 'data',
         name: 'data',
-        component: () => import('@/components/backMange/DataMange.vue'),
+        component: () => import('@/components/backMange/UnderMange/DataMange.vue'),
         meta: { requiresAuth: true }
       },
       {
         path: 'user',
         name: 'user',
-        component: () => import('@/components/backMange/UserMange.vue'),
+        component: () => import('@/components/backMange/UserMange/UserMange.vue'),
         meta: { requiresAuth: true }
       },
       {
         path: 'video',
         name: 'video',
-        component: () => import('@/components/backMange/VideoMange.vue'),
+        component: () => import('@/components/backMange/DateMange/VideoMange.vue'),
         meta: { requiresAuth: true }
       },
       {
         path: 'bug',
         name: 'bug',
-        component: () => import('@/components/backMange/BugMange.vue'),
+        component: () => import('@/components/backMange/SystemMange/BugMange.vue'),
         meta: { requiresAuth: true }
       },
       {
         path: 'category',
         name: 'category',
-        component: () => import('@/components/backMange/Category.vue'),
+        component: () => import('@/components/backMange/SystemMange/Category.vue'),
         meta: { requiresAuth: true }
       },
       {
         path: 'ques',
         name: 'ques',
-        component: () => import('@/components/backMange/Quesstion.vue'),
+        component: () => import('@/components/backMange/SystemMange/Quesstion.vue'),
         meta: { requiresAuth: true }
       },
       {
         path: 'reword',
         name: 'reword',
-        component: () => import('@/components/backMange/Reword.vue'),
+        component: () => import('@/components/backMange/UserMange/Reword.vue'),
         meta: { requiresAuth: true }
       },
       {
         path: 'announcement',
         name: 'announcement',
-        component: () => import('@/components/backMange/AnnouncementMange.vue'),
+        component: () => import('@/components/backMange/DateMange/AnnouncementMange.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'trend',
+        name: 'trend',
+        component: () => import('@/components/backMange/UnderMange/trend.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'settings',
+        name: 'settings',
+        component: () => import('@/components/backMange/settings.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'help',
+        name: 'help',
+        component: () => import('@/components/backMange/help.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'document',
+        name: 'document',
+        component: () => import('@/components/backMange/document.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('@/components/backMange/profile.vue'),
         meta: { requiresAuth: true }
       }
     ]
@@ -112,7 +152,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior(to, from, savedPosition) {
-    // 始终滚动到顶部
+    // 设置属性始终滚动到顶部
     return { top: 0 }
   }
 });
@@ -120,9 +160,6 @@ const router = createRouter({
 //路由守卫
 router.beforeEach((to, from, next) => {
   const token = store.state.token || localStorage.getItem('token');
-/*   console.log('store:', store.state.token);
-  console.log('localStorage:', localStorage.getItem('token'));
-  console.log('Use 路由'); */
   
   if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!token || token === 'null' || token === '') {
@@ -130,7 +167,7 @@ router.beforeEach((to, from, next) => {
       if (from.name === 'login') {
         next(false);
       } else {
-        next('/');
+        next('/login');
       }
     } else {
       next();
