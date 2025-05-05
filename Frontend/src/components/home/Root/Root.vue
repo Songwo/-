@@ -173,34 +173,31 @@ const activeMenu = computed(() => {
 // 添加监听activeMenu的变化
 watch(activeMenu, (newValue, oldValue) => {
   if (oldValue) {
-    // 移除旧的激活项的动画效果
     const oldMenuItem = document.querySelector(`.menu .el-menu-item[index="${oldValue}"]`)
     if (oldMenuItem) {
       gsap.to(oldMenuItem, {
+        backgroundColor: 'transparent',
         borderBottom: 'none',
         fontWeight: 'normal',
         color: '#ffffff',
-        textShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
         duration: 0.3
       })
     }
   }
   
   if (newValue) {
-    // 获取当前激活的菜单项
     const activeMenuItem = document.querySelector(`.menu .el-menu-item[index="${newValue}"]`)
     if (activeMenuItem) {
-      // 应用GSAP动画
       gsap.timeline()
         .to(activeMenuItem, {
+          backgroundColor: 'rgba(255, 255, 255, 0.15)',
           color: '#ffffff',
           fontWeight: 'bold',
-          textShadow: '0 0 10px rgba(255, 255, 255, 0.7), 0 0 20px rgba(255, 255, 255, 0.4)', // 白色发光效果
           duration: 0.3,
           ease: 'power2.out'
         })
         .to(activeMenuItem, {
-          borderBottom: '6px solid #ffffff',
+          borderBottom: '3px solid #4CAF50',
           duration: 0.3,
           ease: 'elastic.out(1, 0.5)'
         }, '-=0.2')
@@ -369,7 +366,7 @@ onMounted(() => {
 .menu .el-menu-item {
   color: #ffffff;
   font-size: clamp(12px, 1.2vw, 16px);
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
   flex-shrink: 0;
   padding: 0 15px;
   position: relative;
@@ -377,11 +374,16 @@ onMounted(() => {
 
 .menu .el-menu-item.is-active {
   position: relative;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-weight: bold;
+  border-bottom: 3px solid #4CAF50;
 }
 
 .menu .el-menu-item:hover {
   background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
+  transform: translateY(-2px);
 }
 
 .router-link {

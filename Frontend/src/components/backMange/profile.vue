@@ -43,8 +43,12 @@
                 <span class="stat-label">总积分</span>
               </div>
               <div class="stat-item">
-                <span class="stat-value">{{ userInfo.createTime }}</span>
-                <span class="stat-label">注册时间</span>
+                <span class="stat-value">{{ userInfo.correctCount }}</span>
+                <span class="stat-label">正确答题</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">{{ userInfo.totalAttempts }}</span>
+                <span class="stat-label">总尝试</span>
               </div>
             </div>
           </el-card>
@@ -214,7 +218,16 @@ const userInfo = ref({
   avatar: '',
   totalScore: 0,
   emailVerified: false,
-  createTime: ''
+  createTime: '',
+  roles: [],
+  lastLoginTime: '',
+  correctCount: 0,
+  totalAttempts: 0,
+  completedQuestions: [],
+  vulnScores: {},
+  activeLabs: [],
+  completedLabs: [],
+  currentLabToken: null
 })
 
 // 编辑表单
@@ -320,15 +333,21 @@ const finishLoading = () => {
 // 获取用户信息
 const fetchUserInfo = async () => {
   try {
-    const response = await axios.get(`${ToUrl.url}/mes/${store.state.username}`, {
+    const response = await axios.get(`${ToUrl.url}/user/mes/${store.state.user}`, {
       headers: {
         'Authorization': `Bearer ${store.state.token}`
       }
     })
-    userInfo.value = response.data
+    const data = response.data.data
+    userInfo.value = {
+      ...data,
+      email: data.email || '',
+      createTime: data.createTime || '',
+      lastLoginTime: data.lastLoginTime || ''
+    }
     editForm.value = {
-      username: response.data.username,
-      email: response.data.email
+      username: data.username,
+      email: data.email || ''
     }
   } catch (error) {
     ElMessage.error('获取用户信息失败')

@@ -106,7 +106,12 @@ const registerRules = {
   ],
   password: [
     { required: true, message: '密码不能为空', trigger: 'blur' },
-    { min: 6, max: 16, message: '密码长度在6到16个字符', trigger: 'blur' }
+    { min: 8, message: '密码长度至少为8个字符', trigger: 'blur' },
+    { 
+      pattern: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/,
+      message: '密码必须包含字母和数字',
+      trigger: 'blur'
+    }
   ],
   captcha: [
     { required: true, message: '验证码不能为空', trigger: 'blur' }
@@ -187,8 +192,28 @@ onMounted(() => {
   });
 });
 
+// 添加重置表单方法
+const resetForms = () => {
+  // 重置登录表单
+  loginForm.username = '';
+  loginForm.password = '';
+  if (loginFormRef.value) {
+    loginFormRef.value.resetFields();
+  }
+
+  // 重置注册表单
+  registerForm.username = '';
+  registerForm.email = '';
+  registerForm.password = '';
+  registerForm.captcha = '';
+  if (registerFormRef.value) {
+    registerFormRef.value.resetFields();
+  }
+};
+
 // 修改watch监听方式
 watch(isLogin, (newVal) => {
+  resetForms(); // 切换时重置表单
   if (!newVal) {
     // 增加双重保险
     setTimeout(() => {
@@ -293,6 +318,7 @@ const handleRegister = async () => {
 
     if (response.data.code === 200) {
       ElMessage.success('注册成功');
+      resetForms(); // 注册成功后重置表单
       isLogin.value = true;  // 注册成功后切换回登录界面
       generateCaptcha();  // 注册成功后重新生成验证码
     } else {

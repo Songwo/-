@@ -1,7 +1,21 @@
 <!-- App.vue -->
 <template>
-  <router-view></router-view>
+  <div>
+    <router-view></router-view>
+    <LearningGuide/>
+  </div>
 </template>
+
+<script>
+import LearningGuide from './components/LearningGuide.vue'
+
+export default {
+  name: 'App',
+  components: {
+    LearningGuide
+  }
+}
+</script>
 
 <style>
 :root {
@@ -15,8 +29,8 @@
   --el-color-primary-dark-2: #5b21b6 !important;
   
   /* 菜单项选中颜色覆盖 */
-  --el-menu-active-color: #7c3aed !important;
-  --el-menu-hover-text-color: #7c3aed !important;
+  --el-menu-active-color: #e2ffe2 !important;
+  --el-menu-hover-text-color: #9d6cf1 !important;
   --el-menu-hover-bg-color: rgba(124, 58, 237, 0.1) !important;
 }
 
@@ -25,6 +39,6 @@
 .el-menu--horizontal > .el-sub-menu.is-active .el-sub-menu__title {
   border-bottom: 2px solid var(--el-color-primary) !important;
   font-weight: bold;
-  background-color: rgba(124, 58, 237, 0.15) !important;
+  background-color: rgba(218, 197, 255, 0.15) !important;
 }
 </style>

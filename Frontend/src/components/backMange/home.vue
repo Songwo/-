@@ -217,7 +217,7 @@ const handleAction = (action) => {
 
 const activities = ref([
   {
-    content: `${store.state.username} 登录了系统`,
+    content: `${store.state.user} 登录了系统`,
     timestamp: new Date().toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
