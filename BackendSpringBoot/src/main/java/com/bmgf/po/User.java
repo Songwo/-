@@ -43,6 +43,8 @@ public class User implements Serializable {
             message = "邮箱格式不合法")
     private String email;
     private Boolean emailVerified = false;
+    private String emailVerificationToken;
+    private Date emailVerificationTokenExpiry;
 
     // 安全相关
     private Set<String> roles = new HashSet<>(Arrays.asList("USER")); // 用户角色

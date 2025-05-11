@@ -1,5 +1,6 @@
 package com.bmgf.controller;
 import com.bmgf.DTO.ChangePasswordDTO;
+import com.bmgf.DTO.EmailVerificationDTO;
 import com.bmgf.DTO.LoginRequest;
 import com.bmgf.po.Result;
 import com.bmgf.po.Reward;
@@ -48,6 +49,26 @@ public class UserController {
     private JwtUtil jwtUtil;
     @Autowired
     private UserService userService1;
+
+    @Autowired
+    private UserService userService;
+
+    @PostMapping("/send-verification")
+    public ResponseEntity<?> sendVerificationEmail(@RequestHeader("Authorization") String authHeader) {
+//        System.out.println(authHeader);
+//        User us=userService.findByUsername(jwtUtil.getUsernameFromToken(token));
+        String token = authHeader.substring(7); // 去掉"Bearer "前缀
+        String userId = jwtUtil.extractUserId(token); //获取用户ID的方法
+//        System.out.println(userId);
+        userService.sendVerificationEmail(userId);
+        return ResponseEntity.ok().body("Verification email sent");
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestBody EmailVerificationDTO dto) {
+        boolean verified = userService.verifyEmail(dto.getToken());
+        return ResponseEntity.ok().body(verified ? "Email verified successfully" : "Verification failed");
+    }
 
     @PostMapping("/avatar")
     public Result uploadAvatar(@RequestParam("file") MultipartFile file, @RequestHeader("Authorization") String authHeader,

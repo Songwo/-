@@ -9,11 +9,53 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.data.mongodb.core.query.Query;
+
+import java.util.Date;
 import java.util.List;
+import java.util.UUID;
+
 @Service
 public class UserService {
     @Autowired
     private UserRepository userService;
+    @Autowired
+    private EmailService emailService;
+
+    public void sendVerificationEmail(String userId) {
+        User user = userService.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 生成验证token
+        String token = UUID.randomUUID().toString();
+        Date expiryDate = new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000); // 24小时后过期
+
+        // 更新用户验证信息
+        user.setEmailVerificationToken(token);
+        user.setEmailVerificationTokenExpiry(expiryDate);
+        userService.save(user);
+
+        // 发送验证邮件
+        System.out.println(user.getEmail());
+        emailService.sendVerificationEmail(user.getEmail(), token);
+    }
+
+    public boolean verifyEmail(String token) {
+        User user = userService.findByEmailVerificationToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid verification token"));
+
+        // 检查token是否过期
+        if (user.getEmailVerificationTokenExpiry().before(new Date())) {
+            throw new RuntimeException("Verification token has expired");
+        }
+
+        // 更新用户验证状态
+        user.setEmailVerified(true);
+        user.setEmailVerificationToken(null);
+        user.setEmailVerificationTokenExpiry(null);
+        userService.save(user);
+
+        return true;
+    }
     //通过id查找全部信息
     public User findByIdINt(String i){
         if(userService.findByIdString(i).isEmpty()){

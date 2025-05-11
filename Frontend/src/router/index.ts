@@ -162,6 +162,14 @@ const routes: RouteRecordRaw[] = [  //使用RouteRecordRaw 类型
       { path: 'unicode', name: 'unicode', component: () => import('@/components/home/Pricate_until/Unicode.vue'), meta: { requiresAuth: true, requiresUser: true } },
     ],
   },
+  {
+    path: '/verify-email',
+    name: 'VerifyEmail',
+    component: () => import('@/components/emailverify/VerifyEmail.vue'),
+    meta: {
+      requiresAuth: true
+    }
+  },
 ];
 
 const router = createRouter({
