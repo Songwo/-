@@ -4,18 +4,19 @@ import com.bmgf.dao.ChallengeRepository;
 import com.bmgf.po.*;
 import com.bmgf.service.impl.*;
 import com.bmgf.DTO.FlagDTo;
+import com.bmgf.util.JwtUtil;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -23,69 +24,124 @@ import java.util.stream.Collectors;
 @RequestMapping("/lab")
 @RequiredArgsConstructor
 public class LabController {
+
+
     private final VulnContainerService containerService;
     private final UserService userService;
-
+    private final ComposeEnvironmentService composeEnvironmentService;
+    private final ThreadPoolTaskExecutor vulnTaskExecutor;
+    @Autowired
+    private  JwtUtil jwtUtil;
     @Autowired
     private ContainerInstanceService containerInstanceService;
-
     @Autowired
     private LabFlagService labFlagService;
+    @Autowired
+    private ChallengeService challengeService;
+    @Autowired
+    private User_Challenge_ProgressService userChallengeProgressService;
+    @Autowired
+    private ChallengeRepository challengeRepository;
 
-    @PostMapping("/create")
-    public ResponseEntity<?> createLab(
+    // 异步组合环境创建接口
+    @PostMapping("/create-compose")
+    public CompletableFuture<ResponseEntity<?>> createComposeLabAsync(
             @RequestHeader("Authorization") String authHeader,
-            @RequestBody LabCreateRequest request) {
+            @RequestBody ComposeCreateRequest request) {
 
-        try {
-            // 1. 从Authorization头获取token并解析用户名
-            String token = authHeader.substring(7); // 去掉"Bearer "前缀
-            String username = containerService.getUsernameFromToken(token);
-
-            // 2. 获取用户信息
-            User user = userService.findByUsername(username);
-            if (user == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(errorResponse("Authentication failed", "User not found"));
-            }
-
-            // 3. 验证请求参数
-            if (request.getImageName() == null || request.getImageName().isBlank()) {
-                throw new IllegalArgumentException("Image name is required");
-            }
-            if (request.getPorts() == null || request.getPorts().isEmpty()) {
-                throw new IllegalArgumentException("At least one port mapping is required");
-            }
-
-            // 4. 创建容器（同步调用）
-            ContainerInstance instance = containerService.createVulnEnvironment(
-                    user,
-                    request.getImageName(),
-                    request.getPorts(),
-                    request.getDuration()
+        // 提取 token
+        String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
+        if (token == null) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(errorResponse("Authentication failed", "Authorization header is missing or malformed"))
             );
-
-            return ResponseEntity.ok(convertToDTO(instance));
-
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid request: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(errorResponse("Invalid request", e.getMessage()));
-        } catch (Exception e) {
-            log.error("Container creation failed", e);
-            return ResponseEntity.internalServerError()
-                    .body(errorResponse("Container creation failed",
-                            e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
         }
+
+        // 验证 token
+        if (!jwtUtil.validateToken(token)) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(errorResponse("Authentication failed", "Invalid or expired token"))
+            );
+        }
+        // 获取用户名
+        String username;
+        try {
+            username = containerService.getUsernameFromToken(token);
+        } catch (Exception e) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(errorResponse("Authentication failed", "Token parsing failed"))
+            );
+        }
+        // 查找用户
+        User user = userService.findByUsername(username);
+        if (user == null) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(errorResponse("Authentication failed", "User not found"))
+            );
+        }
+        // 验证请求
+        if (request.getServices() == null || request.getServices().isEmpty()) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest()
+                            .body(errorResponse("Invalid request", "At least one service is required"))
+            );
+        }
+
+
+        // 构建有序服务规格
+        Map<String, ServiceDefinition> serviceMap = request.getServices().stream()
+                .collect(Collectors.toMap(ServiceDefinition::getServiceName, s -> s));
+        List<ServiceDefinition> orderedDefs = resolveServiceDependencies(serviceMap);
+        List<VulnContainerService.ServiceSpec> specs = orderedDefs.stream()
+                .map(s -> {
+                    VulnContainerService.ServiceSpec spec = new VulnContainerService.ServiceSpec();
+                    spec.setServiceName(s.getServiceName());
+                    spec.setImage(s.getImage());
+                    spec.setPorts(s.getPorts());
+                    spec.setEnv(s.getEnv());
+                    return spec;
+                })
+                .collect(Collectors.toList());
+
+        // 异步创建组合环境
+        return containerService.createComposeEnvironmentAsync(user, specs, request.getDuration())
+                .<ResponseEntity<?>>thenApply(env -> {
+                    ComposeEnvironmentDTO dto = convertComposeToDTO(env);
+                    return ResponseEntity.ok(dto);
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = ex instanceof RuntimeException ? ex.getCause() : ex;
+                    log.error("Compose creation failed", cause);
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(errorResponse("Compose creation failed", cause.getMessage()));
+                });
     }
 
-    private ContainerInstanceDTO convertToDTO(ContainerInstance instance) {
-        ContainerInstanceDTO dto = new ContainerInstanceDTO();
-        dto.setContainerId(instance.getContainerId());
-        dto.setImageName(instance.getImageName());
-        dto.setPortMapping(instance.getPortMapping());
-        dto.setExpireTime(instance.getExpireTime());
-        dto.setStatus(instance.getStatus());
+    // Flag 接口
+    @PostMapping("/flag_2")
+    public Result flagLab2(@RequestBody FlagDTo flagDTo,
+                           @RequestHeader("Authorization") String authHeader) {
+        return labFlagService.checkFlag(flagDTo.getImageName(), flagDTo.getFlag())
+                ? Result.success() : Result.error("没有容器创建记录");
+    }
+
+    @PostMapping("/flag")
+    public Result flagLab(@RequestBody FlagDTo flagDTo,
+                          @RequestHeader("Authorization") String authHeader) {
+        return Result.success();
+    }
+
+    // DTO 转换 & 辅助方法
+    private ComposeEnvironmentDTO convertComposeToDTO(ComposeEnvironment env) {
+        ComposeEnvironmentDTO dto = new ComposeEnvironmentDTO();
+        dto.setEnvironmentId(env.getId());
+        dto.setServices(env.getServices().keySet());
+        dto.setExpireTime(env.getExpireTime());
+        dto.setStatus(env.getStatus());
         return dto;
     }
 
@@ -97,153 +153,28 @@ public class LabController {
         );
     }
 
-    @PostMapping("/create-compose")
-    public ResponseEntity<?> createComposeLab(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody ComposeCreateRequest request) {
-
-        try {
-            // 身份验证
-            String token = authHeader.substring(7);
-            String username = containerService.getUsernameFromToken(token);
-            User user = userService.findByUsername(username);
-
-            // 参数校验
-            if (request.getServices() == null || request.getServices().isEmpty()) {
-                throw new IllegalArgumentException("At least one service is required");
-            }
-
-            // 创建服务依赖图
-            Map<String, ServiceDefinition> serviceMap = request.getServices().stream()
-                    .collect(Collectors.toMap(ServiceDefinition::getServiceName, s -> s));
-
-            // 获取服务启动顺序
-            List<ServiceDefinition> orderedServices = resolveServiceDependencies(serviceMap);
-
-            // 转换请求参数
-            List<VulnContainerService.ServiceSpec> specs = orderedServices.stream()
-                    .map(s -> {
-                        VulnContainerService.ServiceSpec spec = new VulnContainerService.ServiceSpec();
-                        spec.setServiceName(s.getServiceName());
-                        spec.setImage(s.getImage());
-                        spec.setPorts(s.getPorts());
-                        spec.setEnv(s.getEnv());
-                        return spec;
-                    })
-                    .collect(Collectors.toList());
-
-            // 创建环境
-            ComposeEnvironment env = containerService.createComposeEnvironment(
-                    user, specs, request.getDuration());
-
-            return ResponseEntity.ok(convertComposeToDTO(env));
-
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid request: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(errorResponse("Invalid request", e.getMessage()));
-        } catch (Exception e) {
-            log.error("Container creation failed", e);
-            return ResponseEntity.internalServerError()
-                    .body(errorResponse("Container creation failed",
-                            e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
+    private List<ServiceDefinition> resolveServiceDependencies(Map<String, ServiceDefinition> serviceMap) {
+        List<ServiceDefinition> ordered = new ArrayList<>();
+        Set<String> processed = new HashSet<>();
+        for (ServiceDefinition svc : serviceMap.values()) {
+            processServiceDependencies(svc, serviceMap, ordered, processed);
         }
+        return ordered;
     }
 
-    @PostMapping("/flag_2")
-    public Result flagLab_2(@RequestBody FlagDTo flagDTo, @RequestHeader("Authorization") String authHeader){
-        String token = authHeader.substring(7);
-        String username = containerService.getUsernameFromToken(token);
-        User user = userService.findByUsername(username);
-        if (user == null) {
-            return Result.error("没有权限");
+    private void processServiceDependencies(ServiceDefinition service,
+                                            Map<String, ServiceDefinition> serviceMap,
+                                            List<ServiceDefinition> ordered,
+                                            Set<String> processed) {
+        if (!processed.add(service.getServiceName())) return;
+        for (String dep : service.getDependsOn()) {
+            ServiceDefinition d = serviceMap.get(dep);
+            if (d != null) processServiceDependencies(d, serviceMap, ordered, processed);
         }
-        if(containerInstanceService.checkIfUserCreatedContainer(flagDTo.getUserId(),flagDTo.getImageName())){
-                System.out.println("Extracted content: " + flagDTo.getFlag());
-                return labFlagService.checkFlag(flagDTo.getImageName(), flagDTo.getFlag())?Result.success():Result.error("回答错误");
-        }else {
-            return Result.error("没有容器创建记录");
-        }
-    }
-    private final ComposeEnvironmentService composeEnvironmentService;
-    @Autowired
-    private ChallengeService challengeService;
-    @Autowired
-    private User_Challenge_ProgressService userChallengeProgressService;
-    @PostMapping("/flag")
-    public Result flagLab(@RequestBody FlagDTo flagDTo, @RequestHeader("Authorization") String authHeader){
-        String token = authHeader.substring(7);
-        String username = containerService.getUsernameFromToken(token);
-        User user = userService.findByUsername(username);
-        if (user == null) {
-            return Result.error("没有权限");
-        }
-        if(composeEnvironmentService.checkIfUserCreatedImage(flagDTo.getUserId(),flagDTo.getImageName())){
-            boolean isCorrect = labFlagService.checkFlag(flagDTo.getImageName(), flagDTo.getFlag());
-            if (isCorrect) {
-                Optional<Challenge> challengeOpt = challengeService.findByImageName(flagDTo.getImageName());
-                if (challengeOpt.isPresent()) {
-                    String challengeId = challengeOpt.get().getId();
-                    String nextChallengeId = getNextChallengeId(challengeId);
-                    userChallengeProgressService.completeChallenge(user.getId(), challengeId, 100); // 100为分数
-                    if (nextChallengeId != null) {
-                        challengeService.unlockNextChallenge(user.getId(), nextChallengeId);
-                    }
-                }
-                return Result.success();
-            } else {
-                return Result.error("回答错误");
-            }
-        } else {
-            return Result.error("没有容器创建记录");
-        }
+        ordered.add(service);
     }
 
-    @Autowired
-    private ChallengeRepository challengeRepository;
-
-    public String getNextChallengeId(String currentChallengeId) {
-        List<Challenge> all = challengeRepository.findAll();
-        all.sort(Comparator.comparingInt(Challenge::getDifficulty).thenComparing(Challenge::getId));
-        all.forEach(ch -> System.out.println(ch.getId() + " difficulty=" + ch.getDifficulty()));
-        // 找到当前关卡
-        int idx = -1;
-        for (int i = 0; i < all.size(); i++) {
-            if (all.get(i).getId().equals(currentChallengeId)) {
-                idx = i;
-                break;
-            }
-        }
-        if (idx == -1) return null;
-
-        Challenge current = all.get(idx);
-        // 先尝试解锁同难度下一个
-        for (int i = idx + 1; i < all.size(); i++) {
-            if (all.get(i).getDifficulty() == current.getDifficulty()) {
-                System.out.println(all.get(i).getId() + " difficulty=" + all.get(i).getDifficulty());
-                return all.get(i).getId();
-            }
-        }
-        // 如果本难度已通关，解锁下一个难度的第一关
-        for (int i = idx + 1; i < all.size(); i++) {
-            if (all.get(i).getDifficulty() > current.getDifficulty()) {
-                return all.get(i).getId();
-            }
-        }
-        return null;
-    }
-
-    // 新增DTO转换方法
-    private ComposeEnvironmentDTO convertComposeToDTO(ComposeEnvironment env) {
-        ComposeEnvironmentDTO dto = new ComposeEnvironmentDTO();
-        dto.setEnvironmentId(env.getId());
-        dto.setServices(env.getServices().keySet());
-        dto.setExpireTime(env.getExpireTime());
-        dto.setStatus(env.getStatus());
-        return dto;
-    }
-
-    // 新增请求响应类
+    // 请求/响应 DTO
     @Data
     public static class ComposeCreateRequest {
         private List<ServiceDefinition> services;
@@ -256,7 +187,7 @@ public class LabController {
         private String image;
         private Map<Integer, Integer> ports;
         private Map<String, String> env = new HashMap<>();
-        private List<String> dependsOn = new ArrayList<>();  // 新增字段：依赖关系
+        private List<String> dependsOn = new ArrayList<>();
     }
 
     @Data
@@ -265,55 +196,5 @@ public class LabController {
         private Set<String> services;
         private Instant expireTime;
         private String status;
-    }
-
-    @Data
-    public static class LabCreateRequest {
-        private String imageName;
-        private Map<Integer, Integer> ports;
-        private int duration = 60;
-    }
-
-    @Data
-    public static class ContainerInstanceDTO {
-        private String containerId;
-        private String imageName;
-        private Map<Integer, Integer> portMapping;
-        private Instant expireTime;
-        private String status;
-    }
-
-    private List<ServiceDefinition> resolveServiceDependencies(Map<String, ServiceDefinition> serviceMap) {
-        List<ServiceDefinition> orderedServices = new ArrayList<>();
-        Set<String> processed = new HashSet<>();
-
-        // 递归地处理服务依赖关系
-        for (ServiceDefinition service : serviceMap.values()) {
-            processServiceDependencies(service, serviceMap, orderedServices, processed);
-        }
-
-        return orderedServices;
-    }
-
-    private void processServiceDependencies(ServiceDefinition service,
-                                            Map<String, ServiceDefinition> serviceMap,
-                                            List<ServiceDefinition> orderedServices,
-                                            Set<String> processed) {
-        // 防止循环依赖
-        if (processed.contains(service.getServiceName())) {
-            return;
-        }
-        processed.add(service.getServiceName());
-
-        // 递归处理所有依赖的服务
-        for (String dependency : service.getDependsOn()) {
-            ServiceDefinition dependentService = serviceMap.get(dependency);
-            if (dependentService != null) {
-                processServiceDependencies(dependentService, serviceMap, orderedServices, processed);
-            }
-        }
-
-        // 将当前服务添加到列表中
-        orderedServices.add(service);
     }
 }

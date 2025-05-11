@@ -1,5 +1,4 @@
 package com.bmgf.service.impl;
-import com.github.dockerjava.api.model.Volume;
 import com.bmgf.po.ComposeEnvironment;
 import com.bmgf.po.User;
 import com.bmgf.util.JwtUtil;
@@ -15,21 +14,25 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class VulnContainerService {
@@ -40,69 +43,25 @@ public class VulnContainerService {
     private static final int MONITOR_INTERVAL = 5000;
     private static final int MYSQL_WAIT_TIMEOUT = 120;
     private static final int SERVICE_START_DELAY = 12;
+    private static final int MAX_BACKEND_WAIT_RETRIES = 5; // 最大等待次数
+    private static final int BACKEND_WAIT_DELAY_MS = 2000;   // 每次等待2秒
     private static final Logger log = LoggerFactory.getLogger(VulnContainerService.class);
     private final UserService userService;
+    private final ThreadPoolTaskExecutor vulnTaskExecutor;
     public String getUsernameFromToken(String token) {
         return jwtUtil.getUsernameFromToken(token);
     }
-
-    public ContainerInstance createVulnEnvironment(
-            User user, String imageName,
-            Map<Integer, Integer> ports, int durationMinutes) {
-
-        CreateContainerResponse response = null;
-        try {
-            ensureImageExists(imageName);
-
-            Ports portBindings = new Ports();
-            ports.forEach((hostPort, containerPort) ->
-                    portBindings.bind(ExposedPort.tcp(containerPort),
-                            Ports.Binding.bindPort(hostPort))
-            );
-
-            response = dockerClient.createContainerCmd(imageName)
-                    .withExposedPorts(ports.values().stream()
-                            .map(ExposedPort::tcp)
-                            .collect(Collectors.toList()))
-                    .withHostConfig(buildSecureHostConfig(portBindings))
-                    .exec();
-
-            // 启动容器时，如果遇到NotModifiedException，则认为容器已处于正确状态
-            try {
-                dockerClient.startContainerCmd(response.getId()).exec();
-            } catch (NotModifiedException nme) {
-                log.warn("容器 {} 已经处于预期状态，忽略启动异常: {}", response.getId(), nme.getMessage());
-            }
-            InspectContainerResponse inspect = dockerClient.inspectContainerCmd(response.getId()).exec();
-            if (!Boolean.TRUE.equals(inspect.getState().getRunning())) {
-                throw new RuntimeException("容器启动失败: " + inspect.getState().getStatus());
-            }
-
-            ContainerInstance instance = new ContainerInstance();
-            instance.setUserId(user.getId());
-            instance.setImageName(imageName);
-            instance.setPortMapping(ports);
-            instance.setContainerId(response.getId());
-            instance.setCreateTime(Instant.now());
-            instance.setExpireTime(Instant.now().plus(durationMinutes, ChronoUnit.MINUTES));
-            instance.setStatus("RUNNING");
-
-            ContainerInstance saved = mongoTemplate.save(instance);
-            user.getActiveLabs().add(saved);
-            mongoTemplate.save(user);
-
-            return saved;
-
-        } catch (Exception e) {
-            if (response != null) {
-                try {
-                    dockerClient.removeContainerCmd(response.getId()).withForce(true).exec();
-                } catch (Exception ignored) {}
-            }
-            throw new RuntimeException("创建容器失败: " + e.getMessage(), e);
-        }
+    @Bean(name = "containerTaskExecutor")
+    public Executor containerTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(20);
+        executor.setMaxPoolSize(100);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("ContainerAsync-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.initialize();
+        return executor;
     }
-
     private String createNetwork(String networkName) {
         try {
             try {
@@ -119,83 +78,54 @@ public class VulnContainerService {
             throw new RuntimeException("创建网络失败: " + e.getMessage(), e);
         }
     }
+    @Async("vulnTaskExecutor")
+    public CompletableFuture<ComposeEnvironment> createComposeEnvironmentAsync(
+            User user, List<ServiceSpec> services, int durationMinutes) {
+        return CompletableFuture.supplyAsync(() -> {
+            String envId = UUID.randomUUID().toString();
+            Map<String, String> backendEnv = services.stream()
+                    .filter(s -> s.getServiceName().toLowerCase().contains("backend"))
+                    .map(ServiceSpec::getEnv)
+                    .findFirst()
+                    .orElse(new HashMap<>());
 
-    /**
-     * 创建组合环境（多容器编排）
-     * @param user 用户对象
-     * @param services 服务规格列表
-     * @param durationMinutes 环境持续时间(分钟)
-     * @return 创建的组合环境对象
-     */
-    public ComposeEnvironment createComposeEnvironment(
-            User user, List<ServiceSpec> services,
-            int durationMinutes) {
+            configureServiceEnvironments(services, backendEnv);
+            String networkName = String.format("user-%s-env-%s", user.getId(), envId);
+            String networkId = createNetwork(networkName);
 
-        // 生成唯一环境ID和动态数据库名称
-        String envId = UUID.randomUUID().toString();
-        String dynamicDbName = "db_" + user.getId() + "_" + envId.substring(0, 8);
-
-        // ✅ 从 backend 服务中提取 env
-        Map<String, String> backendEnv = services.stream()
-                .filter(s -> s.getServiceName().toLowerCase().contains("backend"))
-                .map(ServiceSpec::getEnv)
-                .findFirst()
-                .orElse(new HashMap<>());
-
-        // 1. 动态配置服务环境变量
-        configureServiceEnvironments(services, backendEnv);
-
-        // 2. 创建隔离网络
-        String networkName = String.format("user-%s-env-%s", user.getId(), envId);
-        String networkId = createNetwork(networkName);
-
-        // 3. 按依赖顺序启动服务
-        Map<String, String> containerIds = new LinkedHashMap<>();
-        try {
-            // 3.1 首先创建所有容器但不启动
-            createAllContainers(services, networkId, containerIds);
-
-            // 3.2 按顺序启动服务并等待依赖就绪
-            startServicesWithDependencies(services, containerIds);
-
-            // 4. 保存环境记录到数据库
-            ComposeEnvironment env = new ComposeEnvironment();
-            env.setUserId(user.getId());
-            env.setNetworkId(networkId);
-            env.setServices(containerIds);
-            env.setCreateTime(Instant.now());
-            env.setExpireTime(Instant.now().plus(durationMinutes, ChronoUnit.MINUTES));
-            env.setStatus("RUNNING");
-            Set<String> imageNames = services.stream()
-                    .map(VulnContainerService.ServiceSpec::getImage)
-                    .collect(Collectors.toSet());
-            env.setImageNames(imageNames);
-            return mongoTemplate.save(env);
-
-        } catch (Exception e) {
-            // 清理资源
-            containerIds.values().forEach(id -> {
-                try {
-                    dockerClient.removeContainerCmd(id).withForce(true).exec();
-                } catch (Exception ex) {
-                    log.error("清理容器 {} 失败: {}", id, ex.getMessage());
-                }
-            });
+            Map<String, String> containerIds = new LinkedHashMap<>();
             try {
-                dockerClient.removeNetworkCmd(networkId).exec();
-            } catch (Exception ex) {
-                log.error("清理网络 {} 失败: {}", networkId, ex.getMessage());
+                createAllContainers(services, networkId, containerIds);
+                startServicesWithDependencies(services, containerIds);
+
+                ComposeEnvironment env = new ComposeEnvironment();
+                env.setUserId(user.getId());
+                env.setNetworkId(networkId);
+                env.setServices(containerIds);
+                env.setCreateTime(Instant.now());
+                env.setExpireTime(Instant.now().plus(durationMinutes, ChronoUnit.MINUTES));
+                env.setStatus("RUNNING");
+                env.setImageNames(services.stream()
+                        .map(ServiceSpec::getImage)
+                        .collect(Collectors.toSet()));
+                return mongoTemplate.save(env);
+
+            } catch (Exception e) {
+                cleanupResources(containerIds.values(), networkId);
+                throw new CompletionException("环境创建失败", e);
             }
-            throw new RuntimeException("环境创建失败: " + e.getMessage(), e);
-        }
+        });
     }
 
-    /**
-     * 创建所有容器但不启动
-     * @param services 服务规格列表
-     * @param networkId Docker网络ID
-     * @param containerIds 用于存储容器ID的Map
-     */
+    private void cleanupResources(Collection<String> containerIds, String networkId) {
+        containerIds.forEach(id -> {
+            try { dockerClient.removeContainerCmd(id).withForce(true).exec(); }
+            catch (Exception ex) { log.error("清理容器 {} 失败", id, ex); }
+        });
+        try { dockerClient.removeNetworkCmd(networkId).exec(); }
+        catch (Exception ex) { log.error("清理网络 {} 失败", networkId, ex); }
+    }
+
     private void createAllContainers(List<ServiceSpec> services,
                                      String networkId,
                                      Map<String, String> containerIds) throws InterruptedException {
@@ -212,13 +142,6 @@ public class VulnContainerService {
         }
     }
 
-    /**
-     * 按依赖顺序启动服务
-     * @param services 服务规格列表
-     * @param containerIds 容器ID映射
-     */
-    private static final int MAX_BACKEND_WAIT_RETRIES = 5; // 最大等待次数
-    private static final int BACKEND_WAIT_DELAY_MS = 2000;   // 每次等待2秒
 
     private void startServicesWithDependencies(List<ServiceSpec> services,
                                                Map<String, String> containerIds) throws InterruptedException {
@@ -474,45 +397,45 @@ public class VulnContainerService {
                 .exec();
     }
 
-        /**
-         * 配置服务环境变量（使用前端传入 env 数据为主）
-         */
-        private void configureServiceEnvironments(List<ServiceSpec> services, Map<String, String> frontendEnv) {
-            String backendName = services.stream()
-                    .filter(s -> s.getServiceName().toLowerCase().contains("backend"))
-                    .map(ServiceSpec::getServiceName)
-                    .findFirst().orElse("backend");
+    /**
+     * 配置服务环境变量（使用前端传入 env 数据为主）
+     */
+    private void configureServiceEnvironments(List<ServiceSpec> services, Map<String, String> frontendEnv) {
+        String backendName = services.stream()
+                .filter(s -> s.getServiceName().toLowerCase().contains("backend"))
+                .map(ServiceSpec::getServiceName)
+                .findFirst().orElse("backend");
 
-            services.forEach(spec -> {
-                String serviceName = spec.getServiceName().toLowerCase();
+        services.forEach(spec -> {
+            String serviceName = spec.getServiceName().toLowerCase();
 
-                // MySQL 额外初始化参数
-                if (serviceName.contains("mysql")) {
-                    spec.getEnv().putIfAbsent("MYSQL_DEFAULT_AUTHENTICATION_PLUGIN", "mysql_native_password");
-                    spec.getEnv().putIfAbsent("MYSQL_INITDB_SKIP_TZINFO", "1");
-                    spec.getEnv().putIfAbsent("MYSQL_DISABLE_FAST_SHUTDOWN", "1");
-                    spec.getEnv().putIfAbsent("MYSQL_INITDB_WAIT_TIMEOUT", "30");
-                }
+            // MySQL 额外初始化参数
+            if (serviceName.contains("mysql")) {
+                spec.getEnv().putIfAbsent("MYSQL_DEFAULT_AUTHENTICATION_PLUGIN", "mysql_native_password");
+                spec.getEnv().putIfAbsent("MYSQL_INITDB_SKIP_TZINFO", "1");
+                spec.getEnv().putIfAbsent("MYSQL_DISABLE_FAST_SHUTDOWN", "1");
+                spec.getEnv().putIfAbsent("MYSQL_INITDB_WAIT_TIMEOUT", "30");
+            }
 
-                // 后端服务配置数据库连接参数（从前端传入的 env 数据中动态获取）
-                if (serviceName.contains("backend")) {
-                    spec.getEnv().put("DB_HOST", frontendEnv.getOrDefault("DB_HOST", "mysql"));
-                    spec.getEnv().put("DB_PORT", frontendEnv.getOrDefault("DB_PORT", "3306"));
-                    spec.getEnv().put("DB_NAME", frontendEnv.getOrDefault("DB_NAME", "vulnerable_db"));
-                    spec.getEnv().put("DB_USER", frontendEnv.getOrDefault("DB_USER", "root"));
-                    spec.getEnv().put("DB_PASSWORD", frontendEnv.getOrDefault("DB_PASSWORD", "123456"));
-                    spec.getEnv().put("JDBC_PARAMS", frontendEnv.getOrDefault("JDBC_PARAMS", "useSSL=false&allowPublicKeyRetrieval=true"));
-                }
+            // 后端服务配置数据库连接参数（从前端传入的 env 数据中动态获取）
+            if (serviceName.contains("backend")) {
+                spec.getEnv().put("DB_HOST", frontendEnv.getOrDefault("DB_HOST", "mysql"));
+                spec.getEnv().put("DB_PORT", frontendEnv.getOrDefault("DB_PORT", "3306"));
+                spec.getEnv().put("DB_NAME", frontendEnv.getOrDefault("DB_NAME", "vulnerable_db"));
+                spec.getEnv().put("DB_USER", frontendEnv.getOrDefault("DB_USER", "root"));
+                spec.getEnv().put("DB_PASSWORD", frontendEnv.getOrDefault("DB_PASSWORD", "123456"));
+                spec.getEnv().put("JDBC_PARAMS", frontendEnv.getOrDefault("JDBC_PARAMS", "useSSL=false&allowPublicKeyRetrieval=true"));
+            }
 
-                // 前端服务配置后端地址（确保能访问后端容器）
-                if (serviceName.contains("frontend")) {
-                    String backendUrl = "http://" + backendName + ":3000";
-                    spec.getEnv().put("VITE_BACKEND_NAME", backendName);
-                    spec.getEnv().put("NGINX_BACKEND_URL", backendUrl);
-                    spec.getEnv().put("NGINX_UPSTREAM", backendName);
-                }
-            });
-        }
+            // 前端服务配置后端地址（确保能访问后端容器）
+            if (serviceName.contains("frontend")) {
+                String backendUrl = "http://" + backendName + ":3000";
+                spec.getEnv().put("VITE_BACKEND_NAME", backendName);
+                spec.getEnv().put("NGINX_BACKEND_URL", backendUrl);
+                spec.getEnv().put("NGINX_UPSTREAM", backendName);
+            }
+        });
+    }
     private String getVolumeNameForContainer(String containerId) {
         try {
             // 获取容器的详细信息
@@ -543,89 +466,26 @@ public class VulnContainerService {
         return null;
     }
 
-    @Scheduled(fixedRate = MONITOR_INTERVAL)
+
+    @Scheduled(fixedRateString = "${monitor.interval:600000}")
     public void monitorContainers() {
-        try {
-            log.info("开始容器健康检查...");
-            destroyExpiredContainers();  // 销毁过期容器
-            monitorSingleContainers();  // 监控独立容器状态
-            monitorComposeEnvironments();  // 监控组合环境状态
-            destroyExpiredContainer();
-            log.info("容器健康检查完成");
-        } catch (Exception e) {
-            log.error("容器监控任务执行失败", e);
-        }
-    }
-    public void destroyExpiredContainer() {
-        Instant now = Instant.now();
-
-        // 查询所有过期且状态为 "RUNNING" 的容器实例
-        List<ContainerInstance> expiredInstances = mongoTemplate.find(
-                new Query(Criteria.where("expireTime").lt(now).and("status").is("RUNNING")),
-                ContainerInstance.class
-        );
-
-        for (ContainerInstance instance : expiredInstances) {
-            try {
-                String containerId = instance.getContainerId();
-                log.info("容器 {} 已过期，准备销毁", containerId);
-
-                // 获取容器的卷信息（假设有方法可以获取容器挂载的卷）
-                String volumeName = getVolumeNameForContainer(containerId);
-
-                // 停止容器
-                dockerClient.stopContainerCmd(containerId).exec();
-                log.info("容器 {} 停止成功", containerId);
-
-                // 删除容器
-                dockerClient.removeContainerCmd(containerId).withForce(true).exec();
-                log.info("容器 {} 删除成功", containerId);
-
-                // 删除卷（如果有）
-                if (volumeName != null) {
-                    try {
-                        dockerClient.removeVolumeCmd(volumeName).exec();
-                        log.info("卷 {} 删除成功", volumeName);
-                    } catch (Exception e) {
-                        log.warn("删除卷 {} 失败: {}", volumeName, e.getMessage());
-                    }
-                }
-
-                // 删除网络（如果有）
-                if (instance.getNetworkId() != null) {
-                    dockerClient.removeNetworkCmd(instance.getNetworkId()).exec();
-                    log.info("网络 {} 删除成功", instance.getNetworkId());
-                }
-
-                // 更新容器状态为 EXPIRED
-                instance.setStatus("EXPIRED");
-                mongoTemplate.save(instance);
-                log.info("容器 {} 状态更新为 EXPIRED", containerId);
-
-                // ✅ 使用 userId 取代 @DBRef User
-                String userId = instance.getUserId();
-                if (userId != null) {
-                    User user = userService.findByIdINt(userId);
-                    if (user != null) {
-                        user.getActiveLabs().removeIf(lab -> lab.getContainerId().equals(containerId));
-                        mongoTemplate.save(user);
-                        log.info("用户 {} 的活动实验列表更新", userId);
+        log.info("开始容器健康检查...");
+        CompletableFuture<Void> t1 = CompletableFuture.runAsync(
+                this::destroyExpiredContainers, vulnTaskExecutor);
+        CompletableFuture<Void> t2 = CompletableFuture.runAsync(
+                this::monitorSingleContainers,  vulnTaskExecutor);
+        CompletableFuture<Void> t3 = CompletableFuture.runAsync(
+                this::monitorComposeEnvironments, vulnTaskExecutor);
+        log.info("容器健康检查完成");
+        CompletableFuture.allOf(t1, t2, t3)
+                .whenComplete((r, ex) -> {
+                    if (ex != null) {
+                        log.error("容器健康检查部分子任务失败", ex);
                     } else {
-                        log.warn("找不到用户 {}", userId);
+                        log.info("容器健康检查完成");
                     }
-                }
-
-            } catch (NotFoundException e) {
-                log.warn("容器 {} 已不存在，跳过销毁", instance.getContainerId());
-            } catch (DockerException e) {
-                log.error("Docker 销毁容器 {} 出错: {}", instance.getContainerId(), e.getMessage());
-            } catch (Exception e) {
-                log.error("销毁容器 {} 失败", instance.getContainerId(), e);
-            }
-        }
+                });
     }
-
-
     // 监控独立容器状态
     private void monitorSingleContainers() {
         mongoTemplate.find(
@@ -916,7 +776,7 @@ public class VulnContainerService {
                 .withPortBindings(portBindings)
                 .withPrivileged(true)
                 .withReadonlyRootfs(false)
-                .withMemory(512 * 1024 * 1024L)  // 内存限制为512MB
+                .withMemory(256 * 1024 * 1024L)  // 内存限制为512MB
                 .withCpuShares(512)  // CPU份额
                 .withPidsLimit(100L)  // 进程数限制
                 .withRestartPolicy(RestartPolicy.onFailureRestart(3))  // 失败时最多重启3次

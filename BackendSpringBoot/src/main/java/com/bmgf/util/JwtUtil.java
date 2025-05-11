@@ -54,6 +54,19 @@ public class JwtUtil {
     }
 
     /**
+     * 从 Token 中解析用户名ID
+     * @param token JWT Token
+     * @return ID
+     */
+    public String getUserIdFromToken(String token) {
+        return Jwts.parser()
+                .setSigningKey(SECRET_KEY) // 设置签名密钥
+                .build()
+                .parseClaimsJws(token) // 解析 Token
+                .getBody()
+                .getSubject();
+    }
+    /**
      * 验证 Token 是否有效
      * @param token JWT Token
      * @return 是否有效
