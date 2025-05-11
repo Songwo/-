@@ -49,7 +49,7 @@
                   placeholder="搜索帖子" 
                   prefix-icon="Search"
                   clearable
-                  @input="filterPosts"
+                  @input="filterPostsDebounced"
                   class="search-input"
                 />
               </div>
@@ -64,7 +64,7 @@
               <el-card v-for="post in displayedPosts" :key="post.id" class="post-card" shadow="hover" @click="selectPost(post)">
                 <div class="post-content">
                   <div class="post-cover" v-if="post.coverImage">
-                    <img :src="ToUrl.url + '/' + post.coverImage" :alt="post.title" />
+                    <img :src="ToUrl.url + '/' + post.coverImage" :alt="post.title" loading="lazy" />
                   </div>
                   <div class="post-info">
                     <div class="post-header">
@@ -76,7 +76,7 @@
                     <p class="post-excerpt" v-html="renderMarkdown(truncateContent(post.content))"></p>
                     <div class="post-meta">
                       <div class="meta-item">
-                        <el-avatar :size="24" :src="ToUrl.url + '/' + post.avatar" />
+                        <el-avatar :size="24" :src="ToUrl.url + '/' + post.avatar" loading="lazy" />
                         <span class="author">{{ post.username }}</span>
                       </div>
                       <div class="meta-item">
@@ -185,17 +185,17 @@
             <!-- 帖子内容 -->
             <div class="post-detail">
               <div class="post-cover" v-if="selectedPost?.coverImage">
-                <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" />
+                <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" loading="lazy" />
               </div>
               <div class="detail-meta">
-                <el-avatar :size="32" :src="selectedPost?.avatar ? ToUrl.url + '/' + selectedPost.avatar : ''" />
+                <el-avatar :size="32" :src="ToUrl.url + '/' + selectedPost.avatar" loading="lazy" />
                 <div class="meta-info">
-                  <span class="author">{{ selectedPost?.username || '未知用户' }}</span>
-                  <span class="time">{{ selectedPost?.timestamp ? formatTime(selectedPost.timestamp) : '' }}</span>
+                  <span class="author">{{ selectedPost.username }}</span>
+                  <span class="time">{{ formatTime(selectedPost.timestamp) }}</span>
                 </div>
               </div>
               <el-divider />
-              <div class="content-text" v-html="renderMarkdown(selectedPost?.content || '')"></div>
+              <div class="content-text" v-html="renderMarkdown(selectedPost.content)"></div>
             </div>
 
             <!-- 评论区 -->
@@ -226,7 +226,7 @@
                       :key="comment.id" 
                       class="comment-item"
                     >
-                      <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" />
+                      <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" loading="lazy" />
                       <div class="comment-content">
                         <div class="comment-header">
                           <span class="author">{{ comment.username }}</span>
@@ -346,17 +346,17 @@
       <!-- 帖子内容 -->
       <div class="post-content">
         <div class="post-cover" v-if="selectedPost?.coverImage">
-          <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" />
+          <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" loading="lazy" />
         </div>
         <div class="post-meta">
-          <el-avatar :size="32" :src="selectedPost?.avatar ? ToUrl.url + '/' + selectedPost.avatar : ''" />
+          <el-avatar :size="32" :src="ToUrl.url+'/'+selectedPost.avatar" loading="lazy" />
           <div class="meta-info">
-            <span class="author">{{ selectedPost?.username || '未知用户' }}</span>
-            <span class="time">{{ selectedPost?.timestamp ? formatTime(selectedPost.timestamp) : '' }}</span>
+            <span class="author">{{ selectedPost.username }}</span>
+            <span class="time">{{ formatTime(selectedPost.timestamp) }}</span>
           </div>
         </div>
         <el-divider />
-        <div class="content-text" v-html="renderMarkdown(selectedPost?.content || '')"></div>
+        <div class="content-text" v-html="renderMarkdown(selectedPost.content)"></div>
       </div>
 
       <!-- 评论区 -->
@@ -387,7 +387,7 @@
                 :key="comment.id" 
                 class="comment-item"
               >
-                <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" />
+                <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" loading="lazy" />
                 <div class="comment-content">
                   <div class="comment-header">
                     <span class="author">{{ comment.username }}</span>
@@ -446,11 +446,12 @@ import ToUrl from '@/api/api'
 import '@/assets/styles/forum-theme.css'
 import 'md-editor-v3/lib/style.css'
 import { MdEditor } from 'md-editor-v3'
+import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/atom-one-dark.css'
-import * as marked from 'marked'
 import { ElImageViewer } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { debounce } from 'lodash-es'
 
 const router = useRouter();
 
@@ -533,6 +534,48 @@ const mdConfig = {
   ]
 }
 
+// 配置 marked 选项
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: false,
+  mangle: false,
+  sanitize: false,
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang }).value
+      } catch (err) {}
+    }
+    return hljs.highlightAuto(code).value
+  }
+})
+
+// 添加缓存机制
+const markdownCache = new Map()
+
+const renderMarkdown = (content) => {
+  try {
+    // 检查缓存
+    if (markdownCache.has(content)) {
+      return markdownCache.get(content)
+    }
+
+    let processedContent = content
+    if (!store.state.token && content.length > 200) {
+      processedContent = content.slice(0, 200) + '\n\n**... 登录后查看完整内容**'
+    }
+
+    const rendered = marked.parse(processedContent)
+    // 存入缓存
+    markdownCache.set(content, rendered)
+    return rendered
+  } catch (error) {
+    console.error('Markdown rendering error:', error)
+    return content
+  }
+}
+
 // 图片上传处理函数
 const onUploadImg = async (files, callback) => {
   const res = []
@@ -556,12 +599,7 @@ const onUploadImg = async (files, callback) => {
 
 // 打开详情方法
 const openDetailDialog = async (post) => {
-  if (!post) {
-    console.error('Invalid post data');
-    return;
-  }
-
-  if (!store.state.token && post.content?.length > 200) {
+  if (!store.state.token && post.content.length > 200) {
     ElMessage.warning('登录后可查看完整内容');
     router.push('/login');
     return;
@@ -582,7 +620,6 @@ const openDetailDialog = async (post) => {
         selectedPost.value.comments = selectedPost.value.comments.slice(0, 3);
       }
     } catch (error) {
-      console.error('Failed to fetch comments:', error);
       ElMessage.error('获取评论失败');
     } finally {
       loadingComments.value = false;
@@ -759,22 +796,11 @@ const formatTime = (timestamp) => {
 // selectPost方法
 const selectPost = async (post) => {
   try {
-    if (!post || !post.id) {
-      console.error('Invalid post data:', post);
-      return;
-    }
-
     const headers = store.state.token ? { 'Authorization': `Bearer ${store.state.token}` } : {};
     const response = await axios.get(ToUrl.url + `/post/findById`, {
       params: { id: post.id },
       headers
     });
-    
-    if (!response.data || !response.data.data) {
-      console.error('Invalid response data:', response.data);
-      return;
-    }
-    
     selectedPost.value = response.data.data;
     
     // 获取评论
@@ -786,7 +812,6 @@ const selectPost = async (post) => {
         });
         selectedPost.value.comments = commentsResponse.data.data || [];
       } catch (error) {
-        console.error('Failed to fetch comments:', error);
         ElMessage.error('获取评论失败');
       } finally {
         loadingComments.value = false;
@@ -795,7 +820,6 @@ const selectPost = async (post) => {
       selectedPost.value.comments = [];
     }
   } catch (error) {
-    console.error('Failed to fetch post:', error);
     ElMessage.error('获取帖子详情失败');
   }
 };
@@ -1007,112 +1031,6 @@ const handlePageChange = (page) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// 修改帖子内容显示方法
-const renderer = new marked.Renderer();
-renderer.image = function(href, title, text) {
-  // 添加更详细的调试日志
-  console.log('Image rendering details:', {
-    href,
-    title,
-    text,
-    raw: this.raw // 添加原始 markdown 内容
-  });
-  
-  // 确保 href 是有效的 URL
-  if (!href) {
-    console.error('Invalid image URL:', href);
-    return `<div class="image-error">图片加载失败</div>`;
-  }
-
-  // 处理 URL 中的特殊字符
-  let processedUrl = '';
-  
-  // 如果 href 是对象，尝试从中提取 URL
-  if (typeof href === 'object' && href.href) {
-    processedUrl = href.href;
-  } else if (typeof href === 'string') {
-    processedUrl = href;
-  }
-  
-  // 处理 #? 参数
-  if (processedUrl && processedUrl.includes('#?')) {
-    processedUrl = processedUrl.replace('#?', '%23?');
-  }
-  
-  // 处理其他特殊字符
-  processedUrl = encodeURI(processedUrl);
-  
-  // 添加调试日志
-  console.log('Processed image URL:', processedUrl);
-  
-  return `<img src="${processedUrl}" alt="${text || ''}" ${title ? `title="${title}"` : ''} class="markdown-image" onerror="this.onerror=null; this.src='${ToUrl.url}/default-image.png';" />`;
-};
-
-const renderMarkdown = (content) => {
-  try {
-    if (!content) {
-      console.warn('Empty content provided to renderMarkdown');
-      return '';
-    }
-
-    if (!store.state.token && content.length > 200) {
-      content = content.slice(0, 200) + '\n\n**... 登录后查看完整内容**'
-    }
-    
-    // 预处理内容，确保图片 URL 格式正确
-    content = content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
-      console.log('Processing image markdown:', { match, alt, url });
-      
-      // 如果 URL 包含 #? 参数，确保它被正确处理
-      if (url && typeof url === 'string' && url.includes('#?')) {
-        const processedUrl = url.replace('#?', '%23?');
-        console.log('Processed image URL:', processedUrl);
-        return `![${alt}](${processedUrl})`;
-      }
-      return match;
-    });
-
-    // 添加调试日志
-    console.log('Preprocessed content:', content);
-
-    const html = marked.marked(content, { 
-      renderer,
-      breaks: true,
-      gfm: true,
-      sanitize: false,
-      mangle: false,
-      headerIds: false
-    });
-
-    // 添加调试日志
-    console.log('Generated HTML:', html);
-    
-    return html;
-  } catch (error) {
-    console.error('Markdown rendering error:', error);
-    return content;
-  }
-}
-
-// 添加一个辅助函数来处理图片 URL
-const processImageUrl = (url) => {
-  if (!url) return '';
-  
-  // 如果 url 是对象，尝试从中提取 URL
-  if (typeof url === 'object' && url.href) {
-    url = url.href;
-  }
-  
-  if (typeof url !== 'string') return '';
-  
-  // 处理 #? 参数
-  if (url.includes('#?')) {
-    return url.replace('#?', '%23?');
-  }
-  
-  return url;
-};
-
 // previewImage 方法
 const previewImage = () => {
   if (newPost.value.coverImage) {
@@ -1127,6 +1045,8 @@ const previewImage = () => {
 onMounted(() => {
   fetchPosts()
 })
+
+const filterPostsDebounced = debounce(filterPosts, 300)
 </script>
 
 <style lang="scss" scoped>
@@ -2216,30 +2136,6 @@ onMounted(() => {
   :deep(img) {
     max-width: 100%;
     border-radius: 4px;
-    margin: 1em 0;
-  }
-
-  :deep(img.markdown-image) {
-    max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 1em auto;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    
-    &:hover {
-      transform: scale(1.02);
-      transition: transform 0.3s ease;
-    }
-  }
-
-  :deep(.image-error) {
-    padding: 1em;
-    background: #f8f9fa;
-    border: 1px dashed #dcdfe6;
-    border-radius: 4px;
-    color: #909399;
-    text-align: center;
     margin: 1em 0;
   }
 }

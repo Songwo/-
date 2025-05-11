@@ -795,16 +795,33 @@ const handleVerifyEmail = () => {
 :deep(.el-descriptions__cell) {
   background: transparent !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
-  color: #fff;
+  color: #fff !important;
 }
 
 :deep(.el-descriptions__label) {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.8) !important;
   font-weight: 500;
 }
 
 :deep(.el-descriptions__content) {
-  color: #fff;
+  color: #fff !important;
+}
+
+:deep(.el-descriptions__content .el-icon) {
+  color: #fff !important;
+  margin-right: 8px;
+}
+
+:deep(.el-descriptions__content .el-tag) {
+  margin-left: 8px;
+}
+
+:deep(.el-descriptions__content span) {
+  color: #fff !important;
+}
+
+:deep(.el-descriptions__content div) {
+  color: #fff !important;
 }
 
 .verified-tag {
@@ -827,7 +844,7 @@ const handleVerifyEmail = () => {
   gap: 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: #fff;
 }
 
 .security-items {
@@ -839,7 +856,7 @@ const handleVerifyEmail = () => {
 .security-item {
   padding: 15px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .security-item-header {
@@ -848,12 +865,14 @@ const handleVerifyEmail = () => {
   gap: 8px;
   margin-bottom: 10px;
   font-weight: 500;
+  color: #fff;
 }
 
 .security-item-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: #fff;
 }
 
 .stats-card {
@@ -866,7 +885,7 @@ const handleVerifyEmail = () => {
   gap: 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: #fff;
 }
 
 .stats-content {
@@ -879,7 +898,7 @@ const handleVerifyEmail = () => {
 .stat-item {
   text-align: center;
   padding: 15px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 
@@ -891,7 +910,7 @@ const handleVerifyEmail = () => {
 
 .stat-label {
   font-size: 14px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
   margin-top: 5px;
 }
 
@@ -980,16 +999,33 @@ const handleVerifyEmail = () => {
 :deep(.el-descriptions__cell) {
   background: transparent !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
-  color: #fff;
+  color: #fff !important;
 }
 
 :deep(.el-descriptions__label) {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.8) !important;
   font-weight: 500;
 }
 
 :deep(.el-descriptions__content) {
-  color: #fff;
+  color: #fff !important;
+}
+
+:deep(.el-descriptions__content .el-icon) {
+  color: #fff !important;
+  margin-right: 8px;
+}
+
+:deep(.el-descriptions__content .el-tag) {
+  margin-left: 8px;
+}
+
+:deep(.el-descriptions__content span) {
+  color: #fff !important;
+}
+
+:deep(.el-descriptions__content div) {
+  color: #fff !important;
 }
 
 /* 输入框文字颜色 */

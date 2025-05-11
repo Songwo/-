@@ -11,7 +11,8 @@
           type="info" 
           :icon="Refresh" 
           circle 
-          @click="loadRankings"
+          :loading="loading"
+          @click="refreshRankings"
         />
       </div>
   
@@ -42,7 +43,7 @@
   
             <!-- 用户信息 -->
             <div class="user-info">
-              <el-avatar :src="item.avatar" />
+              <el-avatar :src="item.avatar" loading="lazy" />
               <div class="detail">
                 <span class="name">{{ item.username }}</span>
                 <span class="department">{{ item.department }}</span>
@@ -84,7 +85,12 @@
             >
               <div class="announcement-time">{{ item.time }}</div>
               <div class="announcement-title">{{ item.title }}</div>
-              <el-tag :type="item.type" size="mini" effect="plain">{{ item.tag }}</el-tag>
+              <el-tag 
+                :type="item.type" 
+                size="small" 
+                effect="plain"
+                class="announcement-tag"
+              >{{ item.tag }}</el-tag>
             </div>
           </div>
         </el-scrollbar>
@@ -154,7 +160,7 @@
 </template>
   
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Medal, Refresh, CirclePlus, Tools } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
@@ -162,6 +168,7 @@ import store from '@/store'
 import ToUrl from '@/api/api'
 import { getAnnouncements, getAnnouncementDetail } from '@/api/announcement'
 import { getChangelogs } from '@/api/changelog'
+import { debounce } from 'lodash-es'
 
 // 响应式数据
 const rankings = ref([])
@@ -174,31 +181,61 @@ const changelogDialogVisible = ref(false)
 const currentAnnouncement = ref(null)
 const currentChangelog = ref(null)
 
+// 缓存相关
+const rankingsCache = {
+  data: null,
+  timestamp: null,
+  maxAge: 5 * 60 * 1000 // 5分钟缓存
+}
+
+// 定时器引用
+let refreshTimer = null
+
 // 初始化加载
 onMounted(() => {
   loadRankings()
   loadAnnouncements()
   loadChangelogs()
-  // 每5分钟刷新一次数据
-  setTimeout(() => {
-    setInterval(loadRankings, 300000) //5*60*1000
-    setInterval(loadAnnouncements, 300000)
-    setInterval(loadChangelogs, 300000)
-  }, 5000)
+  
+  // 使用防抖的刷新函数
+  const debouncedRefresh = debounce(() => {
+    loadRankings()
+    loadAnnouncements()
+    loadChangelogs()
+  }, 300000) // 5分钟
+
+  // 设置定时刷新
+  refreshTimer = setInterval(debouncedRefresh, 300000)
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+  }
 })
 
 // 加载排名数据
 const loadRankings = async () => {
   try {
-    loading.value = true;
+    // 检查缓存是否有效
+    const now = Date.now()
+    if (rankingsCache.data && rankingsCache.timestamp && 
+        (now - rankingsCache.timestamp < rankingsCache.maxAge)) {
+      rankings.value = rankingsCache.data
+      lastUpdate.value = new Date().toLocaleTimeString()
+      return
+    }
+
+    loading.value = true
     const res = await axios.get(ToUrl.url+'/user/rank', {
       headers: {
         'Authorization': `Bearer ${store.state.token}`,
       }
-    });
+    })
 
     // 数据转换处理
-    rankings.value = res.data.data
+    const processedData = res.data.data
       .map(item => ({
         id: item.id,        
         username: item.username, 
@@ -206,16 +243,28 @@ const loadRankings = async () => {
         department: item.id, 
         avatar: ToUrl.url+"/"+item.avatar || ToUrl.url+'/avatar/0736dfa5-a96f-45a7-8208-2e8e3b72161e_ab.jpg' 
       }))
-      .sort((a, b) => b.score - a.score); // 按分数降序排列
+      .sort((a, b) => b.score - a.score)
 
-    lastUpdate.value = new Date().toLocaleTimeString();
-    // console.log(rankings.value);
+    // 更新缓存
+    rankingsCache.data = processedData
+    rankingsCache.timestamp = now
+    
+    rankings.value = processedData
+    lastUpdate.value = new Date().toLocaleTimeString()
   } catch (error) {
-    ElMessage.error(`排名加载失败: ${error.message}`);
+    ElMessage.error(`排名加载失败: ${error.message}`)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
+
+// 手动刷新排名
+const refreshRankings = debounce(async () => {
+  // 清除缓存
+  rankingsCache.data = null
+  rankingsCache.timestamp = null
+  await loadRankings()
+}, 300)
 
 // 加载公告
 const loadAnnouncements = async () => {
@@ -411,6 +460,7 @@ const getScoreType = (score) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 4px;
 }
 
 .announcement-item {
@@ -419,6 +469,9 @@ const getScoreType = (score) => {
   border-radius: 6px;
   transition: all 0.3s;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .announcement-item:hover {
@@ -429,12 +482,18 @@ const getScoreType = (score) => {
 .announcement-time {
   font-size: 0.8em;
   color: #666;
-  margin-bottom: 4px;
 }
 
 .announcement-title {
   font-weight: 500;
-  margin-bottom: 4px;
+  word-break: break-word;
+  line-height: 1.4;
+  margin-right: 8px;
+}
+
+.announcement-tag {
+  align-self: flex-start;
+  margin-top: 4px;
 }
 
 .changelog-list {
@@ -485,21 +544,14 @@ const getScoreType = (score) => {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .announcement-content {
   margin-top: 20px;
   line-height: 1.6;
   white-space: pre-wrap;
-}
-
-.announcement-item {
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.announcement-item:hover {
-  background: #f0f0f0;
+  word-break: break-word;
 }
 
 .changelog-meta {

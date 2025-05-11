@@ -268,9 +268,13 @@ const handleLogin = async () => {
         await store.dispatch('setUser', userData?.username || loginForm.username);
         await store.dispatch('setId', userData?.id || token);
         await store.dispatch('setAvatar', userData?.avatar || '');
+        await store.dispatch('setRoles', userData?.roles || []);
 
-        // 跳转到对应页面
-        router.push(redirectPath);
+        // 等待状态更新完成
+        await nextTick();
+        
+        // 使用 replace 而不是 push，避免浏览器历史记录问题
+        await router.replace(redirectPath);
       } else {
         ElMessage.error(userRes.data.msg || '获取用户信息失败');
       }

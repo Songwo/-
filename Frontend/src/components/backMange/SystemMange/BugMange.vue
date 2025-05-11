@@ -9,12 +9,14 @@
               placeholder="搜索 CVE ID/标题"
               clearable
               style="width: 300px; margin-right: 10px"
+              @input="handleSearch"
             />
             <el-select
               v-model="severityFilter"
               placeholder="严重程度"
               clearable
               style="width: 120px"
+              @change="loadBug"
             >
               <el-option
                 v-for="item in severityOptions"
@@ -28,7 +30,7 @@
         </div>
       </template>
   
-      <el-table :data="filteredVulnerabilities" stripe style="width: 100%">
+      <el-table :data="filteredVulnerabilities" stripe style="width: 100%" v-loading="loading">
         <el-table-column prop="cve_Id" label="CVE ID" width="150" />
         <el-table-column prop="title" label="标题" width="250" />
         <el-table-column label="严重程度" width="120">
@@ -53,6 +55,18 @@
           </template>
         </el-table-column>
       </el-table>
+  
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+        />
+      </div>
   
       <!-- 编辑/新增对话框 -->
       <el-dialog v-model="dialogVisible" :title="dialogTitle" width="800px">
@@ -135,9 +149,15 @@
   import axios from 'axios'
   import store from '@/store'
   import ToUrl from '@/api/api'
+  import { debounce } from 'lodash-es'
   
   // 初始数据
   const vulnerabilities = ref([])
+  const cachedData = ref(new Map())
+  const loading = ref(false)
+  const currentPage = ref(1)
+  const pageSize = ref(10)
+  const total = ref(0)
   
   // 对话框相关状态
   const dialogVisible = ref(false)
@@ -163,42 +183,85 @@
     low: 'info'
   }
   
-  const loadBug=async()=>{
-    try{
-        const response = await axios.get(ToUrl.url+`/admin/findAllHole`, {
+  // 防抖搜索
+  const debouncedSearch = debounce((value) => {
+    searchKeyword.value = value
+    currentPage.value = 1
+    loadBug()
+  }, 300)
+  
+  const loadBug = async () => {
+    try {
+      loading.value = true
+      const cacheKey = `vulns_${currentPage.value}_${pageSize.value}_${searchKeyword.value}_${severityFilter.value}`
+      
+      // 检查缓存
+      if (cachedData.value.has(cacheKey)) {
+        const cached = cachedData.value.get(cacheKey)
+        if (Date.now() - cached.timestamp < 5 * 60 * 1000) { // 5分钟缓存
+          vulnerabilities.value = cached.data
+          total.value = cached.total
+          return
+        }
+      }
+
+      const response = await axios.get(ToUrl.url + `/admin/findAllHole`, {
         headers: {
           'Authorization': `Bearer ${store.state.token}`
+        },
+        params: {
+          page: currentPage.value,
+          pageSize: pageSize.value,
+          keyword: searchKeyword.value,
+          severity: severityFilter.value
         }
-        })
-        // console.log(response.data.data);  
-        vulnerabilities.value=response.data.data;
-    }catch(error){
-        ElMessage.error(数据加载失败+error);
+      })
+      
+      vulnerabilities.value = response.data.data
+      total.value = response.data.total
+
+      // 更新缓存
+      cachedData.value.set(cacheKey, {
+        data: vulnerabilities.value,
+        total: total.value,
+        timestamp: Date.now()
+      })
+    } catch (error) {
+      ElMessage.error('数据加载失败: ' + error.message)
+    } finally {
+      loading.value = false
     }
   }
 
   // 计算属性
   const filteredVulnerabilities = computed(() => {
-    return vulnerabilities.value.filter(vuln => {
-      const keywordMatch =
-        vuln.cve_Id.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-        vuln.title.toLowerCase().includes(searchKeyword.value.toLowerCase())
-      const severityMatch = severityFilter.value
-        ? vuln.severity === severityFilter.value
-        : true
-      return keywordMatch && severityMatch
-    })
+    return vulnerabilities.value
   })
   
   const dialogTitle = computed(() => {
     return isEditMode.value ? '编辑漏洞' : '新增漏洞'
   })
 
-  onMounted(
-    ()=>{
-        loadBug();
-    }
-  )
+  // 分页处理
+  const handlePageChange = (page) => {
+    currentPage.value = page
+    loadBug()
+  }
+
+  const handleSizeChange = (size) => {
+    pageSize.value = size
+    currentPage.value = 1
+    loadBug()
+  }
+
+  // 搜索处理
+  const handleSearch = (value) => {
+    debouncedSearch(value)
+  }
+
+  onMounted(() => {
+    loadBug()
+  })
   
   // 方法
   function initEmptyVuln() {
@@ -300,5 +363,11 @@
     align-items: center;
     margin-top: 10px;
     gap: 10px;
+  }
+
+  .pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
   }
   </style>

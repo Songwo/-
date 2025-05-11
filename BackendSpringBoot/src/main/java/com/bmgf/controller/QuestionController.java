@@ -51,6 +51,23 @@ public Result getRandomQuestions(@RequestHeader("Authorization") String authHead
     System.out.println("1111111111"+questions.toString());
     return Result.success(questions);
 }
+@GetMapping("/more_questions")
+    public Result getRandomMoreQuestions(@RequestHeader("Authorization") String authHeader) {
+        // 增强类型安全校验
+        String token = authHeader.substring(7); // 去掉"Bearer "前缀
+        String username = jwtUtil.getUsernameFromToken(token);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
+        String userId =user.getId();
+        // 获取用户已答过的题目ID
+        User user1 = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
+        Set<String> completedQuestions = new HashSet<>(user.getCompletedQuestions());
+        // 排除已答题目，随机抽取100道题
+        List<Question> questions = questionRepository.findRandomQuestionsExcluding(completedQuestions, 100);
+        System.out.println("1111111111"+questions.toString());
+        return Result.success(questions);
+    }
     @GetMapping("/questions_category")
     public Result getRandomQuestionsCategory(@RequestParam String category) {
         List<Question>questions = questionRepository.findByCategory(category);

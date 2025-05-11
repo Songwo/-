@@ -126,6 +126,11 @@ const isAdminPage = computed(() => {
   return route.path.includes('/backMange');
 });
 
+// 添加判断是否为App下载页面的计算属性
+const isAppDownloadPage = computed(() => {
+  return route.path.includes('/root/app');
+});
+
 // 响应式状态
 const showNewUserGuide = ref(false);
 const form = reactive({
@@ -166,15 +171,34 @@ const isLoggedIn = computed(() => {
   return !!stu;
 });
 
+const isOrdinaryUser = computed(() => {
+  return isLoggedIn.value && !(store.state.roles || []).includes('ROLE_ADMIN');
+});
+
+// 添加缓存相关的响应式变量
+const recommendationsCache = ref(new Map());
+const userProfileCache = ref(null);
+
+// 修改获取推荐的方法
 const getRecommendations = async () => {
   try {
+    // 检查缓存
+    const cacheKey = `recommendations_${store.state.id}`;
+    if (recommendationsCache.value.has(cacheKey)) {
+      return recommendationsCache.value.get(cacheKey);
+    }
+
     const response = await request.get(`/api/recommendations/user/${store.state.id}`);
     const recommendations = response.data;
     if (recommendations && recommendations.length > 0) {
-      return recommendations.map(rec => ({
+      const processedRecommendations = recommendations.map(rec => ({
         ...rec,
         description: rec.description || '这是一个适合您当前水平的学习内容，点击开始学习吧！'
       }));
+      
+      // 存入缓存
+      recommendationsCache.value.set(cacheKey, processedRecommendations);
+      return processedRecommendations;
     }
     return [];
   } catch (error) {
@@ -223,6 +247,11 @@ const formatDuration = (seconds) => {
 
 const showRecommendation = async () => {
   try {
+    // 如果是App下载页面，不显示推荐
+    if (isAppDownloadPage.value) {
+      return;
+    }
+
     // 检查是否应该显示推荐
     const lastRecommendationTime = localStorage.getItem('lastRecommendationTime');
     const now = Date.now();
@@ -329,17 +358,31 @@ const startRecommendationTimer = () => {
   showRecommendation();
 };
 
+// 修改检查用户资料的方法
 const checkUserProfile = async () => {
   try {
-    // 检查用户ID是否存在
-    if (!store.state.id) {
-      console.warn('用户ID未设置，尝试重新获取用户信息...');
-      try {
-        // 重新获取用户信息
-        const responseId = await request.get(`/user/mes/${store.state.user}`, {
-          headers: { 'Authorization': `Bearer ${store.state.token}` }
+    // 检查缓存
+    if (userProfileCache.value) {
+      if (!userProfileCache.value) {
+        showNewUserGuide.value = true;
+      } else {
+        await recordUserBehavior({
+          contentType: 'PROFILE',
+          contentId: 'profile_view',
+          interactionType: 'VIEW',
+          duration: 0,
+          score: null,
+          category: userProfileCache.value.interests[0]
         });
+        startRecommendationTimer();
+      }
+      return;
+    }
 
+    // 如果没有ID，先获取用户信息
+    if (!store.state.id) {
+      try {
+        const responseId = await request.get('/api/user/info');
         if (responseId.data.code === 200) {
           const { id, avatar } = responseId.data.data;
           await store.dispatch('setId', id);
@@ -358,10 +401,12 @@ const checkUserProfile = async () => {
     const response = await request.get(`/api/user/profile/${store.state.id}`);
     const userProfile = response.data;
     
+    // 更新缓存
+    userProfileCache.value = userProfile;
+    
     if (!userProfile) {
       showNewUserGuide.value = true;
     } else {
-      // 如果已有资料，记录一次查看行为
       await recordUserBehavior({
         contentType: 'PROFILE',
         contentId: 'profile_view',
@@ -378,11 +423,11 @@ const checkUserProfile = async () => {
   }
 };
 
+// 修改提交资料的方法
 const submitProfile = () => {
   formRef.value.validate(async (valid) => {
     if (valid) {
       try {
-        // 转换技能等级
         let skillLevel;
         switch (form.skillLevel) {
           case 'beginner':
@@ -398,17 +443,24 @@ const submitProfile = () => {
             skillLevel = 1;
         }
 
-        // 提交用户资料到后端
-        await request.post('/api/user/profile', {
+        const profileData = {
           userId: store.state.id,
-          skillLevel: skillLevel,  // 直接使用转换后的数字
+          skillLevel: skillLevel,
           interests: form.interests,
           learningPreferences: {
             goal: form.learningGoal
           }
-        });
+        };
+
+        // 提交用户资料到后端
+        await request.post('/api/user/profile', profileData);
         
-        // 记录初始学习行为
+        // 更新缓存
+        userProfileCache.value = profileData;
+        
+        // 清除推荐缓存，因为用户资料已更新
+        recommendationsCache.value.clear();
+        
         await recordUserBehavior({
           contentType: 'PROFILE',
           contentId: 'initial_profile',
@@ -429,21 +481,30 @@ const submitProfile = () => {
   });
 };
 
+// 添加清理缓存的方法
+const clearCache = () => {
+  recommendationsCache.value.clear();
+  userProfileCache.value = null;
+};
+
 // 添加稍后提醒的处理函数
 const handleRemindLater = () => {
   showNewUserGuide.value = false;
-  // 设置一个定时器，30分钟后再次显示
   setTimeout(() => {
-    showNewUserGuide.value = true;
+    // 只在普通用户且已登录时弹出
+    if (isOrdinaryUser.value) {
+      showNewUserGuide.value = true;
+    }
   }, 30 * 60 * 1000);
 };
 
-// 监听器
-watch(isLoggedIn, (newVal) => {
-  if (newVal) {
+// 监听登录状态和角色变化
+watch([isLoggedIn, () => store.state.roles], ([login, roles]) => {
+  if (login && !(roles || []).includes('ROLE_ADMIN')) {
     checkUserProfile();
   } else {
-    // 用户退出登录时清除推荐计时器和本地存储
+    // 退出登录或切换为管理员时，关闭弹窗和清除定时器
+    showNewUserGuide.value = false;
     if (recommendationTimer.value) {
       clearInterval(recommendationTimer.value);
       recommendationTimer.value = null;
@@ -464,6 +525,7 @@ onBeforeUnmount(() => {
     clearInterval(recommendationTimer.value);
     recommendationTimer.value = null;
   }
+  clearCache();
 });
 
 // 添加获取兴趣领域图标的函数

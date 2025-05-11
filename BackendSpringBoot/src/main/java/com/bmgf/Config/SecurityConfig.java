@@ -65,6 +65,9 @@ public class SecurityConfig {
                                 "/bug/findById/**",
                                 "/bug/search",
 
+                                // 新闻公开API
+                                "/api/news/**",
+
                                 // 其他公开API
                                 "/api/public/**"
                         ).permitAll()

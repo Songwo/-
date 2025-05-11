@@ -35,7 +35,7 @@
       <template v-if="isLoggedIn">
         <el-dropdown class="user-dropdown" trigger="click">
           <span class="user-info">
-            <el-avatar :src="at.avatar" size="32" class="user-avatar" />
+            <el-avatar :src="at.avatar" :size="32" class="user-avatar" />
             你好，{{ at.user }}
           </span>
           <template #dropdown>

@@ -58,6 +58,12 @@
               <span>公告管理</span>
             </el-menu-item>
           </RouterLink>
+          <RouterLink :to="newsPath" class="router-link">
+            <el-menu-item index="1-4">
+              <el-icon><Document /></el-icon>
+              <span>新闻管理</span>
+            </el-menu-item>
+          </RouterLink>
         </el-sub-menu>
 
         <!-- 用户管理 -->
@@ -251,6 +257,7 @@ const announcementPath = ref('/backMange/announcement')
 const trendPath = ref('/backMange/trend')
 const helpPath = ref('/backMange/help')
 const documentPath = ref('/backMange/document')
+const newsPath = '/backMange/news'
 
 // 加载进度相关
 const isLoading = ref(false)
@@ -359,6 +366,9 @@ const handleBreadcrumbClick = (index) => {
       case 'data':
         targetPath = '/backMange/data';
         break;
+      case 'news':
+        targetPath = '/backMange/news';
+        break;
       default:
         targetPath = '/backMange/home';
     }
@@ -397,6 +407,8 @@ const breadcrumbList = computed(() => {
     result.push('数据分析', '数据统计');
   } else if (paths[1] === 'trend') {
     result.push('数据分析', '趋势分析');
+  } else if (paths[1] === 'news') {
+    result.push('内容管理', '新闻管理');
   }
   
   return result;
@@ -432,6 +444,8 @@ const activeMenu = computed(() => {
       return '5';
     case '/backMange/document':
       return '6';
+    case '/backMange/news':
+      return '1-4';
     default:
       return '0';
   }

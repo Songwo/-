@@ -26,11 +26,13 @@ const token = localStorage.getItem('token');
 const user = localStorage.getItem('user');
 const avatar = localStorage.getItem('avatar');
 const id = localStorage.getItem('id');
+const roles = JSON.parse(localStorage.getItem('roles') || '[]');
 
 if (token) store.commit('setToken', token);
 if (user) store.commit('setUser', user);
 if (avatar) store.commit('setAvatar', avatar);
 if (id) store.commit('setId', id);
+if (roles) store.commit('setRoles', roles);
 
 
 app.use(router)

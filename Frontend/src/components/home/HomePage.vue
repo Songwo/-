@@ -25,7 +25,7 @@
                 </div>
                 <h3>{{ news.title }}</h3>
                 <p>{{ news.summary }}</p>
-                <a :href="news.link" target="_blank" class="read-more">阅读更多</a>
+                <router-link :to="'/news/' + news.id" class="read-more">阅读更多</router-link>
               </div>
             </div>
           </div>
@@ -184,6 +184,9 @@
   import { ref, onMounted } from 'vue';
   import { Monitor, Reading, Trophy, User, Link, Document, ChatDotRound, Edit, Flag, Connection, Lock, Close } from '@element-plus/icons-vue'
   import * as echarts from 'echarts'
+  import { useRouter } from 'vue-router';
+  import axios from 'axios';
+  import ToUrl from '@/api/api';
   
 // 使用 import 导入图片
 import homePage1 from '@/assets/homepage2.jpg';
@@ -239,37 +242,31 @@ const learningPath = ref([
   }
 ]);
 
-// 网络安全新闻数据
-const securityNews = ref([
-  {
-    date: '2025-03-20',
-    title: '新型勒索软件攻击全球多个组织',
-    summary: '近日，一种新型勒索软件在全球范围内发起攻击，已造成多个组织的数据泄露...',
-    type: 'warning',
-    link: '#'
-  },
-  {
-    date: '2025-03-19',
-    title: '重大安全漏洞预警：多个Web框架受影响',
-    summary: '安全研究人员发现多个主流Web框架存在严重安全漏洞，建议及时更新...',
-    type: 'danger',
-    link: '#'
-  },
-  {
-    date: '2025-03-18',
-    title: 'AI驱动的网络安全防护新趋势',
-    summary: '人工智能技术在网络安全领域的应用正在改变传统的防护模式...',
-    type: 'info',
-    link: '#'
-  },
-  {
-    date: '2025-03-17',
-    title: '国家网络安全等级保护新规发布',
-    summary: '最新网络安全等级保护标准发布，对关键信息基础设施提出更高要求...',
-    type: 'success',
-    link: '#'
+const router = useRouter();
+const securityNews = ref([]);
+
+onMounted(async () => {
+  try {
+    const response = await axios.get(`${ToUrl.url}/api/news`);
+    securityNews.value = response.data.map(news => ({
+      id: news.id,
+      title: news.title,
+      summary: news.summary,
+      type: news.type,
+      date: new Date(news.createTime).toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    }));
+  } catch (error) {
+    console.error('Error fetching news:', error);
   }
-]);
+});
+
+const goToNewsDetail = (newsId) => {
+  router.push(`/news/${newsId}`);
+};
 
 // 控制欢迎语显示
 const showWelcome = ref(true);
@@ -667,14 +664,16 @@ onMounted(() => {
   }
 
   .news-item {
-    background: rgba(0, 0, 0, 0.4);
-    padding: 15px;
-    border-radius: 8px;
-    transition: transform 0.3s;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
   }
 
   .news-item:hover {
-    transform: translateY(-3px);
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.15);
   }
 
   .news-header {
@@ -685,7 +684,7 @@ onMounted(() => {
   }
 
   .news-date {
-    color: #a0a0a0;
+    color: rgba(255, 255, 255, 0.6);
     font-size: 0.9rem;
   }
 
@@ -716,27 +715,26 @@ onMounted(() => {
   }
 
   .news-item h3 {
-    color: #d0ffdc;
-    margin: 10px 0;
-    font-size: 1.1rem;
+    color: #fff;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
   }
 
   .news-item p {
-    color: #ffffff;
-    font-size: 0.9rem;
-    margin-bottom: 10px;
-    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 15px;
+    line-height: 1.6;
   }
 
   .read-more {
-    color: #d0ffdc;
+    color: #409EFF;
     text-decoration: none;
-    font-size: 0.9rem;
-    display: inline-block;
-    margin-top: 10px;
+    cursor: pointer;
+    transition: color 0.3s;
   }
 
   .read-more:hover {
+    color: #79bbff;
     text-decoration: underline;
   }
 
