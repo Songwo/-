@@ -2,8 +2,10 @@
   <div class="port-scan-container">
     <!-- 返回按钮 -->
     <div class="back-button">
-      <el-button type="primary" @click="goBack">
-        <el-icon><ArrowLeft /></el-icon>
+      <el-button class="back-btn" type="text" @click="goBack">
+        <el-icon :size="24" class="icon">
+          <ArrowLeft />
+        </el-icon>
         返回
       </el-button>
     </div>
@@ -51,10 +53,18 @@
       <template #header>
         <div class="card-header">
           <span>扫描结果</span>
-          <el-button type="primary" @click="exportResults">导出结果</el-button>
+          <div class="header-actions">
+            <el-switch
+              v-model="showAllPorts"
+              active-text="显示所有端口"
+              inactive-text="仅显示开放端口"
+              style="margin-right: 16px"
+            />
+            <el-button type="primary" @click="exportResults">导出结果</el-button>
+          </div>
         </div>
       </template>
-      <el-table :data="scanResults" style="width: 100%">
+      <el-table :data="filteredResults" style="width: 100%">
         <el-table-column prop="port" label="端口" width="100" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
@@ -112,6 +122,7 @@ const router = useRouter()
 const scanning = ref(false)
 const scanTime = ref(0)
 const avgResponseTime = ref(0)
+const showAllPorts = ref(false)
 
 const scanForm = ref({
   target: '',
@@ -125,6 +136,13 @@ const scanResults = ref([])
 
 const totalPorts = computed(() => scanResults.value.length)
 const openPorts = computed(() => scanResults.value.filter(r => r.status === '开放').length)
+
+const filteredResults = computed(() => {
+  if (showAllPorts.value) {
+    return scanResults.value
+  }
+  return scanResults.value.filter(r => r.status === '开放')
+})
 
 const goBack = () => {
   router.push('/root/pricate')
@@ -201,6 +219,20 @@ const exportResults = () => {
   margin-bottom: 20px;
 }
 
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #fff;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  transform: translateX(-5px);
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .title {
   text-align: center;
   font-size: 28px;
@@ -259,5 +291,10 @@ const exportResults = () => {
 
 :deep(.el-input-number) {
   width: 120px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
 }
 </style> 

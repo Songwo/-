@@ -207,7 +207,7 @@ const hotTools = ref([
     name: '密码强度检测', 
     description: '密码强度检测工具', 
     icon: 'mdi:shield-lock',
-    link: '/root/CheckPwd' 
+    link: '/CheckPwd' 
   }
 ])
 

@@ -1,22 +1,90 @@
 <template>
     <div class="homepage">
-      <!-- 轮播图容器 -->
-      <div class="carousel-container">
-        <el-carousel :interval="5000" arrow="always" height="600px">
-          <el-carousel-item v-for="(item, index) in carouselImages" :key="index">
-            <img :src="item" alt="carousel image" class="carousel-image"/>
-          </el-carousel-item>
-        </el-carousel>
+      <!-- 主要内容区域 -->
+      <div class="main-content">
+        <!-- 左侧轮播图 -->
+        <div class="left-section">
+          <div class="carousel-container">
+            <el-carousel :interval="5000" arrow="always" height="600px">
+              <el-carousel-item v-for="(item, index) in carouselImages" :key="index">
+                <img :src="item" alt="carousel image" class="carousel-image"/>
+              </el-carousel-item>
+            </el-carousel>
+          </div>
+        </div>
+
+        <!-- 右侧新闻区域 -->
+        <div class="right-section">
+          <div class="news-container">
+            <h2>网络安全动态</h2>
+            <div class="news-list">
+              <div class="news-item" v-for="(news, index) in securityNews" :key="index">
+                <div class="news-header">
+                  <span class="news-date">{{ news.date }}</span>
+                  <span class="news-tag" :class="news.type">{{ news.type }}</span>
+                </div>
+                <h3>{{ news.title }}</h3>
+                <p>{{ news.summary }}</p>
+                <a :href="news.link" target="_blank" class="read-more">阅读更多</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-  
+
       <!-- 首页欢迎语 -->
-      <div class="welcome-message">
+      <div class="welcome-message" v-if="showWelcome">
+        <div class="close-button" @click="showWelcome = false">
+          <el-icon><Close /></el-icon>
+        </div>
         <h1>
           <img src="/src/assets/logo/logo/信息.png" alt="carousel image" class="logo-image"/>
           欢迎来到网络攻防安全学习平台
         </h1>
         <p>从这里开始，探索网络安全的世界</p>
       </div> 
+
+      <!-- 网络安全重要性 -->
+      <div class="cybersecurity-importance">
+        <div class="importance-content">
+          <div class="importance-text">
+            <h2>守护数字中国，共筑网络安全长城</h2>
+            <div class="importance-points">
+              <div class="point">
+                <el-icon><Flag /></el-icon>
+                <div class="point-content">
+                  <h3>国家战略需求</h3>
+                  <p>网络安全是国家安全的重要组成部分，是数字中国建设的基础保障</p>
+                </div>
+              </div>
+              <div class="point">
+                <el-icon><Connection /></el-icon>
+                <div class="point-content">
+                  <h3>数字经济发展</h3>
+                  <p>网络安全人才是推动数字经济高质量发展的核心力量</p>
+                </div>
+              </div>
+              <div class="point">
+                <el-icon><Lock /></el-icon>
+                <div class="point-content">
+                  <h3>关键基础设施</h3>
+                  <p>保护国家关键信息基础设施，维护国家安全和公共利益</p>
+                </div>
+              </div>
+            </div>
+            <div class="call-to-action">
+              <p>加入我们，成为守护数字中国的中坚力量</p>
+              <el-button type="primary" class="join-button">立即开始学习</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 人才发展趋势图 -->
+      <div class="talent-growth">
+        <h2>我国网络安全人才发展趋势</h2>
+        <div class="chart-container" ref="talentChartRef"></div>
+      </div>
 
       <!-- 项目资源链接 -->
       <div class="project-links">
@@ -109,24 +177,13 @@
           </div>
         </div>
       </div>
-
-      <!-- 最新动态 -->
-      <div class="news-section">
-        <h2>最新动态</h2>
-        <div class="news-grid">
-          <div class="news-card" v-for="(news, index) in latestNews" :key="index">
-            <div class="news-date">{{ news.date }}</div>
-            <h3>{{ news.title }}</h3>
-            <p>{{ news.summary }}</p>
-          </div>
-        </div>
-      </div>
     </div>
   </template>
   
   <script setup>
-  import { ref } from 'vue';
-  import { Monitor, Reading, Trophy, User, Link, Document, ChatDotRound, Edit } from '@element-plus/icons-vue'
+  import { ref, onMounted } from 'vue';
+  import { Monitor, Reading, Trophy, User, Link, Document, ChatDotRound, Edit, Flag, Connection, Lock, Close } from '@element-plus/icons-vue'
+  import * as echarts from 'echarts'
   
 // 使用 import 导入图片
 import homePage1 from '@/assets/homepage2.jpg';
@@ -182,24 +239,130 @@ const learningPath = ref([
   }
 ]);
 
-// 最新动态数据
-const latestNews = ref([
+// 网络安全新闻数据
+const securityNews = ref([
   {
-    date: '2024-03-20',
-    title: '平台新增CTF训练营',
-    summary: '为提升实战能力，平台新增CTF训练营，包含Web、PWN、Crypto等多个方向'
+    date: '2025-03-20',
+    title: '新型勒索软件攻击全球多个组织',
+    summary: '近日，一种新型勒索软件在全球范围内发起攻击，已造成多个组织的数据泄露...',
+    type: 'warning',
+    link: '#'
   },
   {
-    date: '2024-03-18',
-    title: '安全漏洞预警',
-    summary: '最新安全漏洞分析与防御方案发布'
+    date: '2025-03-19',
+    title: '重大安全漏洞预警：多个Web框架受影响',
+    summary: '安全研究人员发现多个主流Web框架存在严重安全漏洞，建议及时更新...',
+    type: 'danger',
+    link: '#'
   },
   {
-    date: '2024-03-15',
-    title: 'AI智能答疑',
-    summary: 'AI智能助手在线答疑解惑'
+    date: '2025-03-18',
+    title: 'AI驱动的网络安全防护新趋势',
+    summary: '人工智能技术在网络安全领域的应用正在改变传统的防护模式...',
+    type: 'info',
+    link: '#'
+  },
+  {
+    date: '2025-03-17',
+    title: '国家网络安全等级保护新规发布',
+    summary: '最新网络安全等级保护标准发布，对关键信息基础设施提出更高要求...',
+    type: 'success',
+    link: '#'
   }
 ]);
+
+// 控制欢迎语显示
+const showWelcome = ref(true);
+
+// 人才发展趋势图
+const talentChartRef = ref(null);
+
+onMounted(() => {
+  const chart = echarts.init(talentChartRef.value);
+  
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: ['2019', '2020', '2021', '2022', '2023', '2024'],
+      axisLine: {
+        lineStyle: {
+          color: '#fff'
+        }
+      },
+      axisLabel: {
+        color: '#fff'
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '人才缺口（万人）',
+      nameTextStyle: {
+        color: '#fff'
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#fff'
+        }
+      },
+      axisLabel: {
+        color: '#fff'
+      },
+      splitLine: {
+        lineStyle: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        }
+      }
+    },
+    series: [
+      {
+        name: '人才缺口',
+        type: 'line',
+        smooth: true,
+        data: [140, 150, 170, 190, 210, 230],
+        itemStyle: {
+          color: '#d0ffdc'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            {
+              offset: 0,
+              color: 'rgba(208, 255, 220, 0.3)'
+            },
+            {
+              offset: 1,
+              color: 'rgba(208, 255, 220, 0.1)'
+            }
+          ])
+        },
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: {
+          width: 3
+        }
+      }
+    ]
+  };
+
+  chart.setOption(option);
+
+  // 响应式调整
+  window.addEventListener('resize', () => {
+    chart.resize();
+  });
+});
   </script>
   
   <style scoped>
@@ -211,9 +374,23 @@ const latestNews = ref([
   padding: 20px;
 }
 
+.main-content {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.left-section {
+  flex: 1.5;
+}
+
+.right-section {
+  flex: 1;
+}
+
 .carousel-container {
   width: 100%;
-  height: 600px;
+  height: 500px;
   margin-top: 10px;
   border-radius: 10px;
   overflow: hidden;
@@ -222,13 +399,32 @@ const latestNews = ref([
 
 .welcome-message {
   text-align: center;
-  margin-top: -60px;
+  margin-top: 40px;
   position: relative;
   z-index: 2;
   background: rgba(0, 0, 0, 0.5);
   padding: 20px;
   border-radius: 10px;
   backdrop-filter: blur(5px);
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.close-button .el-icon {
+  font-size: 20px;
+  color: #ffffff;
 }
 
 .welcome-message h1 {
@@ -251,7 +447,7 @@ const latestNews = ref([
   
   .carousel-container {
     width: 100%;
-    height: 600px; /* 高度可根据需要调整 */
+    height: 500px;
     margin-top: 10px;
     border-radius: 10px;
     overflow: hidden;
@@ -260,7 +456,7 @@ const latestNews = ref([
   
   .carousel-image {
     width: 100%;
-    height: 600px;
+    height: 500px;
     object-fit: cover;
   }
   
@@ -446,32 +642,242 @@ const latestNews = ref([
     color: #ffffff;
   }
 
-  .news-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+  .news-container {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 10px;
+    padding: 20px;
+    height: 500px;
+    margin-top: 10px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(208, 255, 220, 0.3) transparent;
+  }
+
+  .news-container h2 {
+    color: #d0ffdc;
+    margin-bottom: 20px;
+    font-size: 1.8rem;
+    text-align: left;
+  }
+
+  .news-list {
+    display: flex;
+    flex-direction: column;
     gap: 20px;
   }
 
-  .news-card {
+  .news-item {
     background: rgba(0, 0, 0, 0.4);
-    padding: 20px;
+    padding: 15px;
     border-radius: 8px;
+    transition: transform 0.3s;
+  }
+
+  .news-item:hover {
+    transform: translateY(-3px);
+  }
+
+  .news-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
   }
 
   .news-date {
     color: #a0a0a0;
+    font-size: 0.9rem;
+  }
+
+  .news-tag {
+    padding: 4px 8px;
+    border-radius: 4px;
     font-size: 0.8rem;
-    margin-bottom: 10px;
   }
 
-  .news-card h3 {
+  .news-tag.warning {
+    background: #e6a23c;
+    color: #fff;
+  }
+
+  .news-tag.danger {
+    background: #f56c6c;
+    color: #fff;
+  }
+
+  .news-tag.info {
+    background: #909399;
+    color: #fff;
+  }
+
+  .news-tag.success {
+    background: #67c23a;
+    color: #fff;
+  }
+
+  .news-item h3 {
     color: #d0ffdc;
-    margin-bottom: 10px;
+    margin: 10px 0;
+    font-size: 1.1rem;
   }
 
-  .news-card p {
+  .news-item p {
     color: #ffffff;
     font-size: 0.9rem;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+
+  .read-more {
+    color: #d0ffdc;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-top: 10px;
+  }
+
+  .read-more:hover {
+    text-decoration: underline;
+  }
+
+  /* 自定义滚动条样式 - Webkit (Chrome, Safari, Edge) */
+  .news-container::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .news-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .news-container::-webkit-scrollbar-thumb {
+    background-color: rgba(208, 255, 220, 0.3);
+    border-radius: 3px;
+  }
+
+  .news-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(208, 255, 220, 0.5);
+  }
+
+  .cybersecurity-importance {
+    margin: 40px 0;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
+    border-radius: 15px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cybersecurity-importance::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('/src/assets/homepage1.jpg') center/cover;
+    opacity: 0.1;
+    z-index: 0;
+  }
+
+  .importance-content {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .importance-text h2 {
+    color: #d0ffdc;
+    font-size: 2.2rem;
+    text-align: center;
+    margin-bottom: 40px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .importance-points {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    margin-bottom: 40px;
+  }
+
+  .point {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 10px;
+    transition: transform 0.3s;
+  }
+
+  .point:hover {
+    transform: translateY(-5px);
+  }
+
+  .point .el-icon {
+    font-size: 2rem;
+    color: #d0ffdc;
+    flex-shrink: 0;
+  }
+
+  .point-content h3 {
+    color: #d0ffdc;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+  }
+
+  .point-content p {
+    color: #ffffff;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .call-to-action {
+    text-align: center;
+    margin-top: 40px;
+  }
+
+  .call-to-action p {
+    color: #ffffff;
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+  }
+
+  .join-button {
+    background: #d0ffdc;
+    color: #000;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1.1rem;
+    border-radius: 25px;
+    transition: all 0.3s;
+  }
+
+  .join-button:hover {
+    background: #b3ffc4;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(208, 255, 220, 0.3);
+  }
+
+  .talent-growth {
+    margin: 40px 0;
+    padding: 40px 20px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 15px;
+  }
+
+  .talent-growth h2 {
+    color: #d0ffdc;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2rem;
+  }
+
+  .chart-container {
+    width: 100%;
+    height: 400px;
+    margin: 0 auto;
   }
   </style>
   

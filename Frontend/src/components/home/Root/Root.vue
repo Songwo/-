@@ -48,14 +48,28 @@
       </template>
       <template v-else>
         <div class="login-buttons">
-          <el-button type="primary" @click="goToLogin">登录</el-button>
+          <el-button 
+            type="primary" 
+            @click="goToLogin"
+            class="login-button"
+            :loading="isLoading"
+          >
+            <span class="button-content">
+              <span class="button-text">登录</span>
+              <el-icon class="button-icon"><ArrowRight /></el-icon>
+            </span>
+          </el-button>
         </div>
       </template>
     </el-header>
 
     <!-- Main Content -->
     <div class="main-content">
-      <RouterView></RouterView>
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </div>
 
     <!-- 页脚 -->
@@ -81,7 +95,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useStore } from 'vuex'
 import { computed, ref, onMounted, watch } from 'vue'
 import ToUrl from '@/api/api'
-import { Menu } from '@element-plus/icons-vue'
+import { Menu, ArrowRight } from '@element-plus/icons-vue'
 import gsap from 'gsap'
 
 // 移动端菜单状态
@@ -134,7 +148,7 @@ const menuItems = {
   Question: { label: '答题测试', requireAuth: true },
   sortMine: { label: '个人排名', requireAuth: true },
   reward: { label: '奖励页面', requireAuth: true },
-  game: { label: '游戏学习', requireAuth: true },
+  game: { label: '靶场实战', requireAuth: true },
   aboutUs: { label: '关于我们', requireAuth: false }
 };
 
@@ -170,7 +184,7 @@ const activeMenu = computed(() => {
   return 'home' //不存在返回home
 })
 
-// 添加监听activeMenu的变化
+// 修改监听activeMenu的变化
 watch(activeMenu, (newValue, oldValue) => {
   if (oldValue) {
     const oldMenuItem = document.querySelector(`.menu .el-menu-item[index="${oldValue}"]`)
@@ -180,7 +194,7 @@ watch(activeMenu, (newValue, oldValue) => {
         borderBottom: 'none',
         fontWeight: 'normal',
         color: '#ffffff',
-        duration: 0.3
+        duration: 0.2
       })
     }
   }
@@ -193,14 +207,14 @@ watch(activeMenu, (newValue, oldValue) => {
           backgroundColor: 'rgba(255, 255, 255, 0.15)',
           color: '#ffffff',
           fontWeight: 'bold',
-          duration: 0.3,
-          ease: 'power2.out'
+          duration: 0.2,
+          ease: 'power1.out'
         })
         .to(activeMenuItem, {
           borderBottom: '3px solid #4CAF50',
-          duration: 0.3,
-          ease: 'elastic.out(1, 0.5)'
-        }, '-=0.2')
+          duration: 0.2,
+          ease: 'power1.out'
+        }, '-=0.1')
     }
   }
 })
@@ -229,10 +243,30 @@ const downloadApp = () => {
   window.open('/root/app', 'App_down')
 }
 
-// 前往登录页
-const goToLogin = () => {
-  router.push('/login');
-};
+// 添加加载状态
+const isLoading = ref(false)
+
+// 优化登录跳转
+const goToLogin = async () => {
+  isLoading.value = true
+  try {
+    // 使用 GSAP 创建过渡动画
+    await gsap.to('.main-content', {
+      opacity: 0,
+      y: -20,
+      duration: 0.2,
+      ease: 'power2.in'
+    })
+    
+    // 跳转到登录页
+    await router.push('/login')
+  } catch (error) {
+    console.error('Navigation error:', error)
+    ElMessage.error('页面跳转失败')
+  } finally {
+    isLoading.value = false
+  }
+}
 
 // 修改 AI 智能解答方法
 const aiAnswer = () => {
@@ -250,17 +284,17 @@ onMounted(() => {
   menuItems.forEach(item => {
     item.addEventListener('mouseenter', () => {
       gsap.to(item, {
-        scale: 1.05,
-        duration: 0.3,
-        ease: 'power2.out'
+        scale: 1.02,
+        duration: 0.2,
+        ease: 'power1.out'
       })
     })
     
     item.addEventListener('mouseleave', () => {
       gsap.to(item, {
         scale: 1,
-        duration: 0.3,
-        ease: 'power2.out'
+        duration: 0.2,
+        ease: 'power1.out'
       })
     })
   })
@@ -268,17 +302,17 @@ onMounted(() => {
   // 为logo添加初始动画
   gsap.from('.logo', {
     opacity: 0,
-    x: -50,
-    duration: 1,
-    ease: 'power2.out'
+    x: -20,
+    duration: 0.5,
+    ease: 'power1.out'
   })
 
   // 为用户信息添加初始动画
   gsap.from('.user-dropdown, .login-buttons', {
     opacity: 0,
-    x: 50,
-    duration: 1,
-    ease: 'power2.out'
+    x: 20,
+    duration: 0.5,
+    ease: 'power1.out'
   })
 })
 </script>
@@ -366,10 +400,11 @@ onMounted(() => {
 .menu .el-menu-item {
   color: #ffffff;
   font-size: clamp(12px, 1.2vw, 16px);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   flex-shrink: 0;
   padding: 0 15px;
   position: relative;
+  will-change: transform, background-color;
 }
 
 .menu .el-menu-item.is-active {
@@ -383,7 +418,7 @@ onMounted(() => {
 .menu .el-menu-item:hover {
   background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .router-link {
@@ -404,12 +439,13 @@ onMounted(() => {
   padding: 5px 10px;
   border-radius: 5px;
   background-color: rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  will-change: transform, background-color;
 }
 
 .user-info:hover {
   background-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .user-avatar {
@@ -584,11 +620,96 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  will-change: transform, background-color;
 }
 
 .login-buttons .el-button:hover {
   background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 页面切换动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* 优化动画性能 */
+.fade-enter-active,
+.fade-leave-active {
+  will-change: transform, opacity;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .fade-enter-from,
+  .fade-leave-to {
+    transform: translateY(5px);
+  }
+}
+
+.login-button {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  padding: 0 24px;
+  height: 40px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, background-color;
+}
+
+.login-button:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.login-button:active {
+  transform: translateY(0);
+}
+
+.button-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.button-icon {
+  transition: transform 0.3s ease;
+}
+
+.login-button:hover .button-icon {
+  transform: translateX(4px);
+}
+
+/* 添加按钮加载动画 */
+.login-button.is-loading {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0.8;
+}
+
+.login-button.is-loading .button-content {
+  opacity: 0;
+}
+
+/* 优化移动端适配 */
+@media (max-width: 768px) {
+  .login-button {
+    height: 36px;
+    padding: 0 20px;
+  }
+  
+  .button-content {
+    font-size: 14px;
+  }
 }
 </style>

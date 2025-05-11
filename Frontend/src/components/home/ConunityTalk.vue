@@ -188,14 +188,14 @@
                 <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" />
               </div>
               <div class="detail-meta">
-                <el-avatar :size="32" :src="ToUrl.url + '/' + selectedPost.avatar" />
+                <el-avatar :size="32" :src="selectedPost?.avatar ? ToUrl.url + '/' + selectedPost.avatar : ''" />
                 <div class="meta-info">
-                  <span class="author">{{ selectedPost.username }}</span>
-                  <span class="time">{{ formatTime(selectedPost.timestamp) }}</span>
+                  <span class="author">{{ selectedPost?.username || '未知用户' }}</span>
+                  <span class="time">{{ selectedPost?.timestamp ? formatTime(selectedPost.timestamp) : '' }}</span>
                 </div>
               </div>
               <el-divider />
-              <div class="content-text" v-html="renderMarkdown(selectedPost.content)"></div>
+              <div class="content-text" v-html="renderMarkdown(selectedPost?.content || '')"></div>
             </div>
 
             <!-- 评论区 -->
@@ -349,14 +349,14 @@
           <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" />
         </div>
         <div class="post-meta">
-          <el-avatar :size="32" :src="ToUrl.url+'/'+selectedPost.avatar" />
+          <el-avatar :size="32" :src="selectedPost?.avatar ? ToUrl.url + '/' + selectedPost.avatar : ''" />
           <div class="meta-info">
-            <span class="author">{{ selectedPost.username }}</span>
-            <span class="time">{{ formatTime(selectedPost.timestamp) }}</span>
+            <span class="author">{{ selectedPost?.username || '未知用户' }}</span>
+            <span class="time">{{ selectedPost?.timestamp ? formatTime(selectedPost.timestamp) : '' }}</span>
           </div>
         </div>
         <el-divider />
-        <div class="content-text" v-html="renderMarkdown(selectedPost.content)"></div>
+        <div class="content-text" v-html="renderMarkdown(selectedPost?.content || '')"></div>
       </div>
 
       <!-- 评论区 -->
@@ -556,7 +556,12 @@ const onUploadImg = async (files, callback) => {
 
 // 打开详情方法
 const openDetailDialog = async (post) => {
-  if (!store.state.token && post.content.length > 200) {
+  if (!post) {
+    console.error('Invalid post data');
+    return;
+  }
+
+  if (!store.state.token && post.content?.length > 200) {
     ElMessage.warning('登录后可查看完整内容');
     router.push('/login');
     return;
@@ -577,6 +582,7 @@ const openDetailDialog = async (post) => {
         selectedPost.value.comments = selectedPost.value.comments.slice(0, 3);
       }
     } catch (error) {
+      console.error('Failed to fetch comments:', error);
       ElMessage.error('获取评论失败');
     } finally {
       loadingComments.value = false;
@@ -753,11 +759,22 @@ const formatTime = (timestamp) => {
 // selectPost方法
 const selectPost = async (post) => {
   try {
+    if (!post || !post.id) {
+      console.error('Invalid post data:', post);
+      return;
+    }
+
     const headers = store.state.token ? { 'Authorization': `Bearer ${store.state.token}` } : {};
     const response = await axios.get(ToUrl.url + `/post/findById`, {
       params: { id: post.id },
       headers
     });
+    
+    if (!response.data || !response.data.data) {
+      console.error('Invalid response data:', response.data);
+      return;
+    }
+    
     selectedPost.value = response.data.data;
     
     // 获取评论
@@ -769,6 +786,7 @@ const selectPost = async (post) => {
         });
         selectedPost.value.comments = commentsResponse.data.data || [];
       } catch (error) {
+        console.error('Failed to fetch comments:', error);
         ElMessage.error('获取评论失败');
       } finally {
         loadingComments.value = false;
@@ -777,6 +795,7 @@ const selectPost = async (post) => {
       selectedPost.value.comments = [];
     }
   } catch (error) {
+    console.error('Failed to fetch post:', error);
     ElMessage.error('获取帖子详情失败');
   }
 };
@@ -989,17 +1008,110 @@ const handlePageChange = (page) => {
 }
 
 // 修改帖子内容显示方法
+const renderer = new marked.Renderer();
+renderer.image = function(href, title, text) {
+  // 添加更详细的调试日志
+  console.log('Image rendering details:', {
+    href,
+    title,
+    text,
+    raw: this.raw // 添加原始 markdown 内容
+  });
+  
+  // 确保 href 是有效的 URL
+  if (!href) {
+    console.error('Invalid image URL:', href);
+    return `<div class="image-error">图片加载失败</div>`;
+  }
+
+  // 处理 URL 中的特殊字符
+  let processedUrl = '';
+  
+  // 如果 href 是对象，尝试从中提取 URL
+  if (typeof href === 'object' && href.href) {
+    processedUrl = href.href;
+  } else if (typeof href === 'string') {
+    processedUrl = href;
+  }
+  
+  // 处理 #? 参数
+  if (processedUrl && processedUrl.includes('#?')) {
+    processedUrl = processedUrl.replace('#?', '%23?');
+  }
+  
+  // 处理其他特殊字符
+  processedUrl = encodeURI(processedUrl);
+  
+  // 添加调试日志
+  console.log('Processed image URL:', processedUrl);
+  
+  return `<img src="${processedUrl}" alt="${text || ''}" ${title ? `title="${title}"` : ''} class="markdown-image" onerror="this.onerror=null; this.src='${ToUrl.url}/default-image.png';" />`;
+};
+
 const renderMarkdown = (content) => {
   try {
+    if (!content) {
+      console.warn('Empty content provided to renderMarkdown');
+      return '';
+    }
+
     if (!store.state.token && content.length > 200) {
-      // 未登录用户只显示前200个字符
       content = content.slice(0, 200) + '\n\n**... 登录后查看完整内容**'
     }
-    return marked.marked(content)
+    
+    // 预处理内容，确保图片 URL 格式正确
+    content = content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+      console.log('Processing image markdown:', { match, alt, url });
+      
+      // 如果 URL 包含 #? 参数，确保它被正确处理
+      if (url && typeof url === 'string' && url.includes('#?')) {
+        const processedUrl = url.replace('#?', '%23?');
+        console.log('Processed image URL:', processedUrl);
+        return `![${alt}](${processedUrl})`;
+      }
+      return match;
+    });
+
+    // 添加调试日志
+    console.log('Preprocessed content:', content);
+
+    const html = marked.marked(content, { 
+      renderer,
+      breaks: true,
+      gfm: true,
+      sanitize: false,
+      mangle: false,
+      headerIds: false
+    });
+
+    // 添加调试日志
+    console.log('Generated HTML:', html);
+    
+    return html;
   } catch (error) {
-    return content
+    console.error('Markdown rendering error:', error);
+    return content;
   }
 }
+
+// 添加一个辅助函数来处理图片 URL
+const processImageUrl = (url) => {
+  if (!url) return '';
+  
+  // 如果 url 是对象，尝试从中提取 URL
+  if (typeof url === 'object' && url.href) {
+    url = url.href;
+  }
+  
+  if (typeof url !== 'string') return '';
+  
+  // 处理 #? 参数
+  if (url.includes('#?')) {
+    return url.replace('#?', '%23?');
+  }
+  
+  return url;
+};
 
 // previewImage 方法
 const previewImage = () => {
@@ -2104,6 +2216,30 @@ onMounted(() => {
   :deep(img) {
     max-width: 100%;
     border-radius: 4px;
+    margin: 1em 0;
+  }
+
+  :deep(img.markdown-image) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1em auto;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    
+    &:hover {
+      transform: scale(1.02);
+      transition: transform 0.3s ease;
+    }
+  }
+
+  :deep(.image-error) {
+    padding: 1em;
+    background: #f8f9fa;
+    border: 1px dashed #dcdfe6;
+    border-radius: 4px;
+    color: #909399;
+    text-align: center;
     margin: 1em 0;
   }
 }

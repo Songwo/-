@@ -509,19 +509,6 @@ const updateDateTime = () => {
   overflow-y: auto;
 }
 
-:deep(.el-sub-menu__title) {
-  height: 50px;
-  line-height: 50px;
-  margin: 4px 0;
-  border-radius: 4px;
-  transition: all 0.3s;
-  padding: 0 20px !important;
-}
-
-:deep(.el-sub-menu__title:hover) {
-  background-color: #f5f7fa;
-}
-
 :deep(.el-menu-item) {
   height: 45px;
   line-height: 45px;
@@ -531,13 +518,40 @@ const updateDateTime = () => {
   padding: 0 20px !important;
 }
 
-:deep(.el-menu-item.is-active) {
+/* 添加子菜单样式 */
+:deep(.el-menu--inline) {
+  padding-left: 20px;
+}
+
+:deep(.el-menu--inline .el-menu-item) {
+  padding-left: 40px !important;
+  height: 40px;
+  line-height: 40px;
+  font-size: 13px;
+  color: #606266;
+}
+
+:deep(.el-menu--inline .el-menu-item.is-active) {
   background-color: #e6f0ff !important;
   color: #409EFF !important;
   font-weight: 500;
 }
 
-:deep(.el-menu-item:hover) {
+:deep(.el-menu--inline .el-menu-item:hover) {
+  background-color: #f5f7fa;
+}
+
+:deep(.el-sub-menu__title) {
+  height: 50px;
+  line-height: 50px;
+  margin: 4px 0;
+  border-radius: 4px;
+  transition: all 0.3s;
+  padding: 0 20px !important;
+  font-weight: 500;
+}
+
+:deep(.el-sub-menu__title:hover) {
   background-color: #f5f7fa;
 }
 
@@ -570,9 +584,10 @@ const updateDateTime = () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  padding: 10px;
+  padding: 15px 20px;
   background: #f5f7fa;
-  border-radius: 4px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .breadcrumb {
@@ -591,36 +606,48 @@ const updateDateTime = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 15px;
   color: #606266;
-  transition: color 0.3s;
+  transition: all 0.3s;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 :deep(.el-breadcrumb__separator) {
   margin: 0 8px;
   color: #909399;
+  font-weight: bold;
 }
 
 .breadcrumb-link {
   cursor: pointer;
   color: #409EFF;
-  transition: color 0.3s;
-  font-size: 16px;
+  transition: all 0.3s;
+  font-size: 15px;
   font-weight: 500;
   text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(64, 158, 255, 0.1);
 }
 
 .breadcrumb-link:hover {
   color: #66b1ff;
+  background: rgba(64, 158, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .breadcrumb-link.last-item {
   color: #606266;
   cursor: default;
+  background: none;
+  font-weight: 600;
 }
 
 .breadcrumb-link.last-item:hover {
   color: #606266;
+  background: none;
+  transform: none;
 }
 
 .admin-info {

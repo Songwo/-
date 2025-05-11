@@ -18,6 +18,14 @@
       </el-menu>
     </div>
 
+    <!-- 教程按钮 -->
+    <div class="tutorial-button-container">
+      <el-button type="primary" @click="showTutorial" class="tutorial-button">
+        <el-icon><Guide /></el-icon>
+        <span style="margin-left: 4px">教程</span>
+      </el-button>
+    </div>
+
     <!-- 内容区域 -->
     <div class="content-area">
       <el-row :gutter="20">
@@ -148,6 +156,71 @@
       </el-row>
     </div>
 
+    <!-- 教程对话框 -->
+    <el-dialog
+      v-model="showTutorialDialog"
+      title="靶场教程"
+      width="60%"
+      class="tutorial-dialog"
+    >
+      <div class="tutorial-content">
+        <el-carousel
+          ref="tutorialCarousel"
+          :interval="0"
+          :autoplay="false"
+          indicator-position="none"
+          height="400px"
+          class="tutorial-carousel"
+        >
+          <el-carousel-item v-for="(step, index) in tutorialSteps" :key="index">
+            <div class="tutorial-step">
+              <div class="step-number">{{ index + 1 }}</div>
+              <div class="step-info">
+                <h3>{{ step.title }}</h3>
+                <p>{{ step.description }}</p>
+                <div class="step-image" @click="handleImageClick(step.image)">
+                  <el-image 
+                    :src="step.image" 
+                    fit="cover" 
+                    style="width: 100%; max-width: 400px; border-radius: 8px; margin-top: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); cursor: pointer;"
+                  />
+                </div>
+              </div>
+            </div>
+          </el-carousel-item>
+        </el-carousel>
+        
+        <div class="tutorial-navigation">
+          <el-button 
+            :disabled="currentStep === 0"
+            @click="prevStep"
+            class="nav-button"
+          >
+            <el-icon><ArrowLeft /></el-icon>
+            上一步
+          </el-button>
+          
+          <div class="step-indicators">
+            <div 
+              v-for="(step, index) in tutorialSteps" 
+              :key="index"
+              :class="['step-dot', { active: currentStep === index }]"
+              @click="goToStep(index)"
+            ></div>
+          </div>
+          
+          <el-button 
+            :disabled="currentStep === tutorialSteps.length - 1"
+            @click="nextStep"
+            class="nav-button"
+          >
+            下一步
+            <el-icon><ArrowRight /></el-icon>
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- FLAG验证对话框 -->
     <el-dialog v-model="showFlagDialog" title="验证FLAG" width="30%">
       <el-input v-model="inputFlag" placeholder="请输入FLAG" />
@@ -155,6 +228,24 @@
         <el-button @click="showFlagDialog = false" class="cancel-btn">取消</el-button>
         <el-button type="primary" @click="confirmVerify">确认</el-button>
       </template>
+    </el-dialog>
+
+    <!-- 添加图片预览对话框 -->
+    <el-dialog
+      v-model="showImagePreview"
+      width="80%"
+      class="image-preview-dialog"
+      :show-close="true"
+      :close-on-click-modal="true"
+      :close-on-press-escape="true"
+    >
+      <div class="preview-container">
+        <el-image 
+          :src="currentPreviewImage" 
+          fit="contain"
+          style="width: 100%; height: 80vh;"
+        />
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -164,7 +255,7 @@ import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElNotification } from 'element-plus'
 import ToUrl from '@/api/api'
-import { Lock, Unlock, Check, Loading, Document, Flag, Guide } from '@element-plus/icons-vue'
+import { Lock, Unlock, Check, Loading, Document, Flag, Guide, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { useStore } from 'vuex'
 import gsap from 'gsap'
 
@@ -586,6 +677,74 @@ const toggleVulnDetails = (challenge) => {
   }
 }
 
+// 教程相关
+const showTutorialDialog = ref(false)
+const tutorialCarousel = ref(null)
+const currentStep = ref(0)
+
+const tutorialSteps = [
+  {
+    title: '启动靶场',
+    description: '点击"启动靶场"按钮，系统会自动为你创建一个包含漏洞的靶场环境。启动过程可能需要一些时间，请耐心等待。',
+    image: '/src/assets/Jiaoc/start.png'
+  },
+  {
+    title: '访问靶场',
+    description: '靶场启动成功后，点击"前往靶场"链接，系统会在新标签页中打开靶场环境。',
+    image: '/src/assets/Jiaoc/前往靶场.png'
+  },
+  {
+    title: '分析目标',
+    description: '仔细阅读挑战描述和任务目标，分析目标系统中可能存在的漏洞。可以查看漏洞概述来了解相关漏洞的原理和利用方法。',
+    image: '/src/assets/Jiaoc/分析.png'
+  },
+  {
+    title: '获取FLAG',
+    description: '利用发现的漏洞，尝试获取系统中的FLAG。FLAG通常是一串特定的字符串，可能隐藏在系统的某个位置。',
+    image: '/src/assets/Jiaoc/通关.png'
+  },
+  {
+    title: '提交验证',
+    description: '获取到FLAG后，点击"验证FLAG"按钮，将FLAG提交给系统进行验证。验证成功后即可完成挑战。',
+    image: '/src/assets/Jiaoc/验证.png'
+  }
+]
+
+const showTutorial = () => {
+  showTutorialDialog.value = true
+  currentStep.value = 0
+  if (tutorialCarousel.value) {
+    tutorialCarousel.value.setActiveItem(0)
+  }
+}
+
+const nextStep = () => {
+  if (currentStep.value < tutorialSteps.length - 1) {
+    currentStep.value++
+    tutorialCarousel.value?.setActiveItem(currentStep.value)
+  }
+}
+
+const prevStep = () => {
+  if (currentStep.value > 0) {
+    currentStep.value--
+    tutorialCarousel.value?.setActiveItem(currentStep.value)
+  }
+}
+
+const goToStep = (index) => {
+  currentStep.value = index
+  tutorialCarousel.value?.setActiveItem(index)
+}
+
+const showImagePreview = ref(false)
+const currentPreviewImage = ref('')
+
+const handleImageClick = (imageUrl) => {
+  currentPreviewImage.value = imageUrl
+  showImagePreview.value = true
+}
+
 </script>
 
 <style scoped>
@@ -594,6 +753,7 @@ const toggleVulnDetails = (challenge) => {
   flex-direction: column;
   height: 100vh;
   background: transparent;
+  position: relative;
 }
 
 .top-navigation {
@@ -601,11 +761,16 @@ const toggleVulnDetails = (challenge) => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
 }
 
 .top-navigation .el-menu {
   background: transparent;
   border-bottom: none;
+  flex: 1;
 }
 
 .top-navigation .el-menu-item {
@@ -651,10 +816,94 @@ const toggleVulnDetails = (challenge) => {
   color: rgba(255, 255, 255, 0.8) !important;
 }
 
+.tutorial-button-container {
+  position: fixed;
+  top: 78px;
+  right: 70px;
+  z-index: 1000;
+  height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.tutorial-button {
+  background: linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%);
+  border: none;
+  color: #ffffff;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(110, 69, 226, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+}
+
+.tutorial-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(110, 69, 226, 0.4);
+  background: linear-gradient(135deg, #7d52e8 0%, #93d8d3 100%);
+}
+
+.tutorial-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(110, 69, 226, 0.3);
+}
+
+.tutorial-button .el-icon {
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+.tutorial-button:hover .el-icon {
+  transform: scale(1.1);
+}
+
+.tutorial-button-container::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%);
+  border-radius: 10px;
+  z-index: -1;
+  opacity: 0.5;
+  filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.tutorial-button-container:hover::after {
+  opacity: 0.8;
+  filter: blur(12px);
+}
+
 .content-area {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  }
 }
 
 .challenge-card {
@@ -737,6 +986,7 @@ const toggleVulnDetails = (challenge) => {
   max-width: 800px;
   margin-left: auto;
   margin-right: auto;
+  
   background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   padding: 20px;
@@ -754,7 +1004,7 @@ const toggleVulnDetails = (challenge) => {
 .description-section h3,
 .task-section h3,
 .tutorial-section h3 {
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.95);
   margin-bottom: 10px;
   font-size: 18px;
   text-align: center;
@@ -762,6 +1012,7 @@ const toggleVulnDetails = (challenge) => {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .description-section h3 .el-icon,
@@ -769,34 +1020,63 @@ const toggleVulnDetails = (challenge) => {
 .tutorial-section h3 .el-icon {
   font-size: 20px;
   color: var(--el-color-primary);
-}
-
-.tutorial-step .el-icon {
-  color: var(--el-color-success);
-  font-size: 16px;
-}
-
-p {
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1.6;
-  text-align: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .tutorial-steps {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
+  width: 100%;
 }
 
 .tutorial-step {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.8);
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.9);
   justify-content: center;
-  max-width: 600px;
   width: 100%;
+  padding: 4px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.tutorial-step .el-icon {
+  color: var(--el-color-success);
+  font-size: 16px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* 使用深度选择器来确保样式能够穿透scoped限制 */
+:deep(.tutorial-step span) {
+    color: rgb(255, 255, 255) !important;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* 备用选择器 */
+.tutorial-step :deep(span) {
+    color: rgb(255, 255, 255) !important;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* 全局样式覆盖 */
+:global(.tutorial-step span) {
+    color: rgb(255, 255, 255) !important;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .vuln-overview {
@@ -985,5 +1265,234 @@ p {
 
 :deep(.cancel-btn:hover) {
   color: #000000 !important;
+}
+
+.tutorial-dialog {
+  :deep(.el-dialog) {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    max-height: 90vh;
+    width: 80% !important;
+    max-width: 1200px;
+    margin-top: 5vh !important;
+  }
+
+  :deep(.el-dialog__title) {
+    color: #000000;
+  }
+
+  :deep(.el-dialog__headerbtn .el-dialog__close) {
+    color: #000000;
+  }
+
+  .tutorial-step {
+    display: flex;
+    align-items: flex-start;
+    padding: 15px 25px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    transition: all 0.3s ease;
+    min-height: 450px;
+  }
+
+  .step-info {
+    flex: 1;
+    padding-right: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .step-info h3 {
+    color: #000000;
+    margin: 0 0 15px 0;
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  .step-info p {
+    color: #000000 !important;
+    margin: 0;
+    line-height: 1.8;
+    font-size: 18px;
+  }
+
+  :deep(.el-carousel__item) {
+    color: #000000;
+  }
+
+  :deep(.el-carousel__item p) {
+    color: #000000 !important;
+  }
+
+  :deep(.el-carousel__item h3) {
+    color: #000000 !important;
+  }
+}
+
+.tutorial-content {
+  padding: 10px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tutorial-carousel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.step-number {
+  width: 50px;
+  height: 50px;
+  background: rgba(85, 36, 173, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: bold;
+  margin-right: 25px;
+  flex-shrink: 0;
+}
+
+.step-info {
+  flex: 1;
+  max-height: 450px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.step-info::-webkit-scrollbar {
+  width: 6px;
+}
+
+.step-info::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.step-info::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.step-info::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.step-image {
+  width: 100%;
+  max-width: 400px;
+  margin-top: 15px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.tutorial-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  margin-top: 10px;
+}
+
+.nav-button {
+  background: rgba(85, 36, 173, 0.6);
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.nav-button:hover:not(:disabled) {
+  background: rgba(85, 36, 173, 0.8);
+  transform: translateY(-2px);
+}
+
+.nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.step-indicators {
+  display: flex;
+  gap: 12px;
+}
+
+.step-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.step-dot:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.step-dot.active {
+  background: rgba(85, 36, 173, 0.8);
+  transform: scale(1.2);
+}
+
+.description-section p[data-v-8c3679b0],
+.task-section p[data-v-8c3679b0],
+.tutorial-section p[data-v-8c3679b0] {
+  color: rgba(255, 255, 255, 0.9) !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 确保所有段落都使用浅色文字 */
+p[data-v-8c3679b0] {
+  color: rgba(255, 255, 255, 0.9) !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* 添加图片预览相关样式 */
+.image-preview-dialog {
+  :deep(.el-dialog) {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 0;
+  }
+
+  .preview-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.9);
+  }
+}
+
+.step-image {
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.step-image:hover {
+  transform: scale(1.02);
+}
+
+.step-image:active {
+  transform: scale(0.98);
 }
 </style>

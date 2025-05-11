@@ -6,6 +6,10 @@
         <h3>课程分类</h3>
       </div>
       <el-menu :default-active="activeCategory" @select="handleCategorySelect" class="category-menu" accordion>
+        <el-menu-item index="exam-records" @click="showExamRecords">
+          <el-icon><Document /></el-icon>
+          <span>考试记录</span>
+        </el-menu-item>
         <el-sub-menu v-for="category in categories" :key="category.id" :index="category.id.toString()">
           <template #title>
             <span class="menu-title">
@@ -24,8 +28,109 @@
 
     <!-- 主内容区 -->
     <div class="course-main">
+      <!-- 考试记录视图 -->
+      <div v-if="showRecords" class="course-content">
+        <div class="content-header">
+          <h2>考试记录</h2>
+          <div class="search-bar">
+            <el-input placeholder="搜索考试记录..." prefix-icon="Search" v-model="recordSearchQuery" />
+          </div>
+        </div>
+        
+        <div class="records-list">
+          <el-table :data="filteredRecords" style="width: 100%" v-loading="loading">
+            <el-table-column prop="examTitle" label="考试名称" min-width="200" />
+            <el-table-column prop="submitTime" label="提交时间" width="180">
+              <template #default="scope">
+                {{ formatDate(scope.row.submitTime) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="totalScore" label="得分" width="100">
+              <template #default="scope">
+                <span :class="getScoreClass(scope.row.totalScore)">{{ scope.row.totalScore }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="accuracy" label="正确率" width="120">
+              <template #default="scope">
+                {{ scope.row.accuracy.toFixed(1) }}%
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="120">
+              <template #default="scope">
+                <el-button type="primary" link @click="viewRecordDetail(scope.row)">
+                  查看详情
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 考试详情对话框 -->
+        <el-dialog
+          v-model="detailDialogVisible"
+          title="考试详情"
+          width="70%"
+          :before-close="handleDetailDialogClose"
+          class="exam-detail-dialog"
+        >
+          <div v-if="currentRecord" class="record-detail">
+            <div class="detail-header">
+              <h3>{{ currentRecord.examTitle }}</h3>
+              <div class="detail-meta">
+                <div class="meta-item">
+                  <el-icon><Calendar /></el-icon>
+                  <span>提交时间：{{ formatDate(currentRecord.submitTime) }}</span>
+                </div>
+                <div class="meta-item">
+                  <el-icon><Trophy /></el-icon>
+                  <span>总分：<span class="score">{{ currentRecord.totalScore }}</span></span>
+                </div>
+                <div class="meta-item">
+                  <el-icon><DataLine /></el-icon>
+                  <span>正确率：<span class="accuracy">{{ currentRecord.accuracy.toFixed(1) }}%</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-content">
+              <div v-for="(result, index) in currentRecord.questionResults" :key="index" class="question-result">
+                <div class="question-header">
+                  <div class="question-info">
+                    <span class="question-number">第{{ index + 1 }}题</span>
+                    <span class="question-title">{{ result.questionTitle }}</span>
+                  </div>
+                  <el-tag :type="result.correct ? 'success' : 'danger'" effect="dark" class="result-tag">
+                    {{ result.correct ? '正确' : '错误' }}
+                  </el-tag>
+                </div>
+                <div class="answer-info">
+                  <div class="answer-item">
+                    <span class="label">您的答案：</span>
+                    <span :class="['value', result.correct ? 'correct' : 'incorrect']">
+                      {{ result.userAnswer }}
+                    </span>
+                  </div>
+                  <div class="answer-item">
+                    <span class="label">正确答案：</span>
+                    <span class="value correct">{{ result.correctAnswer }}</span>
+                  </div>
+                  <div class="answer-item">
+                    <span class="label">得分：</span>
+                    <span class="value score">{{ result.score }}</span>
+                  </div>
+                  <div class="answer-item explanation" v-if="result.explanation">
+                    <span class="label">解析：</span>
+                    <span class="value">{{ result.explanation }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-dialog>
+      </div>
+
       <!-- 试卷列表视图 -->
-      <div v-if="!currentExam" class="course-content">
+      <div v-else-if="!currentExam" class="course-content">
         <div class="content-header">
           <h2>测试题库</h2>
           <div class="search-bar">
@@ -63,8 +168,9 @@
       <div v-else class="exam-interface">
         <div class="exam-header">
           <div class="header-left">
-            <el-button @click="cancelExam" circle>
+            <el-button @click="cancelExam" class="back-button">
               <el-icon><ArrowLeft /></el-icon>
+              返回
             </el-button>
             <h2>{{ currentExam.title }}</h2>
           </div>
@@ -75,32 +181,30 @@
         </div>
 
         <div class="exam-content">
-          <el-form :model="answers">
+          <el-form :model="answers" ref="examForm">
             <div v-for="(question, index) in currentExam.questions" :key="question.id" class="question-item">
               <div class="question-header">
                 <span class="question-number">第{{ index + 1 }}题</span>
                 <h4>{{ question.title }}</h4>
               </div>
-              <el-form-item :prop="`answers[${question.id}].value`" :rules="[{ validator: validateAnswer(question) }]">
-                <component :is="getQuestionComponent(question.type)" v-model="answers[question.id].value">
-                  <template v-if="question.type === 'single'">
-                    <el-radio v-for="option in question.options" :key="option.value" :label="option.value">
-                      <span class="option-content">{{ option.label }}</span>
-                    </el-radio>
-                  </template>
-                  <template v-if="question.type === 'multiple'">
-                    <el-checkbox v-for="option in question.options" :key="option.value" :label="option.value">
-                      <span class="option-content">{{ option.label }}</span>
-                    </el-checkbox>
-                  </template>
-                </component>
+              <el-form-item :prop="`${question.id}.value`" :rules="[{ validator: validateAnswer(question) }]">
+                <el-radio-group v-if="question.type === 'single'" v-model="answers[question.id].value">
+                  <el-radio v-for="option in question.options" :key="option.value" :label="option.value">
+                    <span class="option-content">{{ option.label }}</span>
+                  </el-radio>
+                </el-radio-group>
+                <el-checkbox-group v-if="question.type === 'multiple'" v-model="answers[question.id].value">
+                  <el-checkbox v-for="option in question.options" :key="option.value" :label="option.value">
+                    <span class="option-content">{{ option.label }}</span>
+                  </el-checkbox>
+                </el-checkbox-group>
               </el-form-item>
             </div>
           </el-form>
         </div>
 
         <div class="exam-footer">
-          <el-button type="primary" size="large" @click="submitExam">提交试卷</el-button>
+          <el-button v-if="!currentExam?.isSubmitted" type="primary" size="large" @click="submitExam">提交试卷</el-button>
         </div>
 
         <!-- 结果展示 -->
@@ -120,7 +224,7 @@
                 <div class="answer-section">
                   <div class="correct-answer">
                     <span class="label">正确答案:</span>
-                    <span class="value">{{ formatCorrectAnswer(question) }}</span>
+                    <span class="value">{{ resultDetails[question.id]?.message || '未获取到答案' }}</span>
                     <span class="score-delta">+{{ resultDetails[question.id]?.scoreDelta }}</span>
                   </div>
                   
@@ -130,7 +234,7 @@
                   </div>
                 </div>
 
-                <div class="result-message" v-if="resultDetails[question.id]?.message">
+                <div class="result-message" v-if="resultDetails[question.id]?.message && resultDetails[question.id]?.correct">
                   {{ resultDetails[question.id].message }}
                 </div>
               </div>
@@ -144,8 +248,8 @@
 
 <script setup>
 import { ref, computed, onUnmounted, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Clock, Folder, Document, Timer, ArrowLeft, Search } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Clock, Folder, Document, Timer, ArrowLeft, Search, Calendar, Trophy, DataLine } from '@element-plus/icons-vue'
 import { useStore } from 'vuex'
 import axios from 'axios'
 import ToUrl from '@/api/api'
@@ -166,22 +270,16 @@ const scoreInfo = ref({
   totalScore: 0
 })
 const exams = ref([]) // 改为ref而不是computed
+const examForm = ref(null)
 
-// 试卷数据
-const examsData = computed(() => {
-  return categories.value.flatMap(category =>
-    category.subcategories.map(sub => ({
-      id: sub.id,
-      categoryId: category.id,
-      title: `${category.name} - ${sub.name}`,
-      description: `${sub.name}测试题库`,
-      duration: 60,
-      questionCount: 0, // 初始为0，加载后更新
-      isSubmitted: false,
-      questions: [] // 初始为空，点击后加载
-    }))
-  )
-});
+// 考试记录相关
+const showRecords = ref(false)
+const recordSearchQuery = ref('')
+const loading = ref(false)
+
+// 考试详情相关
+const detailDialogVisible = ref(false)
+const currentRecord = ref(null)
 
 // 获取试题数据
 const fetchQuestions = async () => {
@@ -207,40 +305,48 @@ const fetchCategories = async () => {
       headers: { Authorization: `Bearer ${store.state.token}` }
     })
 
-    if (response.data.code === 200) {
+    if (response.data.code === 200 && response.data.data) {
       processCategories(response.data.data)
+    } else {
+      throw new Error('获取分类数据失败')
     }
   } catch (err) {
+    console.error('分类加载失败:', err)
     ElMessage.error('分类加载失败: ' + err.message)
   }
 }
 
 // 分类数据处理方法
 const processCategories = (data) => {
-  // 转换分类数据结构
-  const mainCategories = Object.entries(data)
-    .filter(([key, value]) => key.startsWith('challengel') && value !== null)
-    .map(([key, value]) => ({
-      id: key,
-      name: value,
-      subcategories: [
-        {
-          id: `${key}-basic`,
-          name: `${value}基础测试`,
-          type: 'basic'
-        },
-        {
-          id: `${key}-advanced`,
-          name: `${value}进阶测试`,
-          type: 'advanced'
-        }
-      ]
-    }));
+  try {
+    // 转换分类数据结构
+    const mainCategories = Object.entries(data)
+      .filter(([key, value]) => key.startsWith('challengel') && value !== null)
+      .map(([key, value]) => ({
+        id: key,
+        name: value || key, // 如果value为null，使用key作为name
+        subcategories: [
+          {
+            id: `${key}-basic`,
+            name: `${value || key}基础测试`,
+            type: 'basic'
+          },
+          {
+            id: `${key}-advanced`,
+            name: `${value || key}进阶测试`,
+            type: 'advanced'
+          }
+        ]
+      }));
 
-  categories.value = mainCategories;
+    categories.value = mainCategories;
 
-  if (categories.value.length > 0) {
-    activeCategory.value = categories.value[0].subcategories[0].id;
+    if (categories.value.length > 0) {
+      activeCategory.value = categories.value[0].subcategories[0].id;
+    }
+  } catch (error) {
+    console.error('处理分类数据失败:', error);
+    ElMessage.error('处理分类数据失败，请刷新页面重试');
   }
 };
 
@@ -301,45 +407,90 @@ const allQuestionsAnswered = computed(() => {
   if (!currentExam.value) return false
   return currentExam.value.questions.every(question => {
     const answer = answers.value[question.id]?.value
-    if (question.type === 'multiple') {
-      return Array.isArray(answer) && answer.length > 0
-    }
-    return answer !== undefined && answer !== ''
+    // 修改验证逻辑，确保答案不为空
+    return answer !== undefined && answer !== null && answer !== ''
   })
 })
 
 // 提交方法
 async function submitExam() {
   try {
+    if (!examForm.value) {
+      ElMessage.error('表单未初始化');
+      return;
+    }
+    
+    // 验证表单
+    try {
+      await examForm.value.validate();
+    } catch (validationError) {
+      console.error('表单验证失败:', validationError);
+      ElMessage.warning('请完成所有必答题');
+      return;
+    }
+
+    // 检查答案是否完整
     if (!allQuestionsAnswered.value) {
-      ElMessage.warning('请完成所有题目后再提交')
-      return
+      ElMessage.warning('请完成所有题目后再提交');
+      return;
     }
 
-    const payload = {
-      examId: currentExam.value.id,
-      answers: Object.fromEntries(
-        Object.entries(answers.value).map(([id, ans]) => [
-          id.replace(/^q_/, '').split('-')[0],
-          Array.isArray(ans.value) ? ans.value.join(',') : ans.value
-        ])
-      )
+    // 准备提交数据
+    const submitData = {
+      examId: currentExam.value?.id,
+      answers: {}
+    };
+
+    // 处理答案数据
+    Object.entries(answers.value).forEach(([questionId, answer]) => {
+      if (answer && answer.value !== undefined) {
+        submitData.answers[questionId] = answer.value;
+      }
+    });
+
+    console.log('准备提交的数据:', submitData);
+
+    // 检查数据完整性
+    if (!submitData.examId) {
+      ElMessage.error('考试ID不存在');
+      return;
     }
 
-    const response = await axios.post(ToUrl.url+'/api/submit', payload, {
-      headers: { Authorization: `Bearer ${store.state.token}` }
-    })
+    if (Object.keys(submitData.answers).length === 0) {
+      ElMessage.error('没有可提交的答案');
+      return;
+    }
+
+    const response = await axios.post(ToUrl.url+'/api/submit', submitData, {
+      headers: { 
+        Authorization: `Bearer ${store.state.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
     if (response.data.code === 200) {
-      // 存储结果数据
+      const result = response.data.data;
+      
+      // 更新分数信息
       scoreInfo.value = {
-        scoreDelta: response.data.data.scoreDelta,
-        totalScore: response.data.data.totalScore
-      }
+        scoreDelta: result.scoreDelta || 0,
+        totalScore: result.totalScore || 0
+      };
 
-      response.data.data.details.forEach(detail => {
-        resultDetails.value[detail.questionId] = detail
-      })
+      // 更新详细结果
+      if (result.details) {
+        result.details.forEach(detail => {
+          if (detail && detail.questionId) {
+            resultDetails.value[detail.questionId] = {
+              correct: detail.correct,
+              score: detail.score,
+              message: detail.explanation,
+              userAnswer: detail.userAnswer,
+              correctAnswer: detail.correctAnswer
+            };
+          }
+        });
+      }
 
       // 更新考试状态
       const examIndex = exams.value.findIndex(e => e.id === currentExam.value.id);
@@ -348,10 +499,19 @@ async function submitExam() {
       }
 
       currentExam.value.isSubmitted = true;
-      ElMessage.success('提交成功');
+      
+      // 显示提交成功消息
+      ElMessage({
+        type: 'success',
+        message: `提交成功！本次得分：${result.scoreDelta}，总分：${result.totalScore}`,
+        duration: 5000
+      });
+    } else {
+      throw new Error(response.data.message || '提交失败');
     }
   } catch (err) {
-    ElMessage.error('提交失败: ' + err.message);
+    console.error('提交错误:', err);
+    ElMessage.error(err.message || '提交失败，请稍后重试');
   }
 }
 
@@ -376,6 +536,15 @@ const formattedTime = computed(() => {
 
 // 方法
 const handleCategorySelect = async (subCategoryId) => {
+  // 如果是考试记录菜单项，直接返回
+  if (subCategoryId === 'exam-records') {
+    showExamRecords();
+    return;
+  }
+
+  // 重置考试记录显示状态
+  showRecords.value = false;
+
   try {
     const loadingInstance = ElMessage({
       type: 'info',
@@ -387,13 +556,23 @@ const handleCategorySelect = async (subCategoryId) => {
     const [categoryId, type] = subCategoryId.split('-');
     const category = categories.value.find(c => c.id === categoryId);
 
+    // 添加分类检查
+    if (!category || !category.name) {
+      ElMessage.error('分类信息不完整，请刷新页面重试');
+      return;
+    }
+
+    console.log('开始获取题目...');
+    console.log('当前用户token:', store.state.token);
+
     // 初始化题目列表
     let allQuestions = [];
     let page = 0;
     const pageSize = 10;
+    const targetQuestionCount = 100; // 目标题目数量
 
-    // 循环加载题目直到达到100个题目
-    while (allQuestions.length < 100) {
+    // 循环加载题目直到达到目标数量
+    while (allQuestions.length < targetQuestionCount) {
       const response = await axios.get(ToUrl.url+'/api/questions', {
         params: {
           category: category.name,
@@ -401,60 +580,106 @@ const handleCategorySelect = async (subCategoryId) => {
           count: pageSize,
           page: page
         },
-        headers: { Authorization: `Bearer ${store.state.token}` }
+        headers: { 
+          Authorization: `Bearer ${store.state.token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
-      const processedQuestions = response.data.data.map(q => ({
-        ...q,
-        id: q.id,
-        type: 'single',
-        options: q.options.map((text, i) => ({
-          value: String.fromCharCode(65 + i),
-          label: `${String.fromCharCode(65 + i)}. ${text}`
-        })),
-        answer: String.fromCharCode(65 + q.options.indexOf(q.answer))
-      }));
+      if (!response.data.data || !Array.isArray(response.data.data)) {
+        console.error('Invalid response data:', response.data);
+        throw new Error('获取题目数据失败');
+      }
 
-      allQuestions = allQuestions.concat(processedQuestions);
-      if (processedQuestions.length < pageSize) break;
-      page++;
-    }
-
-    loadingInstance.close();
-
-    // 创建10个卡片
-    const newExams = [];
-    for (let i = 0; i < 10; i++) {
-      const startIndex = i * 10;
-      const endIndex = startIndex + 10;
-      const cardQuestions = allQuestions.slice(startIndex, endIndex);
+      const questions = response.data.data;
       
-      if (cardQuestions.length > 0) {
-        newExams.push({
-          id: `${subCategoryId}-card-${i + 1}`,
-          categoryId: categoryId,
-          title: `${category.name} - ${type === 'basic' ? '基础' : '进阶'}测试 ${i + 1}`,
-          description: `${type === 'basic' ? '基础' : '进阶'}测试题库 第${i + 1}套`,
-          duration: 60,
-          questionCount: cardQuestions.length,
-          isSubmitted: false,
-          questions: cardQuestions
-        });
+      // 如果没有更多题目，退出循环
+      if (questions.length === 0) {
+        break;
+      }
+
+      allQuestions = [...allQuestions, ...questions];
+      page++;
+
+      // 如果已经获取了足够的题目，退出循环
+      if (allQuestions.length >= targetQuestionCount) {
+        allQuestions = allQuestions.slice(0, targetQuestionCount);
+        break;
       }
     }
 
+    console.log('获取到的题目总数:', allQuestions.length);
+
+    if (allQuestions.length < 10) {
+      console.warn('警告：获取到的题目数量少于预期（10道）');
+    }
+
+    // 处理题目数据
+    const processedQuestions = allQuestions.map(q => ({
+      ...q,
+      id: q.id,
+      type: 'single',
+      options: q.options.map((text, i) => ({
+        value: String.fromCharCode(65 + i),
+        label: `${String.fromCharCode(65 + i)}. ${text}`
+      })),
+      answer: String.fromCharCode(65 + q.options.indexOf(q.answer))
+    }));
+
+    console.log('处理后的题目数量:', processedQuestions.length);
+
+    // 创建考试卡片 - 将题目拆分成10套试卷
+    const newExams = [];
+    const questionsPerExam = 10; // 每套试卷10道题
+    const totalExams = Math.min(10, Math.floor(processedQuestions.length / questionsPerExam)); // 最多10套试卷
+
+    for (let i = 0; i < totalExams; i++) {
+      const startIndex = i * questionsPerExam;
+      const endIndex = startIndex + questionsPerExam;
+      const examQuestions = processedQuestions.slice(startIndex, endIndex);
+
+      newExams.push({
+        id: `${subCategoryId}-card-${i + 1}`,
+        categoryId: categoryId,
+        title: `${category.name} - ${type === 'basic' ? '基础' : '进阶'}测试 ${i + 1}`,
+        description: `${type === 'basic' ? '基础' : '进阶'}测试题库 - 第${i + 1}套`,
+        duration: 60,
+        questionCount: examQuestions.length,
+        isSubmitted: false,
+        questions: examQuestions
+      });
+    }
+
+    console.log('创建的试卷信息:', newExams);
+
     // 更新exams数组
-    exams.value = newExams; // 直接替换
+    exams.value = newExams;
 
     activeCategory.value = subCategoryId;
-    ElMessage.success('题目加载成功');
+    
+    if (newExams.length === 0) {
+      ElMessage.warning('没有可用的题目，您可能已经完成了所有题目');
+    } else {
+      ElMessage.success(`成功加载${newExams.length}套试题，每套${questionsPerExam}道题目`);
+    }
+
+    loadingInstance.close();
   } catch (error) {
+    console.error('题目加载失败:', error);
+    console.error('错误详情:', {
+      message: error.message,
+      response: error.response,
+      request: error.request
+    });
     ElMessage.error('题目加载失败: ' + (error.response?.data?.message || error.message));
   }
 };
 
 // 开始考试逻辑
 const startExam = (exam) => {
+  // 重置考试记录显示状态
+  showRecords.value = false;
+  
   if (exam.questions.length === 0) {
     ElMessage.warning('请先加载题目');
     return;
@@ -474,7 +699,7 @@ const startExam = (exam) => {
 function initializeAnswers() {
   answers.value = currentExam.value.questions.reduce((acc, question) => {
     acc[question.id] = {
-      value: question.type === 'multiple' ? [] : '',
+      value: '',  // 初始化为空字符串
       questionId: question.id,
       timestamp: Date.now()
     }
@@ -482,23 +707,17 @@ function initializeAnswers() {
   }, {})
 }
 
-function getQuestionComponent(type) {
-  return {
-    single: 'el-radio-group',
-    multiple: 'el-checkbox-group',
-    input: 'el-input'
-  }[type]
-}
-
 function validateAnswer(question) {
   return (_, value, callback) => {
-    if (!value ||
-      (question.type === 'multiple' && value.length === 0) ||
-      (question.type !== 'multiple' && !value)) {
-      callback(new Error('请完成此题作答'))
-      return
+    console.log('Validating answer for question:', question.id, 'Value:', value);
+    const answer = answers.value[question.id]?.value;
+    console.log('Current answer in answers object:', answer);
+    
+    if (!answer || (Array.isArray(answer) && answer.length === 0)) {
+      callback(new Error('请完成此题作答'));
+      return;
     }
-    callback()
+    callback();
   }
 }
 
@@ -513,46 +732,60 @@ function startTimer() {
 }
 
 function cancelExam() {
-  clearInterval(timer.value)
-  currentExam.value = null
-}
-
-// 新增工具方法
-const getResultClass = (questionId) => {
-  const result = resultDetails.value[questionId]
-  if (!result) return 'invalid-question'
-  return result.correct ? 'correct' : 'incorrect'
-}
-
-const getResultTag = (questionId) => {
-  const result = resultDetails.value[questionId]
-  if (!result) return '题目无效'
-  return result.correct ? '正确' : '错误'
+  ElMessageBox.confirm(
+    '确认要退出考试吗？退出后答题记录将不会保存。',
+    '提示',
+    {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(() => {
+      clearInterval(timer.value)
+      currentExam.value = null
+      ElMessage({
+        type: 'info',
+        message: '已退出考试'
+      })
+    })
+    .catch(() => {
+      // 用户点击取消，不做任何操作
+    })
 }
 
 // 修改结果展示方法
 const formatCorrectAnswer = (question) => {
-  if (!question.options) return question.answer
-  const correct = question.options.find(opt => opt.value === question.answer)
-  return correct ? `${question.answer}. ${correct.label.split('. ')[1]}` : question.answer
+  if (!question.options) return question.answer;
+  const correct = question.options.find(opt => opt.value === question.answer);
+  return correct ? `${question.answer}. ${correct.label.split('. ')[1]}` : question.answer;
 }
 
 const formatUserAnswer = (questionId) => {
-  const answer = answers.value[questionId]?.value
-  if (!answer) return ''
+  const result = resultDetails.value[questionId];
+  if (!result) return '未作答';
+  
+  const question = currentExam.value.questions.find(q => q.id === questionId);
+  if (!question || !question.options) return result.userAnswer;
 
-  const question = currentExam.value.questions.find(q => q.id === questionId)
-
-  if (Array.isArray(answer)) {
-    return answer.map(v => {
-      const option = question.options.find(o => o.value === v)
-      return option ? `${v}. ${option.label.split('. ')[1]}` : v
-    }).join(', ')
-  }
-
-  const option = question.options.find(o => o.value === answer)
-  return option ? `${answer}. ${option.label.split('. ')[1]}` : answer
+  const option = question.options.find(o => o.value === result.userAnswer);
+  return option ? `${result.userAnswer}. ${option.label.split('. ')[1]}` : result.userAnswer;
 }
+
+// 修改获取结果标签方法
+const getResultTag = (questionId) => {
+  const result = resultDetails.value[questionId];
+  if (!result) return '题目无效';
+  return result.correct ? '正确' : '错误';
+}
+
+// 修改获取结果类名方法
+const getResultClass = (questionId) => {
+  const result = resultDetails.value[questionId];
+  if (!result) return 'invalid-question';
+  return result.correct ? 'correct' : 'incorrect';
+}
+
 // 题目关联方法
 const linkQuestionsToCategories = () => {
   categories.value.forEach(category => {
@@ -589,6 +822,126 @@ const getRandomCourseImage = () => {
 onUnmounted(() => {
   clearInterval(timer.value)
 })
+
+// 获取考试记录的方法
+async function fetchUserExamRecords() {
+  try {
+    const response = await axios.get(ToUrl.url+'/api/exam-records', {
+      headers: { 
+        Authorization: `Bearer ${store.state.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.data.code === 200) {
+      const records = response.data.data;
+      // 处理考试记录数据
+      console.log('考试记录:', records);
+      return records;
+    }
+  } catch (error) {
+    console.error('获取考试记录失败:', error);
+    ElMessage.error('获取考试记录失败');
+  }
+  return [];
+}
+
+// 可以添加一个显示考试记录的组件
+const examRecords = ref([]);
+
+// 在组件挂载时获取记录
+onMounted(async () => {
+  examRecords.value = await fetchUserExamRecords();
+});
+
+// 格式化日期
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// 获取分数样式
+const getScoreClass = (score) => {
+  if (score >= 90) return 'score-excellent'
+  if (score >= 60) return 'score-pass'
+  return 'score-fail'
+}
+
+// 显示考试记录
+const showExamRecords = async () => {
+  showRecords.value = true
+  currentExam.value = null
+  loading.value = true
+  try {
+    const response = await axios.get(ToUrl.url+'/api/exam-records', {
+      headers: { 
+        Authorization: `Bearer ${store.state.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.data.code === 200) {
+      examRecords.value = response.data.data;
+    } else {
+      throw new Error(response.data.message || '获取考试记录失败');
+    }
+  } catch (error) {
+    console.error('获取考试记录失败:', error);
+    ElMessage.error('获取考试记录失败: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 过滤考试记录
+const filteredRecords = computed(() => {
+  if (!recordSearchQuery.value) return examRecords.value
+  const query = recordSearchQuery.value.toLowerCase()
+  return examRecords.value.filter(record => 
+    record.examTitle.toLowerCase().includes(query) ||
+    formatDate(record.submitTime).toLowerCase().includes(query)
+  )
+})
+
+// 查看记录详情
+const viewRecordDetail = async (record) => {
+  try {
+    const response = await axios.get(`${ToUrl.url}/api/exam-records/${record.id}`, {
+      headers: { 
+        Authorization: `Bearer ${store.state.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.data.code === 200) {
+      currentRecord.value = response.data.data;
+      detailDialogVisible.value = true;
+    } else {
+      throw new Error(response.data.message || '获取考试详情失败');
+    }
+  } catch (error) {
+    console.error('获取考试详情失败:', error);
+    ElMessage.error('获取考试详情失败: ' + error.message);
+  }
+}
+
+// 关闭详情对话框
+const handleDetailDialogClose = () => {
+  detailDialogVisible.value = false;
+  currentRecord.value = null;
+}
+
+// 格式化答案显示
+const formatAnswer = (answer) => {
+  if (!answer) return '未作答';
+  return answer;
+}
 </script>
 
 <style lang="scss" scoped>
@@ -690,7 +1043,7 @@ onUnmounted(() => {
         line-height: 40px;
         font-size: 13px;
         color: #ffffff;
-        background: rgba(0, 0, 0, 0.4) !important;
+        background: rgb(85 36 173 / 60%) !important;
         
         &:hover {
           color: #ffffff;
@@ -699,7 +1052,7 @@ onUnmounted(() => {
         
         &.is-active {
           color: #ffffff;
-          background: rgba(0, 0, 0, 0.6) !important;
+          background: rgb(85 36 173 / 60%) !important;
         }
         
         &::before {
@@ -770,6 +1123,24 @@ onUnmounted(() => {
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgb(85 36 173 / 60%);
+    border-radius: 4px;
+    
+    &:hover {
+      background: rgb(85 36 173 / 80%);
+    }
+  }
 }
 
 .course-content {
@@ -902,17 +1273,38 @@ onUnmounted(() => {
     align-items: center;
     margin-bottom: 32px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #e4e7ed;
+    border-bottom: 1px solid rgba(228, 231, 237, 0.5);
     
     .header-left {
       display: flex;
       align-items: center;
       gap: 16px;
       
+      .back-button {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 16px;
+        font-size: 14px;
+        border: none;
+        background: transparent;
+        color: #ffffff;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+        }
+        
+        .el-icon {
+          font-size: 16px;
+        }
+      }
+      
       h2 {
         margin: 0;
         font-size: 24px;
-        color: #2c3e50;
+        color: #ffffff;
       }
     }
     
@@ -921,9 +1313,9 @@ onUnmounted(() => {
       align-items: center;
       gap: 8px;
       padding: 8px 16px;
-      background: #f0e6ff;
+      background: rgba(139, 92, 246, 0.1);
       border-radius: 20px;
-      color: #8b5cf6;
+      color: #ffffff;
       font-weight: 500;
     }
   }
@@ -1010,8 +1402,8 @@ onUnmounted(() => {
         font-weight: 500;
         
         .correct & {
-          background: #f0e6ff;
-          color: #8b5cf6;
+          background: #f0f9eb;
+          color: #67c23a;
         }
         
         .incorrect & {
@@ -1084,5 +1476,198 @@ onUnmounted(() => {
 
 :deep(.el-form-item__error) {
   color: #ef4444;
+}
+
+.records-list {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.score-excellent {
+  color: #67C23A;
+  font-weight: bold;
+}
+
+.score-pass {
+  color: #E6A23C;
+  font-weight: bold;
+}
+
+.score-fail {
+  color: #F56C6C;
+  font-weight: bold;
+}
+
+.record-detail {
+  .detail-header {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(228, 231, 237, 0.5);
+
+    h3 {
+      margin: 0 0 16px;
+      font-size: 24px;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+
+    .detail-meta {
+      display: flex;
+      gap: 32px;
+      
+      .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #606266;
+        font-size: 14px;
+        
+        .el-icon {
+          font-size: 18px;
+          color: #8b5cf6;
+        }
+        
+        .score {
+          color: #67c23a;
+          font-weight: 600;
+          font-size: 16px;
+        }
+        
+        .accuracy {
+          color: #409eff;
+          font-weight: 600;
+          font-size: 16px;
+        }
+      }
+    }
+  }
+
+  .detail-content {
+    .question-result {
+      margin-bottom: 24px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+
+      .question-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+        
+        .question-info {
+          flex: 1;
+          margin-right: 16px;
+          
+          .question-number {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #e4e7ed;
+            border-radius: 12px;
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+          }
+          
+          .question-title {
+            display: block;
+            font-size: 16px;
+            color: #2c3e50;
+            line-height: 1.5;
+          }
+        }
+        
+        .result-tag {
+          font-size: 14px;
+          padding: 6px 12px;
+          border-radius: 6px;
+        }
+      }
+
+      .answer-info {
+        .answer-item {
+          display: flex;
+          margin-bottom: 12px;
+          
+          &:last-child {
+            margin-bottom: 0;
+          }
+          
+          .label {
+            width: 80px;
+            color: #606266;
+            font-weight: 500;
+          }
+          
+          .value {
+            flex: 1;
+            color: #2c3e50;
+            
+            &.correct {
+              color: #67c23a;
+              font-weight: 500;
+            }
+            
+            &.incorrect {
+              color: #f56c6c;
+              font-weight: 500;
+            }
+            
+            &.score {
+              color: #8b5cf6;
+              font-weight: 600;
+            }
+          }
+          
+          &.explanation {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px dashed rgba(228, 231, 237, 0.5);
+            
+            .value {
+              color: #606266;
+              font-style: italic;
+              line-height: 1.6;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+:deep(.exam-detail-dialog) {
+  .el-dialog {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    
+    .el-dialog__header {
+      margin: 0;
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(228, 231, 237, 0.5);
+      
+      .el-dialog__title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+    }
+    
+    .el-dialog__body {
+      padding: 24px;
+    }
+  }
 }
 </style>
