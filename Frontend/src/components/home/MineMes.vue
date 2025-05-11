@@ -46,7 +46,27 @@
                   />
                 </div>
                 <div class="user-info">
-                  <div class="user-name">{{ userInfo.username }}</div>
+                  <div class="user-name">
+                    {{ userInfo.username }}
+                    <el-tag 
+                      v-if="currentTitle.name !== '未设置'" 
+                      :type="currentTitle.type" 
+                      effect="dark" 
+                      size="small" 
+                      class="user-title"
+                    >
+                      {{ currentTitle.name }}
+                    </el-tag>
+                    <el-tag 
+                      v-else 
+                      type="info" 
+                      effect="dark" 
+                      size="small" 
+                      class="user-title"
+                    >
+                      未拥有称号
+                    </el-tag>
+                  </div>
                   <div class="user-email">{{ userInfo.email }}</div>
                 </div>
               </div>
@@ -112,6 +132,9 @@
               </el-button>
             </div>
           </el-card>
+
+          <!-- 称号选择卡片 -->
+          <TitleSelector />
 
           <!-- 学习报告卡片 -->
           <el-card class="learning-report-card glass-effect">
@@ -330,13 +353,14 @@
 </template>
 
 <script setup>
-import {  ref,onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { Message, Lock, User, ArrowLeft, Calendar, Timer, Star, Edit, Close, DataLine, Platform, Document, Download, Check } from '@element-plus/icons-vue'
 import { ElMessage, ElDialog, ElForm, ElFormItem, ElInput, ElButton, ElRow, ElCol, ElCard, ElTag } from 'element-plus';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router'
 import axios from 'axios';
 import ToUrl from '@/api/api';
+import TitleSelector from './TitleSelector.vue'
 
 const router=useRouter();
 
@@ -524,11 +548,56 @@ const loadLearningData = async () => {
   }
 };
 
+// 添加称号相关的响应式数据
+const currentTitle = ref({
+  id: '',
+  name: '未设置',
+  type: 'info',
+  description: '',
+  requirement: ''
+})
+
+// 加载用户当前称号
+const loadCurrentTitle = async () => {
+  try {
+    const response = await axios.get(`${ToUrl.url}/user/title/current`, {
+      headers: {
+        'Authorization': `Bearer ${store.state.token}`
+      }
+    })
+    if (response.data && response.data.data) {
+      currentTitle.value = response.data.data
+    }
+  } catch (error) {
+    console.error('加载当前称号失败')
+    // 设置默认值
+    currentTitle.value = {
+      id: '',
+      name: '未设置',
+      type: 'info',
+      description: '',
+      requirement: ''
+    }
+  }
+}
+
 // 在组件挂载时加载用户信息和学习数据
 onMounted(() => {
   userMinemes();
   loadLearningData();
+  loadCurrentTitle();
 });
+
+// 在组件卸载前清理数据
+onBeforeUnmount(() => {
+  currentTitle.value = {
+    id: '',
+    name: '未设置',
+    type: 'info',
+    description: '',
+    requirement: ''
+  }
+})
 
 // 修改密码
 const savePasswordChanges = async () => {
@@ -774,6 +843,16 @@ const handleVerifyEmail = () => {
   font-size: 24px;
   font-weight: 600;
   color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-title {
+  font-size: 12px;
+  height: 20px;
+  line-height: 18px;
+  padding: 0 8px;
 }
 
 .user-email {

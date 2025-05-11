@@ -45,7 +45,16 @@
             <div class="user-info">
               <el-avatar :src="item.avatar" loading="lazy" />
               <div class="detail">
-                <span class="name">{{ item.username }}</span>
+                <div class="name-row">
+                  <span class="name">{{ item.username }}</span>
+                  <el-tag 
+                    size="small" 
+                    :type="item.title ? 'success' : 'info'" 
+                    class="user-title"
+                  >
+                    {{ item.title || '未拥有称号' }}
+                  </el-tag>
+                </div>
                 <span class="department">{{ item.department }}</span>
               </div>
             </div>
@@ -241,6 +250,7 @@ const loadRankings = async () => {
         username: item.username, 
         score: item.totalScore,  
         department: item.id, 
+        title: item.title || '', // 添加称号字段
         avatar: ToUrl.url+"/"+item.avatar || ToUrl.url+'/avatar/0736dfa5-a96f-45a7-8208-2e8e3b72161e_ab.jpg' 
       }))
       .sort((a, b) => b.score - a.score)
@@ -376,9 +386,28 @@ const getScoreType = (score) => {
   flex-direction: column;
 }
 
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
 .name {
   font-weight: 600;
-  margin-bottom: 4px;
+}
+
+.user-title {
+  font-size: 0.8em;
+  background-color: rgba(76, 175, 80, 0.1);
+  border-color: #4caf50;
+  color: #4caf50;
+}
+
+.user-title.el-tag--info {
+  background-color: rgba(144, 147, 153, 0.1);
+  border-color: #909399;
+  color: #909399;
 }
 
 .department {
