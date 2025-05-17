@@ -47,7 +47,7 @@
                   placeholder="搜索CVE编号或漏洞名称" 
                   prefix-icon="Search"
                   clearable
-                  @input="applyFilters"
+                  @input="handleSearchInput"
                   class="search-input"
                 />
               </div>
@@ -235,6 +235,7 @@ import ToUrl from '@/api/api';
 import * as echarts from 'echarts';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
+import { debounce } from 'lodash-es';
 
 const router = useRouter();
 
@@ -246,16 +247,23 @@ const selectedVuln = ref(null);
 const dialogVisible = ref(false);
 const loadingVulns = ref(false);
 const currentPage = ref(1);
-const vulnsPerPage = ref(5);
+const vulnsPerPage = ref(10);
 const BugHole = ref([]);
 const totalVulnerabilitiesFromSource = ref(0);
 const bookmarkedCves = ref(new Set());
+const cachedData = ref(new Map());
 
 // 配置项
 const severityLevels = ['critical', 'high', 'medium', 'low'];
 const vulnerabilityTypes = ['RCE', 'Privilege Escalation', 'Directory Traversal', 'SQL Injection', 'Cross-Site Scripting (XSS)'];
 
 let barChartInstance = null;
+
+// 防抖搜索
+const debouncedSearch = debounce((query) => {
+  searchQuery.value = query;
+  applyFilters();
+}, 300);
 
 // 计算属性
 const criticalCount = computed(() => BugHole.value.filter(v => v.severity === 'critical').length);
@@ -294,6 +302,19 @@ const displayedVulnerabilities = computed(() => {
 const fetchVulnerabilities = async () => {
   try {
     loadingVulns.value = true;
+    const cacheKey = `vulns_${store.state.token ? 'auth' : 'guest'}`;
+    
+    // 检查缓存
+    if (cachedData.value.has(cacheKey)) {
+      const cached = cachedData.value.get(cacheKey);
+      if (Date.now() - cached.timestamp < 5 * 60 * 1000) { // 5分钟缓存
+        BugHole.value = cached.data;
+        totalVulnerabilitiesFromSource.value = BugHole.value.length;
+        initOrUpdateCharts();
+        return;
+      }
+    }
+
     const headers = store.state.token ? { 'Authorization': `Bearer ${store.state.token}` } : {};
     const response = await axios.get(ToUrl.url + `/user/findAllHole`, { headers });
     BugHole.value = response.data.data || [];
@@ -301,6 +322,12 @@ const fetchVulnerabilities = async () => {
     if (!store.state.token) {
       BugHole.value = BugHole.value.slice(0, 5);
     }
+    
+    // 更新缓存
+    cachedData.value.set(cacheKey, {
+      data: BugHole.value,
+      timestamp: Date.now()
+    });
     
     totalVulnerabilitiesFromSource.value = BugHole.value.length;
     initOrUpdateCharts();
@@ -324,33 +351,36 @@ const initOrUpdateCharts = () => {
     window.addEventListener('resize', () => barChartInstance?.resize());
   }
   
-  const barOption = {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    xAxis: {
-      type: 'category',
-      data: ['严重', '高危', '中危', '低危'],
-      axisLabel: { fontSize: 10 }
-    },
-    yAxis: { type: 'value' },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    series: [{
-      data: [
-        criticalCount.value,
-        highCount.value,
-        mediumCount.value,
-        lowCount.value
-      ],
-      type: 'bar',
-      itemStyle: {
-        color: function(params) {
-          const colors = ['#e74c3c', '#f1a340', '#5dade2', '#58d68d'];
-          return colors[params.dataIndex];
+  // 使用 requestAnimationFrame 优化渲染
+  requestAnimationFrame(() => {
+    const barOption = {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      xAxis: {
+        type: 'category',
+        data: ['严重', '高危', '中危', '低危'],
+        axisLabel: { fontSize: 10 }
+      },
+      yAxis: { type: 'value' },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      series: [{
+        data: [
+          criticalCount.value,
+          highCount.value,
+          mediumCount.value,
+          lowCount.value
+        ],
+        type: 'bar',
+        itemStyle: {
+          color: function(params) {
+            const colors = ['#e74c3c', '#f1a340', '#5dade2', '#58d68d'];
+            return colors[params.dataIndex];
+          }
         }
-      }
-    }]
-  };
-  
-  barChartInstance.setOption(barOption);
+      }]
+    };
+    
+    barChartInstance.setOption(barOption);
+  });
 };
 
 const showVulnDetails = (vuln) => {
@@ -419,6 +449,10 @@ const applyFilters = () => {
 const handlePageChange = (page) => {
   currentPage.value = page;
   window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const handleSearchInput = (value) => {
+  debouncedSearch(value);
 };
 
 onMounted(() => {

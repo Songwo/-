@@ -2,8 +2,10 @@
   <div class="unicode-container">
     <!-- 返回按钮 -->
     <div class="back-button">
-      <el-button type="primary" @click="goBack">
-        <el-icon><ArrowLeft /></el-icon>
+      <el-button class="back-btn" type="text" @click="goBack">
+        <el-icon :size="24" class="icon">
+          <ArrowLeft />
+        </el-icon>
         返回
       </el-button>
     </div>
@@ -516,6 +518,20 @@ watch(inputText, () => {
 
 .back-button {
   margin-bottom: 20px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #fff;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  transform: translateX(-5px);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .title {

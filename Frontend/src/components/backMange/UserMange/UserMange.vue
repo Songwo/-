@@ -41,12 +41,21 @@
             <el-input v-model="row.email" :disabled="!editableUsers[row.id]" style="padding-right: 20px;" />
           </template>
         </el-table-column>
+
+        <el-table-column label="角色" width="150">
+          <template #default="{ row }">
+            <el-select v-model="row.roles[0]" :disabled="!editableUsers[row.id]" placeholder="选择角色">
+              <el-option label="管理员" value="ROLE_ADMIN" />
+              <el-option label="普通用户" value="ROLE_USER" />
+            </el-select>
+          </template>
+        </el-table-column>
     
         <el-table-column label="操作" width="200">
           <template #default="{ row }">
-            <el-button v-if="!editableUsers[row.id]" type="primary" @click="editUser(row)">编辑</el-button>
-            <el-button v-else type="success" @click="saveUser(row)">保存</el-button>
-            <el-button type="danger" @click="deleteUser(row.id)">删除</el-button>
+            <el-button v-if="!editableUsers[row.id]" type="primary" @click="editUser(row)" class="white-text">编辑</el-button>
+            <el-button v-else type="success" @click="saveUser(row)" class="white-text">保存</el-button>
+            <el-button type="danger" @click="deleteUser(row.id)" class="white-text">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -99,7 +108,8 @@ const saveUser = async (user) => {
         avatar: user.avatar,
         totalScore: user.totalScore,
         password: user.password,
-        email: user.email
+        email: user.email,
+        roles: [user.roles[0]]  // 保持roles为数组格式
       },
       {
         headers: { Authorization: `Bearer ${store.state.token}` }
@@ -191,5 +201,15 @@ onMounted(() => {
 .avatar-uploader-icon {
   font-size: 20px;
   color: #8c939d;
+}
+
+/* 添加按钮文字颜色样式 */
+.white-text {
+  color: white !important;
+}
+
+/* 确保下拉框文字颜色正常 */
+:deep(.el-select) {
+  color: #333;
 }
 </style>

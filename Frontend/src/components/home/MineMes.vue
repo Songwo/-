@@ -46,7 +46,27 @@
                   />
                 </div>
                 <div class="user-info">
-                  <div class="user-name">{{ userInfo.username }}</div>
+                  <div class="user-name">
+                    {{ userInfo.username }}
+                    <el-tag 
+                      v-if="currentTitle.name !== '未设置'" 
+                      :type="currentTitle.type" 
+                      effect="dark" 
+                      size="small" 
+                      class="user-title"
+                    >
+                      {{ currentTitle.name }}
+                    </el-tag>
+                    <el-tag 
+                      v-else 
+                      type="info" 
+                      effect="dark" 
+                      size="small" 
+                      class="user-title"
+                    >
+                      未拥有称号
+                    </el-tag>
+                  </div>
                   <div class="user-email">{{ userInfo.email }}</div>
                 </div>
               </div>
@@ -92,7 +112,20 @@
                 <el-descriptions-item label="电子邮箱">
                   <el-icon><Message /></el-icon>
                   {{ userInfo.email }}
-                  <el-tag size="small" effect="dark" type="success" class="verified-tag">已验证</el-tag>
+                  <el-tag 
+                    v-if="userInfo.emailVerified" 
+                    size="small" 
+                    effect="dark" 
+                    type="success" 
+                    class="verified-tag"
+                  >已验证</el-tag>
+                  <el-tag 
+                    v-else 
+                    size="small" 
+                    effect="dark" 
+                    type="danger" 
+                    class="verified-tag"
+                  >未验证</el-tag>
                 </el-descriptions-item>
                 <el-descriptions-item label="注册时间">
                   <el-icon><Calendar /></el-icon>
@@ -112,6 +145,9 @@
               </el-button>
             </div>
           </el-card>
+
+          <!-- 称号选择卡片 -->
+          <TitleSelector />
 
           <!-- 学习报告卡片 -->
           <el-card class="learning-report-card glass-effect">
@@ -188,15 +224,16 @@
                   <span>邮箱验证</span>
                 </div>
                 <div class="security-item-content">
-                  <el-tag v-if="userInfo.emailVerified" type="success" effect="dark">已完成</el-tag>
+                  <el-tag v-if="userInfo.emailVerified" type="success" effect="dark">已验证</el-tag>
                   <el-tag v-else type="danger" effect="dark">未验证</el-tag>
                   <el-button 
                     v-if="!userInfo.emailVerified" 
                     @click="handleVerifyEmail" 
                     size="small" 
                     type="primary"
+                    :disabled="isVerifying || cooldown > 0"
                   >
-                    验证邮箱
+                    {{ cooldown > 0 ? `请等待 ${cooldown} 秒` : '验证邮箱' }}
                   </el-button>
                 </div>
               </div>
@@ -330,13 +367,14 @@
 </template>
 
 <script setup>
-import {  ref,onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { Message, Lock, User, ArrowLeft, Calendar, Timer, Star, Edit, Close, DataLine, Platform, Document, Download, Check } from '@element-plus/icons-vue'
 import { ElMessage, ElDialog, ElForm, ElFormItem, ElInput, ElButton, ElRow, ElCol, ElCard, ElTag } from 'element-plus';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router'
 import axios from 'axios';
 import ToUrl from '@/api/api';
+import TitleSelector from './TitleSelector.vue'
 
 const router=useRouter();
 
@@ -444,6 +482,9 @@ const userMinemes = async () => {
     userInfo.value = response.data.data;
     // console.log(userInfo.id);
 
+    // 确保 emailVerified 字段被正确设置
+    userInfo.value.emailVerified = response.data.data.emailVerified || false;
+
     editForm.value = {
       id:userInfo.value.id,
       username: userInfo.value.username,
@@ -524,11 +565,59 @@ const loadLearningData = async () => {
   }
 };
 
+// 添加称号相关的响应式数据
+const currentTitle = ref({
+  id: '',
+  name: '未设置',
+  type: 'info',
+  description: '',
+  requirement: ''
+})
+
+// 加载用户当前称号
+const loadCurrentTitle = async () => {
+  try {
+    const response = await axios.get(`${ToUrl.url}/user/title/current`, {
+      headers: {
+        'Authorization': `Bearer ${store.state.token}`
+      }
+    })
+    if (response.data && response.data.data) {
+      currentTitle.value = response.data.data
+    }
+  } catch (error) {
+    console.error('加载当前称号失败')
+    // 设置默认值
+    currentTitle.value = {
+      id: '',
+      name: '未设置',
+      type: 'info',
+      description: '',
+      requirement: ''
+    }
+  }
+}
+
 // 在组件挂载时加载用户信息和学习数据
 onMounted(() => {
   userMinemes();
   loadLearningData();
+  loadCurrentTitle();
 });
+
+// 在组件卸载前清理数据
+onBeforeUnmount(() => {
+  currentTitle.value = {
+    id: '',
+    name: '未设置',
+    type: 'info',
+    description: '',
+    requirement: ''
+  }
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+  }
+})
 
 // 修改密码
 const savePasswordChanges = async () => {
@@ -653,10 +742,52 @@ const saveChanges = async () => {
   }
 };
 
-// 验证邮箱
-const handleVerifyEmail = () => {
-  ElMessage.success('验证邮箱功能')
-}
+// 添加冷却时间相关的响应式变量
+const cooldown = ref(0);
+const isVerifying = ref(false);
+let cooldownTimer = null;
+
+// 修改验证邮箱的处理函数
+const handleVerifyEmail = async () => {
+  if (isVerifying.value || cooldown.value > 0) return;
+  
+  try {
+    isVerifying.value = true;
+    const token = store.state.token;
+    if (!token) {
+      ElMessage.error('未登录或登录已过期');
+      return;
+    }
+    
+    await axios.post(ToUrl.url + '/user/send-verification', {}, {
+      headers: {
+        'Authorization': `Bearer ${token.trim()}`
+      }
+    });
+    
+    ElMessage.success('验证邮件已发送，请查收邮箱');
+    
+    // 设置5分钟冷却时间
+    cooldown.value = 300; // 5分钟 = 300秒
+    cooldownTimer = setInterval(() => {
+      cooldown.value--;
+      if (cooldown.value <= 0) {
+        clearInterval(cooldownTimer);
+        cooldownTimer = null;
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error('发送验证邮件失败:', error);
+    if (error.response?.status === 401) {
+      ElMessage.error('登录已过期，请重新登录');
+    } else {
+      ElMessage.error(error.response?.data?.message || '发送验证邮件失败');
+    }
+  } finally {
+    isVerifying.value = false;
+  }
+};
 
 </script>
 
@@ -774,6 +905,16 @@ const handleVerifyEmail = () => {
   font-size: 24px;
   font-weight: 600;
   color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-title {
+  font-size: 12px;
+  height: 20px;
+  line-height: 18px;
+  padding: 0 8px;
 }
 
 .user-email {
@@ -795,20 +936,53 @@ const handleVerifyEmail = () => {
 :deep(.el-descriptions__cell) {
   background: transparent !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
-  color: #fff;
+  color: #fff !important;
 }
 
 :deep(.el-descriptions__label) {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.8) !important;
   font-weight: 500;
 }
 
 :deep(.el-descriptions__content) {
-  color: #fff;
+  color: #fff !important;
+}
+
+:deep(.el-descriptions__content .el-icon) {
+  color: #fff !important;
+  margin-right: 8px;
+}
+
+:deep(.el-descriptions__content .el-tag) {
+  margin-left: 8px;
+}
+
+:deep(.el-descriptions__content span) {
+  color: #fff !important;
+}
+
+:deep(.el-descriptions__content div) {
+  color: #fff !important;
 }
 
 .verified-tag {
   margin-left: 10px;
+  font-size: 12px;
+  height: 20px;
+  line-height: 18px;
+  padding: 0 8px;
+}
+
+:deep(.el-tag--success) {
+  background-color: rgba(103, 194, 58, 0.2);
+  border-color: rgba(103, 194, 58, 0.3);
+  color: #67C23A;
+}
+
+:deep(.el-tag--danger) {
+  background-color: rgba(237, 80, 80, 0.603);
+  border-color: rgba(224, 134, 134, 0.3);
+  color: #f0eaea;
 }
 
 .edit-button {
@@ -827,7 +1001,7 @@ const handleVerifyEmail = () => {
   gap: 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: #fff;
 }
 
 .security-items {
@@ -839,7 +1013,7 @@ const handleVerifyEmail = () => {
 .security-item {
   padding: 15px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .security-item-header {
@@ -848,12 +1022,14 @@ const handleVerifyEmail = () => {
   gap: 8px;
   margin-bottom: 10px;
   font-weight: 500;
+  color: #fff;
 }
 
 .security-item-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: #fff;
 }
 
 .stats-card {
@@ -866,7 +1042,7 @@ const handleVerifyEmail = () => {
   gap: 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: #fff;
 }
 
 .stats-content {
@@ -879,7 +1055,7 @@ const handleVerifyEmail = () => {
 .stat-item {
   text-align: center;
   padding: 15px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 
@@ -891,7 +1067,7 @@ const handleVerifyEmail = () => {
 
 .stat-label {
   font-size: 14px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
   margin-top: 5px;
 }
 
@@ -980,16 +1156,33 @@ const handleVerifyEmail = () => {
 :deep(.el-descriptions__cell) {
   background: transparent !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
-  color: #fff;
+  color: #fff !important;
 }
 
 :deep(.el-descriptions__label) {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.8) !important;
   font-weight: 500;
 }
 
 :deep(.el-descriptions__content) {
-  color: #fff;
+  color: #fff !important;
+}
+
+:deep(.el-descriptions__content .el-icon) {
+  color: #fff !important;
+  margin-right: 8px;
+}
+
+:deep(.el-descriptions__content .el-tag) {
+  margin-left: 8px;
+}
+
+:deep(.el-descriptions__content span) {
+  color: #fff !important;
+}
+
+:deep(.el-descriptions__content div) {
+  color: #fff !important;
 }
 
 /* 输入框文字颜色 */
@@ -1235,5 +1428,19 @@ const handleVerifyEmail = () => {
   .stat-item:last-child {
     margin-bottom: 0;
   }
+}
+
+/* 添加禁用按钮的样式 */
+:deep(.el-button.is-disabled) {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  cursor: not-allowed;
+}
+
+:deep(.el-button.is-disabled:hover) {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 </style>

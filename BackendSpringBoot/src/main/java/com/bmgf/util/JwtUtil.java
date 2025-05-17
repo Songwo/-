@@ -66,6 +66,24 @@ public class JwtUtil {
                 .getBody()
                 .getSubject();
     }
+    public String extractUserId(String token) {
+        if (token == null || token.trim().isEmpty()) {
+            throw new IllegalArgumentException("JWT is null or empty");
+        }
+
+        token = token.trim(); // 去除前后空格
+        if (token.contains(" ")) {
+            throw new IllegalArgumentException("Invalid JWT: contains whitespace.");
+        }
+
+        Claims claims = Jwts.parser()
+                .setSigningKey(SECRET_KEY) // 你的密钥，必须与生成时一致
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.get("userId", String.class); // 获取 userId 声明
+    }
     /**
      * 验证 Token 是否有效
      * @param token JWT Token

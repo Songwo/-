@@ -117,6 +117,32 @@
             </div>
           </el-tab-pane>
 
+          <!-- 称号兑换 -->
+          <el-tab-pane label="称号兑换" name="titles">
+            <div class="shop-grid">
+              <el-card v-for="(title, index) in titleItems" :key="index" class="shop-item" :class="{ 'disabled': title.points > rewardStatement.totalScore }">
+                <div class="item-image">
+                  <el-avatar :src="title.image" :size="64" />
+                </div>
+                <div class="item-info">
+                  <h3>{{ title.name }}</h3>
+                  <p class="item-desc">{{ title.description }}</p>
+                  <div class="item-footer">
+                    <span class="points">{{ title.points }} 积分</span>
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      :disabled="title.points > rewardStatement.totalScore"
+                      @click="exchangeTitle(title)"
+                    >
+                      兑换
+                    </el-button>
+                  </div>
+                </div>
+              </el-card>
+            </div>
+          </el-tab-pane>
+
           <!-- 每日任务 -->
           <el-tab-pane label="每日任务" name="tasks">
             <div class="tasks-list">
@@ -245,6 +271,34 @@ const shopItems = ref([
   }
 ])
 
+// 称号列表
+const titleItems = ref([
+  {
+    name: '🥉【白帽学徒】',
+    description: '展示你的游戏实力',
+    points: 150,
+    image: 'https://img.icons8.com/color/48/000000/crown.png'
+  },
+  {
+    name: '社交之星',
+    description: '活跃的社区成员',
+    points: 100,
+    image: 'https://img.icons8.com/color/48/000000/star.png'
+  },
+  {
+    name: '新手导师',
+    description: '帮助新玩家的热心玩家',
+    points: 200,
+    image: 'https://img.icons8.com/color/48/000000/teacher.png'
+  },
+  {
+    name: '幸运玩家',
+    description: '运气爆棚的玩家',
+    points: 80,
+    image: 'https://img.icons8.com/color/48/000000/lucky.png'
+  }
+])
+
 // 每日任务列表
 const dailyTasks = ref([
   {
@@ -278,6 +332,12 @@ const dailyTasks = ref([
 const exchangeItem = (item) => {
   ElMessage.success(`成功兑换 ${item.name}！`)
   // TODO: 实现实际的兑换逻辑
+}
+
+// 兑换称号
+const exchangeTitle = (title) => {
+  ElMessage.success(`成功兑换称号：${title.name}！`)
+  // TODO: 实现实际的称号兑换逻辑
 }
 
 // 完成任务
@@ -475,7 +535,7 @@ onMounted(fetchReward)
 }
 
 .item-desc {
-  color: rgba(255, 255, 255, 0.7);
+  color: #ffffff;
   font-size: 0.9em;
   margin-bottom: 12px;
 }
@@ -515,7 +575,7 @@ onMounted(fetchReward)
 }
 
 .task-info p {
-  color: rgba(255, 255, 255, 0.7);
+  color: #ffffff;
   margin: 0;
 }
 
@@ -548,5 +608,38 @@ onMounted(fetchReward)
     align-items: flex-start;
     gap: 12px;
   }
+}
+
+/* 添加按钮和标签页样式 */
+:deep(.el-button) {
+  color: #ffffff !important;
+}
+
+:deep(.el-button--primary) {
+  color: #ffffff !important;
+}
+
+:deep(.el-button--success) {
+  color: #ffffff !important;
+}
+
+:deep(.el-button.is-disabled) {
+  color: rgb(81, 222, 109) !important;
+}
+
+:deep(.el-tabs__item) {
+  color: #ffffff !important;
+}
+
+:deep(.el-tabs__item.is-active) {
+  color: #49df4e !important;
+}
+
+:deep(.el-tabs__active-bar) {
+  background-color: #4caf50 !important;
+}
+
+:deep(.el-tabs__nav-wrap::after) {
+  background-color: rgb(111, 225, 86);
 }
 </style>

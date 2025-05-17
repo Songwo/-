@@ -49,7 +49,7 @@
                   placeholder="搜索帖子" 
                   prefix-icon="Search"
                   clearable
-                  @input="filterPosts"
+                  @input="filterPostsDebounced"
                   class="search-input"
                 />
               </div>
@@ -64,7 +64,7 @@
               <el-card v-for="post in displayedPosts" :key="post.id" class="post-card" shadow="hover" @click="selectPost(post)">
                 <div class="post-content">
                   <div class="post-cover" v-if="post.coverImage">
-                    <img :src="ToUrl.url + '/' + post.coverImage" :alt="post.title" />
+                    <img :src="ToUrl.url + '/' + post.coverImage" :alt="post.title" loading="lazy" />
                   </div>
                   <div class="post-info">
                     <div class="post-header">
@@ -76,7 +76,7 @@
                     <p class="post-excerpt" v-html="renderMarkdown(truncateContent(post.content))"></p>
                     <div class="post-meta">
                       <div class="meta-item">
-                        <el-avatar :size="24" :src="ToUrl.url + '/' + post.avatar" />
+                        <el-avatar :size="24" :src="ToUrl.url + '/' + post.avatar" loading="lazy" />
                         <span class="author">{{ post.username }}</span>
                       </div>
                       <div class="meta-item">
@@ -185,10 +185,10 @@
             <!-- 帖子内容 -->
             <div class="post-detail">
               <div class="post-cover" v-if="selectedPost?.coverImage">
-                <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" />
+                <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" loading="lazy" />
               </div>
               <div class="detail-meta">
-                <el-avatar :size="32" :src="ToUrl.url + '/' + selectedPost.avatar" />
+                <el-avatar :size="32" :src="ToUrl.url + '/' + selectedPost.avatar" loading="lazy" />
                 <div class="meta-info">
                   <span class="author">{{ selectedPost.username }}</span>
                   <span class="time">{{ formatTime(selectedPost.timestamp) }}</span>
@@ -226,7 +226,7 @@
                       :key="comment.id" 
                       class="comment-item"
                     >
-                      <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" />
+                      <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" loading="lazy" />
                       <div class="comment-content">
                         <div class="comment-header">
                           <span class="author">{{ comment.username }}</span>
@@ -346,10 +346,10 @@
       <!-- 帖子内容 -->
       <div class="post-content">
         <div class="post-cover" v-if="selectedPost?.coverImage">
-          <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" />
+          <img :src="ToUrl.url + '/' + selectedPost.coverImage" :alt="selectedPost.title" loading="lazy" />
         </div>
         <div class="post-meta">
-          <el-avatar :size="32" :src="ToUrl.url+'/'+selectedPost.avatar" />
+          <el-avatar :size="32" :src="ToUrl.url+'/'+selectedPost.avatar" loading="lazy" />
           <div class="meta-info">
             <span class="author">{{ selectedPost.username }}</span>
             <span class="time">{{ formatTime(selectedPost.timestamp) }}</span>
@@ -387,7 +387,7 @@
                 :key="comment.id" 
                 class="comment-item"
               >
-                <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" />
+                <el-avatar :size="32" :src="ToUrl.url+'/'+comment.avatar" loading="lazy" />
                 <div class="comment-content">
                   <div class="comment-header">
                     <span class="author">{{ comment.username }}</span>
@@ -446,11 +446,12 @@ import ToUrl from '@/api/api'
 import '@/assets/styles/forum-theme.css'
 import 'md-editor-v3/lib/style.css'
 import { MdEditor } from 'md-editor-v3'
+import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/atom-one-dark.css'
-import * as marked from 'marked'
 import { ElImageViewer } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { debounce } from 'lodash-es'
 
 const router = useRouter();
 
@@ -531,6 +532,48 @@ const mdConfig = {
     'undo', 'redo', '|',
     'save'
   ]
+}
+
+// 配置 marked 选项
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: false,
+  mangle: false,
+  sanitize: false,
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang }).value
+      } catch (err) {}
+    }
+    return hljs.highlightAuto(code).value
+  }
+})
+
+// 添加缓存机制
+const markdownCache = new Map()
+
+const renderMarkdown = (content) => {
+  try {
+    // 检查缓存
+    if (markdownCache.has(content)) {
+      return markdownCache.get(content)
+    }
+
+    let processedContent = content
+    if (!store.state.token && content.length > 200) {
+      processedContent = content.slice(0, 200) + '\n\n**... 登录后查看完整内容**'
+    }
+
+    const rendered = marked.parse(processedContent)
+    // 存入缓存
+    markdownCache.set(content, rendered)
+    return rendered
+  } catch (error) {
+    console.error('Markdown rendering error:', error)
+    return content
+  }
 }
 
 // 图片上传处理函数
@@ -988,19 +1031,6 @@ const handlePageChange = (page) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// 修改帖子内容显示方法
-const renderMarkdown = (content) => {
-  try {
-    if (!store.state.token && content.length > 200) {
-      // 未登录用户只显示前200个字符
-      content = content.slice(0, 200) + '\n\n**... 登录后查看完整内容**'
-    }
-    return marked.marked(content)
-  } catch (error) {
-    return content
-  }
-}
-
 // previewImage 方法
 const previewImage = () => {
   if (newPost.value.coverImage) {
@@ -1015,6 +1045,8 @@ const previewImage = () => {
 onMounted(() => {
   fetchPosts()
 })
+
+const filterPostsDebounced = debounce(filterPosts, 300)
 </script>
 
 <style lang="scss" scoped>

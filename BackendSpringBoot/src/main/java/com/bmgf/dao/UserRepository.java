@@ -12,6 +12,7 @@ public interface UserRepository extends MongoRepository<User,String> {
     Optional<User>  findByUsername(String username);
     @Query("{'id': ?0}")//使用注解功能自定MongoDB查询
     Optional<User> findByIdString(String id);
+    Optional<User> findByEmailVerificationToken(String emailVerificationToken) ;
     @Query(value = "{}", sort = "{ 'totalScore' : -1 }")
     List<User> findTopUsersByScore(Pageable pageable);
     // UserRepository 添加方法

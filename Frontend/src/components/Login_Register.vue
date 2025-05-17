@@ -237,52 +237,47 @@ const handleLogin = async () => {
     // 校验登录表单
     await loginFormRef.value?.validate();
 
-    // 设置 API 和跳转路径
-    const isAdmin = loginForm.username === 'Ajun';
-    const apiPath = isAdmin ? "/admin/login" : "/user/login";
-    const redirectPath = isAdmin ? "/backMange/comment" : "/root/home";
-
     // 发起登录请求
-    const response = await axios.post(ToUrl.url + apiPath, {
+    const response = await axios.post(ToUrl.url + '/user/login', {
       username: loginForm.username,
       password: loginForm.password
     });
 
-/*     // console.log(response.data.data); // 调试查看返回数据 */
-
     if (response.data.code === 200) {
       ElMessage.success('登录成功');
 
-      // 获取 token 并存储
+      // 获取token
       const token = response.data.data;
       await store.dispatch('setToken', token);
-      localStorage.setItem('token', token);
-      await store.dispatch('setUser', loginForm.username);
-      await store.dispatch('setId', "67d7d7a15909eaf63c7ee5db");
-      await store.dispatch('setAvatar', "avatar/6a103249-10fc-422d-883a-c5cf4bca4364_信息.png");
-      /* // console.log("用户名:", loginForm.username); */
-      // 如果不是管理员，则获取用户 ID 和头像
-      if (!isAdmin) {
-        try {
-          const responseId = await axios.get(ToUrl.url + `/user/mes/${loginForm.username}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
+      localStorage.setItem('token', token);  // 确保token被保存到localStorage
 
-          if (responseId.data.code === 200) {
-            const { id, avatar } = responseId.data.data;
-            await store.dispatch('setId', id);
-            await store.dispatch('setAvatar', avatar);
-            // console.log('Token:', token, "id:", id, "avatar:", avatar);
-          } else {
-            console.warn('获取用户 ID 失败:', responseId.data.msg);
-          }
-        } catch (err) {
-          console.error("获取用户 ID 失败:", err);
+      const username = loginForm.username; // 登录时的用户名
+      // 再请求用户详细信息，添加token到请求头
+      const userRes = await axios.get(ToUrl.url + `/user/mes/${username}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`  // 添加Bearer前缀
         }
-      }
+      });
+      if (userRes.data.code === 200) {
+        const userData = userRes.data.data;
+        // 根据roles判断用户类型
+        const isAdmin = userData?.roles?.includes('ROLE_ADMIN') || false;
+        const redirectPath = isAdmin ? "/backMange/home" : "/root/home";
 
-      // 跳转到对应页面
-      router.push(redirectPath);
+        // 存储用户信息，添加默认值处理
+        await store.dispatch('setUser', userData?.username || loginForm.username);
+        await store.dispatch('setId', userData?.id || token);
+        await store.dispatch('setAvatar', userData?.avatar || '');
+        await store.dispatch('setRoles', userData?.roles || []);
+
+        // 等待状态更新完成
+        await nextTick();
+        
+        // 使用 replace 而不是 push，避免浏览器历史记录问题
+        await router.replace(redirectPath);
+      } else {
+        ElMessage.error(userRes.data.msg || '获取用户信息失败');
+      }
     } else {
       ElMessage.error(response.data.msg);
     }

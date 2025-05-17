@@ -2,26 +2,14 @@
 #  data:
 #    mongodb:
 #      uri: mongodb://CsNet:yzMKSXjALzBsn5NG@47.117.70.79csnet?authSource=admin
-
 spring:
   data:
     mongodb:
       host: 127.0.0.1
       database: CsNet
-#      username: CsNet
-#      password: yzMKSXjALzBsn5NG
       port: 27017
       connection-pool-size: 50  # 配置 MongoDB 连接池大小
       max-wait-time: 2000ms      # 设置最大等待时间（单位：毫秒）
-
-#spring:
-#  data:
-#    mongodb:
-#      host: 127.0.0.1
-#      database: CsNet
-#      port: 27017
-#      connection-pool-size: 50  # 配置 MongoDB 连接池大小
-#      max-wait-time: 2000ms      # 设置最大等待时间（单位：毫秒）
   web:
     resources:
       static-locations: "file:F:/NetGame_s/hello_vue3_1.0/src/avatar/" # 静态资源路径
@@ -62,7 +50,11 @@ docker:
       response: 45s
 
 logging:
+<<<<<<< HEAD
   charset: UTF-8
 
 
 
+=======
+  charset: UTF-8  # 配置日志字符集为 UTF-8
+>>>>>>> 558d192aecd4065820b197acbf2b2e56992965b1
