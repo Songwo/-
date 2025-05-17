@@ -182,14 +182,6 @@ public class UserController {
         user.setUsername(request.getUsername());
         user.setPassword(encode(request.getPassword()));
         user.setEmail(request.getEmail());
-        Map<String, Integer> HonoraryTitle= new HashMap<>();
-        HonoraryTitle.put("新进白帽", 0);
-        HonoraryTitle.put("Web渗透专家", 0);
-        HonoraryTitle.put("靶场冠军", 0);
-        HonoraryTitle.put("正义使者", 0);
-        HonoraryTitle.put("Flag猎人", 0);
-        HonoraryTitle.put("Ctrl+C大师",0);
-        user.setHonoraryTitle(HonoraryTitle);
         user.setRoles(new HashSet<>(Arrays.asList("ROLE_USER")));
         imUserService.save(user);
         return Result.success();
