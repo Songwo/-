@@ -1,6 +1,7 @@
 package com.bmgf.service.impl;
 import com.bmgf.po.ComposeEnvironment;
 import com.bmgf.po.User;
+import com.bmgf.service.MySQLService;
 import com.bmgf.util.JwtUtil;
 import com.github.dockerjava.api.command.CreateNetworkResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -38,6 +40,7 @@ import java.util.stream.Collectors;
 public class VulnContainerService {
     private final DockerClient dockerClient;
     private final MongoTemplate mongoTemplate;
+    private final MySQLService mySQLService;
     private final JwtUtil jwtUtil;
     private static final int MAX_RESTART_ATTEMPTS = 3;
     private static final int MONITOR_INTERVAL = 5000;

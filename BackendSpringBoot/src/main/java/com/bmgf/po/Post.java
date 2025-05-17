@@ -21,6 +21,7 @@ public class Post {
     @Pattern(regexp = "^[a-zA-Z0-9_]+$") // MongoDB 自动生成的 ObjectId
     private String authorId; // 关联 User.id
     private String username;
+    private String honoraryTitle;
     @Pattern(regexp = "^[\\u4e00-\\u9fa5a-zA-Z0-9_]{3,30}$", message = "用户名需为3-30位中文、字母、数字或下划线")
     private String title;
     private String section;

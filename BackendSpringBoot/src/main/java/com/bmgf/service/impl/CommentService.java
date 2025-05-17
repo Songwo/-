@@ -13,9 +13,6 @@ import java.util.List;
 public class CommentService {
     @Autowired
     private CommentRepository commentRepository;
-    public Comment getLatestCommentByPostId(String postId) {
-        return commentRepository.findFirstByPostIdOrderByTimestampDesc(postId);
-    }
     public List<Comment> getCommentsByPostId(String postId) {
         return commentRepository.findByPostIdOrderByTimestampDesc(postId);
     }
@@ -35,9 +32,6 @@ public class CommentService {
     }
     public void save(Comment comment) {
         commentRepository.save(comment);
-    }
-    public void delete(Comment comment) {
-        commentRepository.delete(comment);
     }
     public Comment findById(String id) {
         if(commentRepository.findById(id).isEmpty()){

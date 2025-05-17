@@ -1,5 +1,5 @@
 package com.bmgf.controller;
-
+import com.bmgf.DTO.SharedEnvRequest;
 import com.bmgf.dao.ChallengeRepository;
 import com.bmgf.po.*;
 import com.bmgf.service.impl.*;
@@ -13,12 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.bind.annotation.*;
-
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-
 @Slf4j
 @RestController
 @RequestMapping("/lab")
@@ -28,20 +26,24 @@ public class LabController {
 
     private final VulnContainerService containerService;
     private final UserService userService;
-    private final ComposeEnvironmentService composeEnvironmentService;
-    private final ThreadPoolTaskExecutor vulnTaskExecutor;
     @Autowired
     private  JwtUtil jwtUtil;
     @Autowired
-    private ContainerInstanceService containerInstanceService;
-    @Autowired
     private LabFlagService labFlagService;
     @Autowired
-    private ChallengeService challengeService;
-    @Autowired
-    private User_Challenge_ProgressService userChallengeProgressService;
-    @Autowired
-    private ChallengeRepository challengeRepository;
+    private ContainerService containerService1;
+
+    @PostMapping("/shared")
+    public ResponseEntity<?> createSharedEnv(@RequestBody SharedEnvRequest request) {
+        try {
+            ContainerInstance instance = containerService1.createSharedEnvironment(
+                    request.getUserId(), request.getVulnType(), request.getDurationMinutes());
+            return ResponseEntity.ok(instance);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
 
     // 异步组合环境创建接口
     @PostMapping("/create-compose")

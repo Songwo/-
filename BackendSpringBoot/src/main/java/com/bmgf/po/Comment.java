@@ -17,6 +17,7 @@ public class Comment {
     @Pattern(regexp = "^[a-zA-Z0-9_]+$") // MongoDB 自动生成的 ObjectId
     private String postId; // 关联 Post.id (ObjectId 格式)
     private String authorId;
+    private String honoraryTitle;
     @NotBlank(message = "用户名不能为空")
     @Pattern(regexp = "^[\\u4e00-\\u9fa5a-zA-Z0-9_]{3,30}$", message = "用户名需为3-30位中文、字母、数字或下划线")
     private String username;

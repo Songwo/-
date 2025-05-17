@@ -1,10 +1,7 @@
 package com.bmgf.controller;
 import com.bmgf.DTO.ChangePasswordDTO;
 import com.bmgf.DTO.LoginRequest;
-import com.bmgf.po.Result;
-import com.bmgf.po.Reward;
-import com.bmgf.po.User;
-import com.bmgf.po.VideoItem;
+import com.bmgf.po.*;
 import com.bmgf.service.impl.*;
 import com.bmgf.util.JwtUtil;
 import com.bmgf.util.RegisterRequest;
@@ -92,7 +89,6 @@ public class UserController {
     private UserService imUserService;
     @Autowired
     private AnswerRecordRepository answerRecordRepository;
-
     @GetMapping("/mes/{username}")
     public Result findIdAll(@RequestHeader("Authorization") String authHeader) {
         // 从安全上下文获取当前用户ID
@@ -100,6 +96,22 @@ public class UserController {
         String username = jwtUtil.getUsernameFromToken(token);
         String currentUserId=userService1.findByUsername(username).getId();
         User UserNumber = imUserService.findByIdINt(currentUserId);
+        Map<String,Integer>map = UserNumber.getHonoraryTitle();
+        if (map != null && !map.isEmpty()) {
+
+            String selectedKey = null;
+            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                if (entry.getValue() == 1) {
+                    selectedKey = entry.getKey();
+                    break;
+                }
+            }
+            map.clear();
+            if (selectedKey != null) {
+                map.put(selectedKey, 1);
+            }
+        }
+        UserNumber.setHonoraryTitle(map);
         if (UserNumber == null) {
             return Result.error("用户不存在");
         }
@@ -159,6 +171,7 @@ public class UserController {
     }
     @PostMapping("/register")
     public Result register(@Valid @RequestBody RegisterRequest request) {
+
         // 检查用户名是否已存在
         User user1 = imUserService.findByUsername(request.getUsername());
         if (user1 != null) {
@@ -169,6 +182,14 @@ public class UserController {
         user.setUsername(request.getUsername());
         user.setPassword(encode(request.getPassword()));
         user.setEmail(request.getEmail());
+        Map<String, Integer> HonoraryTitle= new HashMap<>();
+        HonoraryTitle.put("新进白帽", 0);
+        HonoraryTitle.put("Web渗透专家", 0);
+        HonoraryTitle.put("靶场冠军", 0);
+        HonoraryTitle.put("正义使者", 0);
+        HonoraryTitle.put("Flag猎人", 0);
+        HonoraryTitle.put("Ctrl+C大师",0);
+        user.setHonoraryTitle(HonoraryTitle);
         user.setRoles(new HashSet<>(Arrays.asList("ROLE_USER")));
         imUserService.save(user);
         return Result.success();
@@ -263,5 +284,43 @@ private CustomUserDetailsService customUserDetailsService;
     @GetMapping("/get_category")
     public Result getUserCategory(){
         return Result.success(videoCategoryRepository.findAll());
+    }
+    @Autowired
+    private HonoraryTitleService honoraryTitleService;
+    @GetMapping("/get_honoraryTitle1")
+    public Result getUserHonoraryTitle(@Valid @RequestHeader("Authorization")String authHeader){
+        String token = authHeader.substring(7);
+        String username = jwtUtil.getUsernameFromToken(token);
+        System.out.println("username验证过了:"+username);
+        return Result.success(honoraryTitleService.findAll());
+    }
+    @GetMapping("/selectHonoraryTitle")
+    public Result selectUserHonoraryTitle(@Valid @RequestHeader("Authorization")String authHeader, String HonoraryTitle){
+        String token = authHeader.substring(7);
+        String username = jwtUtil.getUsernameFromToken(token);
+        if(userService1.selectUserHonoraryTitle(HonoraryTitle,username)){
+            return Result.success();
+        }else {
+            return Result.error("选中失败");
+        }
+    }
+    @GetMapping("/insertHonoraryTitle1")
+    public Result insertHonoraryTitle(@Valid @RequestHeader("Authorization")String authHeader, String HonoraryTitle,String points){
+        String token = authHeader.substring(7);
+        String username = jwtUtil.getUsernameFromToken(token);
+        if(userService1.insertUserHonoraryTitle(HonoraryTitle,username,points)){
+            return Result.success();
+        }else {
+            return Result.error("添加失败");
+        }
+    }
+    @GetMapping("/checkIn/{username}")
+    public ResponseEntity<?> checkIn(@PathVariable String username) {
+        boolean success = userService1.checkIn(username);
+        if (success) {
+            return ResponseEntity.ok("签到成功！");
+        } else {
+            return ResponseEntity.status(409).body("今日已签到！");
+        }
     }
 }

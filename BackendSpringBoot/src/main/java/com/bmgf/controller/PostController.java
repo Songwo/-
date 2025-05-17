@@ -88,7 +88,6 @@ public class PostController {
         if (post == null) {
             return Result.error("帖子不存在");
         }
-
         // 检查是否是帖子作者
         if (!post.getAuthorId().equals(userService.findByUsername(username).getId())) {
             return Result.error("无权删除此帖子");
@@ -103,12 +102,10 @@ public class PostController {
     public Result updatePost(@Valid @RequestBody Post post, @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.substring(7);
         String username = containerService.getUsernameFromToken(token);
-
         // 检查是否是帖子作者
         if (!post.getAuthorId().equals(userService.findByUsername(username).getId())) {
             return Result.error("无权修改此帖子");
         }
-
         postService.savePost(post);
         return Result.success();
     }

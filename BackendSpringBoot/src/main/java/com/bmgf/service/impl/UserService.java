@@ -1,5 +1,8 @@
 package com.bmgf.service.impl;
 import com.bmgf.DTO.UserScoreDto;
+import com.bmgf.po.Comment;
+import com.bmgf.po.HonoraryTitle;
+import com.bmgf.po.Post;
 import com.bmgf.po.User;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.ProjectionOperation;
@@ -7,11 +10,22 @@ import com.bmgf.dao.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.util.StringUtils;
+
+import java.awt.*;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.*;
 import java.util.List;
+
 @Service
 public class UserService {
+    @Autowired
+    private HonoraryTitleService honoraryTitleService;
     @Autowired
     private UserRepository userService;
     //通过id查找全部信息
@@ -58,5 +72,107 @@ public class UserService {
         // 3. 执行查询
         return mongoTemplate.aggregate(aggregation, "user", UserScoreDto.class)
                 .getMappedResults();
+    }
+    public Map<String, Integer> findByIdHonoraryTitle(String id) {
+        if (!StringUtils.hasText(id)){
+            return Collections.emptyMap();
+        }
+        Query query = new Query(Criteria.where("id").is(id));
+        query.fields().include("HonoraryTitle");
+        User user = mongoTemplate.findOne(query, User.class);
+        return user != null ? user.getHonoraryTitle() : Collections.emptyMap();
+    }
+    public boolean selectUserHonoraryTitle(String honoraryTitle, String username) {
+        if (!StringUtils.hasText(honoraryTitle)) {
+            return false;
+        }
+
+        HonoraryTitle foundTitle = mongoTemplate.findOne(
+                Query.query(Criteria.where("title").is(honoraryTitle)),
+                HonoraryTitle.class
+        );
+        if (foundTitle == null) {
+            return false;
+        }
+
+        Optional<User> optionalUser = userService.findByUsername(username);
+        if (!optionalUser.isPresent()) {
+            return false;
+        }
+        User user = optionalUser.get();
+        Map<String, Integer> titleMap = user.getHonoraryTitle();
+        titleMap.replaceAll((k, v) -> k.equals(honoraryTitle) ? 1 : 0);
+        user.setHonoraryTitle(titleMap);
+        userService.save(user);
+        Query userQuery = Query.query(Criteria.where("username").is(username));
+        Update update = new Update().set("honoraryTitle", honoraryTitle);
+        mongoTemplate.updateMulti(userQuery, update, Post.class);
+        mongoTemplate.updateMulti(userQuery, update, Comment.class);
+
+        return true;
+    }
+
+    public boolean insertUserHonoraryTitle(String honoraryTitle, String username, String points) {
+        if (!StringUtils.hasText(honoraryTitle)) {
+            return false;
+        }
+        HonoraryTitle titleDoc = mongoTemplate.findOne(
+                Query.query(Criteria.where("title").is(honoraryTitle)),
+                HonoraryTitle.class
+        );
+        if (titleDoc == null) {
+            return false;
+        }
+        Optional<User> optionalUser = userService.findByUsername(username);
+        if (!optionalUser.isPresent()) {
+            return false;
+        }
+        User user = optionalUser.get();
+        int costPoints;
+        try {
+            costPoints = Integer.parseInt(points);
+        } catch (NumberFormatException e) {
+            System.out.println("points 不合法: " + points);
+            return false;
+        }
+        int currentPoints = user.getActivityPoints();
+        if (currentPoints < costPoints) {
+            System.out.println("用户积分不足");
+            return false;
+        }
+        Map<String, Integer> map = user.getHonoraryTitle();
+        if (!map.containsKey(honoraryTitle)) {
+            map.put(honoraryTitle, 0);
+        }
+        user.setActivityPoints(currentPoints - costPoints);
+        user.setHonoraryTitle(map);
+        userService.save(user);
+        return true;
+    }
+    public boolean checkIn(String username) {
+        Optional<User> optionalUser = userService.findByUsername(username);
+        if (!optionalUser.isPresent()) return false;
+        User user = optionalUser.get();
+        LocalDate today = LocalDate.now();
+        LocalDate lastDate = null;
+        if (user.getLastCheckInDate() != null) {
+            lastDate = user.getLastCheckInDate().toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDate();
+            if (lastDate.equals(today)) {
+                // 已经签到过了
+                return false;
+            }
+        }
+        // 签到成功：更新时间 & 活跃积分 +10
+        user.setLastCheckInDate(Date.from(today.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        user.setActivityPoints(user.getActivityPoints() + 10);
+        // 连续签到逻辑
+        if (lastDate != null && lastDate.plusDays(1).equals(today)) {
+            user.setConsecutiveCheckInDays(user.getConsecutiveCheckInDays() + 1);
+        } else {
+            user.setConsecutiveCheckInDays(1);
+        }
+        userService.save(user);
+        return true;
     }
 }

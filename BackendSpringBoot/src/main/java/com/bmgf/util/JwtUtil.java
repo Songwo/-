@@ -82,11 +82,6 @@ public class JwtUtil {
             return false; // 解析失败则无效
         }
     }
-    /**
-     * 从 Token 中解析用户ID
-     * @param token JWT Token
-     * @return 用户ID
-     */
     public String generateToken(String username, String userId, Collection<? extends GrantedAuthority> authorities) {
         return Jwts.builder()
                 .setSubject(username)

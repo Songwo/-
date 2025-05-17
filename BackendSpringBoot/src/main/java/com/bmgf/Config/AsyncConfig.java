@@ -25,16 +25,6 @@ public class AsyncConfig {
         exec.initialize();
         return exec;
     }
-
-//    @Bean
-//    public DockerClient dockerClient() {
-//        // 1. 构建基础配置，自动读取 DOCKER_HOST、证书等环境
-//        DefaultDockerClientConfig config = DefaultDockerClientConfig
-//                .createDefaultConfigBuilder()
-//                .build();
-//        // 2. 直接使用 DockerClientImpl 获取默认 transport 实现
-//        return DockerClientImpl.getInstance(config);
-//    }
 }
 
 

@@ -110,7 +110,8 @@ public class AdminController {
     private CommentService commentService;
     @Autowired
     private PostService postService;
-
+    @Autowired
+    private HonoraryTitleService honoraryTitleService;
     @Autowired
     private UserAccurayService userAccuracyService;
     @PostMapping("/insertQuestion")
@@ -127,6 +128,14 @@ public class AdminController {
     public Result insertHole(@RequestBody Hole ho) {
         holeService.save(ho);
         return Result.success();
+    }
+    @PostMapping("/insertHonoraryTitle")
+    public Result insertHonoraryTitle(@RequestBody HonoraryTitle title) {
+        if (honoraryTitleService.insert(title)){
+            return Result.success();
+        }else {
+            return Result.error("插入失败");
+        }
     }
     @PostMapping("/insertComment")
     public Result insertComment(@RequestBody Comment comment) {
