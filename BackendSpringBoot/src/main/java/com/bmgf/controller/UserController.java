@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.nio.file.Path;
 import jakarta.validation.Valid;
+import lombok.extern.java.Log;
 import org.slf4j.Logger;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -118,8 +119,8 @@ public class UserController {
         String currentUserId=userService1.findByUsername(username).getId();
         User UserNumber = imUserService.findByIdINt(currentUserId);
         Map<String,Integer>map = UserNumber.getHonoraryTitle();
+//        System.out.println(map.toString());
         if (map != null && !map.isEmpty()) {
-
             String selectedKey = null;
             for (Map.Entry<String, Integer> entry : map.entrySet()) {
                 if (entry.getValue() == 1) {
@@ -127,7 +128,6 @@ public class UserController {
                     break;
                 }
             }
-            map.clear();
             if (selectedKey != null) {
                 map.put(selectedKey, 1);
             }
@@ -324,7 +324,7 @@ private CustomUserDetailsService customUserDetailsService;
         if(userService1.insertUserHonoraryTitle(HonoraryTitle,username,points)){
             return Result.success();
         }else {
-            return Result.error("添加失败");
+            return Result.error("添加失败，用户积分不足");
         }
     }
     @GetMapping("/checkIn/{username}")
@@ -336,4 +336,13 @@ private CustomUserDetailsService customUserDetailsService;
             return ResponseEntity.status(409).body("今日已签到！");
         }
     }
+
+//    @GetMapping("learn_post")
+//    public Result learnPost(@RequestHeader("Authorization") String authHeader) {
+//        String token = authHeader.substring(7);
+//        String username = jwtUtil.getUsernameFromToken(token);
+//
+//    }
+
+
 }

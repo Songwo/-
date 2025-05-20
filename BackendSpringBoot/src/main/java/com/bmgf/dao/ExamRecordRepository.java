@@ -11,6 +11,7 @@ public interface ExamRecordRepository extends MongoRepository<QuestionController
         List<QuestionController.ExamRecord> findByExamId(String examId);
         List<QuestionController.ExamRecord> findByUserIdOrderBySubmitTimeDesc(String userId);
 
+
         // 可以添加更多查询方法
         List<QuestionController.ExamRecord> findByUserIdAndExamId(String userId, String examId);
 

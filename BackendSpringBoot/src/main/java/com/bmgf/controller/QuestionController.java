@@ -34,6 +34,7 @@ public class QuestionController {
     private CategoryRepository categoryRepository;
     @Autowired
     private JwtUtil jwtUtil;
+
 @GetMapping("/questions")
 public Result getRandomQuestions(@RequestHeader("Authorization") String authHeader) {
     // 增强类型安全校验
@@ -103,6 +104,7 @@ public Result getRandomQuestions(@RequestHeader("Authorization") String authHead
         examRecord.setUserId(userId);
         examRecord.setExamId(request.getExamId());
         examRecord.setSubmitTime(LocalDateTime.now());
+        examRecord.setCostTime(request.getCostTime());
         examRecord.setQuestionResults(new ArrayList<>());
 
         // 4. 遍历所有题目答案
@@ -353,6 +355,8 @@ public Result getRandomQuestions(@RequestHeader("Authorization") String authHead
         private String userId;
         private String examId;
         private LocalDateTime submitTime;
+        //花费时间
+        private LocalDateTime CostTime;
         private int totalScore;
         private int correctCount;
         private List<QuestionResult> questionResults;
@@ -365,6 +369,7 @@ public Result getRandomQuestions(@RequestHeader("Authorization") String authHead
         private String examId;
         @NotEmpty(message = "至少需要一道题的答案")
         private Map<String, String> answers; // questionId -> userAnswer
+        private LocalDateTime costTime;
     }
 
     // 响应结构保持不变

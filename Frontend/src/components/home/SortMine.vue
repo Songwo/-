@@ -6,21 +6,36 @@
       <div class="ranking-container">
       <!-- 标题区 -->
       <div class="header">
-        <h2>实时排行榜</h2>
-        <el-button 
-          type="info" 
-          :icon="Refresh" 
-          circle 
-          :loading="loading"
-          @click="refreshRankings"
-        />
+        <h2>
+          <span class="title-icon">🏆</span>
+          实时排行榜
+          <span class="title-badge" v-if="isNewUpdate">新</span>
+        </h2>
+        <div class="header-actions">
+          <el-tooltip content="查看我的排名" placement="top">
+            <el-button 
+              type="primary" 
+              :icon="User" 
+              circle 
+              @click="scrollToMyRank"
+              :disabled="!myRank"
+            />
+          </el-tooltip>
+          <el-button 
+            type="info" 
+            :icon="Refresh" 
+            circle 
+            :loading="loading"
+            @click="refreshRankings"
+          />
+        </div>
       </div>
   
       <!-- 加载状态 -->
       <el-skeleton :rows="5" animated v-if="loading" />
   
       <!-- 排名列表 -->
-      <el-scrollbar v-else height="600px">
+      <el-scrollbar v-else height="600px" ref="scrollbarRef">
         <transition-group name="list" tag="div">
           <div 
             v-for="(item, index) in rankings" 
@@ -30,8 +45,10 @@
               'top-1': index === 0,
               'top-2': index === 1,
               'top-3': index === 2,
-              'hover-effect': index > 2
+              'hover-effect': index > 2,
+              'my-rank': item.id === store.state.id
             }"
+            @click="showRankDetails(item)"
           >
             <!-- 奖牌图标 -->
             <div class="medal">
@@ -43,16 +60,22 @@
   
             <!-- 用户信息 -->
             <div class="user-info">
-              <el-avatar :src="item.avatar" loading="lazy" />
+              <el-avatar 
+                :src="getAvatarUrl(item.avatar)" 
+                loading="lazy"
+                @error="handleAvatarError"
+                :class="{ 'avatar-glow': index < 3 }"
+              />
               <div class="detail">
                 <div class="name-row">
                   <span class="name">{{ item.username }}</span>
                   <el-tag 
+                    v-if="item.title && item.title !== '未拥有称号'"
                     size="small" 
                     :type="item.title ? 'success' : 'info'" 
                     class="user-title"
                   >
-                    {{ item.title || '未拥有称号' }}
+                    {{ item.title }}
                   </el-tag>
                 </div>
                 <span class="department">{{ item.department }}</span>
@@ -61,9 +84,14 @@
   
             <!-- 分数 -->
             <div class="score">
-              <el-tag :type="getScoreType(item.score)">
+              <el-tag :type="getScoreType(item.score)" class="score-tag">
                 {{ item.score }} 分
               </el-tag>
+              <div class="score-trend" v-if="item.trend">
+                <el-icon :class="item.trend === 'up' ? 'trend-up' : 'trend-down'">
+                  <component :is="item.trend === 'up' ? 'ArrowUp' : 'ArrowDown'" />
+                </el-icon>
+              </div>
             </div>
           </div>
         </transition-group>
@@ -71,8 +99,27 @@
   
       <!-- 最后更新时间 -->
       <div class="update-time">
+        <el-icon><Timer /></el-icon>
         最后更新：{{ lastUpdate }}
       </div>
+    </div>
+
+    <!-- 学习趋势图表 -->
+    <div class="trend-container">
+      <div class="trend-header">
+        <h3>
+          <span class="trend-icon">📈</span>
+          学习趋势
+          <el-tag size="small" type="info" effect="plain" class="trend-tag">近7天</el-tag>
+        </h3>
+        <div class="trend-actions">
+          <el-radio-group v-model="trendTimeRange" size="small">
+            <el-radio-button :value="'week'">周</el-radio-button>
+            <el-radio-button :value="'month'">月</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
+      <div class="trend-chart" ref="trendChartRef"></div>
     </div>
   </div>
 
@@ -81,8 +128,11 @@
       <!-- 最新公告 -->
       <div class="info-section announcement">
         <div class="info-header">
-          <h3>📢 最新公告</h3>
-          <el-tag type="danger" effect="dark" size="small">Hot</el-tag>
+          <h3>
+            <span class="section-icon">📢</span>
+            最新公告
+            <el-tag type="danger" effect="dark" size="small">Hot</el-tag>
+          </h3>
         </div>
         <el-scrollbar height="240px">
           <div class="announcement-list">
@@ -126,8 +176,11 @@
       <!-- 更新内容 -->
       <div class="info-section changelog">
         <div class="info-header">
-          <h3>🛠 版本更新</h3>
-          <el-tag type="info" effect="dark" size="small">点击查看</el-tag>
+          <h3>
+            <span class="section-icon">🛠</span>
+            版本更新
+            <el-tag type="info" effect="dark" size="small">点击查看</el-tag>
+          </h3>
         </div>
         <el-scrollbar height="320px">
           <div class="changelog-list">
@@ -165,12 +218,45 @@
         </div>
       </el-dialog>
     </div>
+
+    <!-- 用户详情弹窗 -->
+    <el-dialog
+      v-model="userDetailVisible"
+      title="用户详情"
+      width="400px"
+      class="user-detail-dialog"
+      :close-on-click-modal="true"
+      @close="handleDialogClose"
+    >
+      <div v-if="selectedUser" class="user-detail-content">
+        <div class="user-detail-header">
+          <el-avatar :size="80" :src="selectedUser.avatar" />
+          <h3>{{ selectedUser.username }}</h3>
+          <el-tag 
+            v-if="selectedUser.title && selectedUser.title !== '未拥有称号'"
+            :type="selectedUser.title ? 'success' : 'info'"
+          >
+            {{ selectedUser.title }}
+          </el-tag>
+        </div>
+        <div class="user-detail-stats">
+          <div class="stat-item">
+            <span class="stat-label">当前排名</span>
+            <span class="stat-value">{{ selectedUser.rank }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">总积分</span>
+            <span class="stat-value">{{ selectedUser.score }}</span>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
   
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { Medal, Refresh, CirclePlus, Tools } from '@element-plus/icons-vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { Medal, Refresh, User, Timer, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import store from '@/store'
@@ -178,6 +264,8 @@ import ToUrl from '@/api/api'
 import { getAnnouncements, getAnnouncementDetail } from '@/api/announcement'
 import { getChangelogs } from '@/api/changelog'
 import { debounce } from 'lodash-es'
+import * as echarts from 'echarts'
+import defaultAvatar from '@/assets/ab.jpg'  // 导入默认头像
 
 // 响应式数据
 const rankings = ref([])
@@ -190,6 +278,18 @@ const changelogDialogVisible = ref(false)
 const currentAnnouncement = ref(null)
 const currentChangelog = ref(null)
 
+// 新增的响应式数据
+const isNewUpdate = ref(false)
+const userDetailVisible = ref(false)
+const selectedUser = ref(null)
+const scrollbarRef = ref(null)
+const myRank = ref(null)
+
+// 趋势图相关
+const trendChartRef = ref(null)
+const trendTimeRange = ref('week')
+let trendChart = null
+
 // 缓存相关
 const rankingsCache = {
   data: null,
@@ -200,11 +300,36 @@ const rankingsCache = {
 // 定时器引用
 let refreshTimer = null
 
+// 创建axios实例
+const api = axios.create({
+  baseURL: ToUrl.url,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+})
+
+// 添加请求拦截器
+api.interceptors.request.use(
+  config => {
+    const token = store.state.token
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  error => {
+    return Promise.reject(error)
+  }
+)
+
 // 初始化加载
 onMounted(() => {
   loadRankings()
   loadAnnouncements()
   loadChangelogs()
+  initTrendChart()
+  window.addEventListener('resize', handleResize)
   
   // 使用防抖的刷新函数
   const debouncedRefresh = debounce(() => {
@@ -222,6 +347,8 @@ onUnmounted(() => {
   if (refreshTimer) {
     clearInterval(refreshTimer)
   }
+  window.removeEventListener('resize', handleResize)
+  trendChart?.dispose()
 })
 
 // 加载排名数据
@@ -237,22 +364,30 @@ const loadRankings = async () => {
     }
 
     loading.value = true
-    const res = await axios.get(ToUrl.url+'/user/rank', {
-      headers: {
-        'Authorization': `Bearer ${store.state.token}`,
-      }
-    })
+    const res = await api.get('/user/rank')
 
     // 数据转换处理
     const processedData = res.data.data
-      .map(item => ({
-        id: item.id,        
-        username: item.username, 
-        score: item.totalScore,  
-        department: item.id, 
-        title: item.title || '', // 添加称号字段
-        avatar: ToUrl.url+"/"+item.avatar || ToUrl.url+'/avatar/0736dfa5-a96f-45a7-8208-2e8e3b72161e_ab.jpg' 
-      }))
+      .map(item => {
+        const honoraryTitle = item.honoraryTitle || {};
+        const selectedTitle = Object.entries(honoraryTitle).find(([_, value]) => value === 1);
+        const title = selectedTitle ? selectedTitle[0] : '未拥有称号';
+        
+        // 如果是当前用户，更新 store 中的称号
+        if (item.id === store.state.id) {
+          store.commit('setHonoraryTitle', honoraryTitle)
+        }
+
+        return {
+          id: item.id,        
+          username: item.username, 
+          score: item.totalScore,  
+          department: item.id, 
+          title: title,
+          avatar: item.avatar || 'avatar/0736dfa5-a96f-45a7-8208-2e8e3b72161e_ab.jpg',
+          trend: Math.random() > 0.5 ? 'up' : 'down'
+        };
+      })
       .sort((a, b) => b.score - a.score)
 
     // 更新缓存
@@ -261,7 +396,17 @@ const loadRankings = async () => {
     
     rankings.value = processedData
     lastUpdate.value = new Date().toLocaleTimeString()
+
+    // 更新我的排名
+    myRank.value = processedData.findIndex(item => item.id === store.state.id) + 1
+
+    // 设置新更新标记
+    isNewUpdate.value = true
+    setTimeout(() => {
+      isNewUpdate.value = false
+    }, 3000)
   } catch (error) {
+    console.error('加载排名失败:', error)
     ElMessage.error(`排名加载失败: ${error.message}`)
   } finally {
     loading.value = false
@@ -339,14 +484,247 @@ const getScoreType = (score) => {
   if (score >= 90) return 'warning'
   return 'danger'
 }
+
+// 修改头像URL处理函数
+const getAvatarUrl = (avatar) => {
+  console.log('Processing avatar URL:', avatar);
+  
+  if (!avatar) {
+    console.log('No avatar provided, using default');
+    return defaultAvatar;
+  }
+  
+  // 如果已经是完整URL，直接返回
+  if (avatar.startsWith('http')) {
+    console.log('Full URL detected:', avatar);
+    return avatar;
+  }
+  
+  // 添加后端基础URL
+  const processedUrl = `${ToUrl.url}/${avatar}`;
+  console.log('Processed URL with backend:', processedUrl);
+  return processedUrl;
+}
+
+// 修改头像错误处理函数
+const handleAvatarError = (e) => {
+  console.log('Avatar load error:', e.target.src);
+  if (e.target.src !== defaultAvatar) {
+    console.log('Falling back to default avatar');
+    e.target.src = defaultAvatar;
+    e.target.onerror = null; // 防止循环调用
+  }
+}
+
+// 添加获取当前用户称号的计算属性
+const getCurrentUserTitle = computed(() => {
+  const honoraryTitle = store.state.honoraryTitle
+  const selectedTitle = Object.entries(honoraryTitle).find(([_, value]) => value === 1)
+  return selectedTitle ? selectedTitle[0] : '未拥有称号'
+})
+
+// 修改显示用户详情的函数
+const showRankDetails = (user) => {
+  selectedUser.value = {
+    ...user,
+    rank: rankings.value.findIndex(item => item.id === user.id) + 1,
+    title: user.id === store.state.id ? getCurrentUserTitle.value : user.title
+  }
+  userDetailVisible.value = true
+}
+
+// 隐藏用户详情
+const hideRankDetails = () => {
+  // 移除自动关闭
+  // userDetailVisible.value = false
+}
+
+// 添加点击空白处关闭弹窗的功能
+const handleDialogClose = () => {
+  userDetailVisible.value = false
+  selectedUser.value = null
+}
+
+// 滚动到我的排名
+const scrollToMyRank = () => {
+  if (!myRank.value) return
+  
+  const index = rankings.value.findIndex(item => item.id === store.state.id)
+  if (index !== -1) {
+    const itemHeight = 80 // 每个排名项的高度
+    const scrollTop = index * itemHeight
+    scrollbarRef.value?.setScrollTop(scrollTop)
+    
+    // 添加高亮动画
+    const element = document.querySelector('.my-rank')
+    if (element) {
+      element.classList.add('highlight')
+      setTimeout(() => {
+        element.classList.remove('highlight')
+      }, 2000)
+    }
+  }
+}
+
+// 初始化趋势图
+const initTrendChart = () => {
+  if (!trendChartRef.value) return
+  
+  trendChart = echarts.init(trendChartRef.value)
+  updateTrendChart()
+}
+
+// 更新趋势图数据
+const updateTrendChart = () => {
+  if (!trendChart) return
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+      axisLine: {
+        lineStyle: {
+          color: '#999'
+        }
+      },
+      axisLabel: {
+        color: '#666'
+      }
+    },
+    yAxis: [
+      {
+        type: 'value',
+        name: '学习时长(小时)',
+        nameTextStyle: {
+          color: '#666'
+        },
+        axisLine: {
+          show: true,
+          lineStyle: {
+            color: '#999'
+          }
+        },
+        axisLabel: {
+          color: '#666'
+        },
+        splitLine: {
+          lineStyle: {
+            color: '#eee'
+          }
+        }
+      },
+      {
+        type: 'value',
+        name: '排名',
+        nameTextStyle: {
+          color: '#666'
+        },
+        axisLine: {
+          show: true,
+          lineStyle: {
+            color: '#999'
+          }
+        },
+        axisLabel: {
+          color: '#666'
+        },
+        splitLine: {
+          show: false
+        },
+        inverse: true
+      }
+    ],
+    series: [
+      {
+        name: '学习时长',
+        type: 'bar',
+        data: [2.5, 3.2, 4.1, 3.8, 4.5, 5.2, 4.8],
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#83bff6' },
+            { offset: 0.5, color: '#188df0' },
+            { offset: 1, color: '#188df0' }
+          ])
+        },
+        emphasis: {
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#2378f7' },
+              { offset: 0.7, color: '#2378f7' },
+              { offset: 1, color: '#83bff6' }
+            ])
+          }
+        }
+      },
+      {
+        name: '排名变化',
+        type: 'line',
+        yAxisIndex: 1,
+        data: [45, 42, 38, 35, 32, 30, 28],
+        smooth: true,
+        lineStyle: {
+          width: 3,
+          color: '#91cc75'
+        },
+        itemStyle: {
+          color: '#91cc75'
+        }
+      }
+    ]
+  }
+
+  trendChart.setOption(option)
+}
+
+// 监听时间范围变化
+watch(trendTimeRange, () => {
+  updateTrendChart()
+})
+
+// 监听窗口大小变化
+const handleResize = () => {
+  trendChart?.resize()
+}
 </script>
   
 <style scoped>
+.main-container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  min-height: 100vh;
+  color: black;
+
+}
+
+.left-ranking {
+  flex: 1;
+  min-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .ranking-container {
   padding: 20px;
   color: black;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  background: rgba(143, 129, 224, 0.703);
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -447,17 +825,79 @@ const getScoreType = (score) => {
   font-size: 1.2em;
   color: #ffffff;
 }
-.main-container {
-  display: flex;
-  gap: 20px;
-  padding: 20px;
-  height: calc(100vh - 140px); /* 根据实际高度调整 */
-  color: black;
+
+.el-scrollbar {
+  flex: 1;
+  min-height: 400px;
 }
 
-.left-ranking {
-  flex: 1;
-  min-width: 600px;
+.trend-container {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.703);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  padding: 20px;
+  min-height: 400px;
+}
+
+.trend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.trend-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.trend-icon {
+  font-size: 1.2em;
+}
+
+.trend-tag {
+  margin-left: 8px;
+}
+
+.trend-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.trend-chart {
+  height: 350px;
+  width: 100%;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .main-container {
+    flex-direction: column;
+  }
+  
+  .left-ranking,
+  .right-info {
+    width: 100%;
+  }
+  
+  .right-info {
+    margin-top: 20px;
+  }
+
+  .trend-container {
+    margin-top: 15px;
+  }
+  
+  .trend-chart {
+    height: 300px;
+  }
 }
 
 .right-info {
@@ -469,7 +909,7 @@ const getScoreType = (score) => {
 }
 
 .info-section {
-  background: white;
+  background: rgba(143, 129, 224, 0.703);
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   padding: 15px;
@@ -553,46 +993,150 @@ const getScoreType = (score) => {
   color: #666;
 }
 
-/* 原有排名样式调整 */
-.ranking-container {
+.title-icon {
+  margin-right: 8px;
+  animation: bounce 2s infinite;
+}
+
+.title-badge {
+  background: #ff4d4f;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-left: 8px;
+  animation: pulse 1s infinite;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.avatar-glow {
+  animation: glow 2s infinite;
+}
+
+.score-trend {
+  margin-left: 8px;
+}
+
+.trend-up {
+  color: #52c41a;
+  animation: slideUp 0.3s ease-out;
+}
+
+.trend-down {
+  color: #ff4d4f;
+  animation: slideDown 0.3s ease-out;
+}
+
+.my-rank {
+  border: 2px solid #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+.my-rank.highlight {
+  animation: highlight 2s ease-out;
+}
+
+.user-detail-dialog {
+  border-radius: 12px;
+}
+
+.user-detail-content {
+  text-align: center;
+}
+
+.user-detail-header {
+  margin-bottom: 24px;
+}
+
+.user-detail-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.stat-item {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1890ff;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes highlight {
+  0% { background: rgba(24, 144, 255, 0.3); }
+  100% { background: rgba(24, 144, 255, 0.1); }
+}
+
+.section-icon {
+  margin-right: 8px;
+  font-size: 1.2em;
+}
+
+.el-avatar {
+  object-fit: cover;
+  background-color: #f0f0f0;
+  border: 1px solid #eee;
+}
+
+.el-avatar img {
+  object-fit: cover;
+  width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
 }
 
-.el-scrollbar {
-  flex: 1;
+/* 添加图片加载过渡效果 */
+.el-avatar img {
+  transition: opacity 0.3s ease;
 }
 
-.update-time {
-  margin-top: auto;
+.el-avatar img[src=""] {
+  opacity: 0;
 }
 
-.announcement-meta {
-  margin: 10px 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.announcement-content {
-  margin-top: 20px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.changelog-meta {
-  margin: 10px 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.changelog-content {
-  margin-top: 20px;
-  line-height: 1.6;
-  white-space: pre-wrap;
+.el-avatar img:not([src=""]) {
+  opacity: 1;
 }
 </style>

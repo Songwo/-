@@ -5,3 +5,4 @@ http://www.wacyg.fun/root/aboutUs
 http://www.wacyg.fun/root/bughole
 http://www.wacyg.fun/root/ConunityTalk
 http://www.wacyg.fun/root/app
+http://www.wacyg.fun/register

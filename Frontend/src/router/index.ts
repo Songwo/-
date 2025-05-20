@@ -160,6 +160,7 @@ const routes: RouteRecordRaw[] = [  //使用RouteRecordRaw 类型
       { path: 'urlencode', name: 'urlencode', component: () => import('@/components/home/Pricate_until/UrlEncode.vue'), meta: { requiresAuth: true, requiresUser: true } },
       { path: 'caesar', name: 'caesar', component: () => import('@/components/home/Pricate_until/CaesarCipher.vue'), meta: { requiresAuth: true, requiresUser: true } },
       { path: 'unicode', name: 'unicode', component: () => import('@/components/home/Pricate_until/Unicode.vue'), meta: { requiresAuth: true, requiresUser: true } },
+      { path: 'public-discussion', name: 'public-discussion', component: () => import('@/components/home/PublicDiscussion.vue') },
     ],
   },
   {

@@ -271,7 +271,7 @@ public class AdminController {
     @Autowired
     private MongoTemplate mongoTemplate;
     @PostMapping("/UpdateAvatar")
-    public Result uploadAvatar(@RequestParam("file") MultipartFile file,@RequestParam("id") String id,
+    public Result uploadAvatar(@RequestParam("f1ile") MultipartFile file,@RequestParam("id") String id,
                                HttpServletRequest request) {
         // 校验文件
         if (file.isEmpty()) {
