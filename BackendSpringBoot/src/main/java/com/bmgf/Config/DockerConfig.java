@@ -14,17 +14,26 @@ import java.time.Duration;
 @Configuration
 public class DockerConfig {
 
-    @Value("${docker.host:unix:///var/run/docker.sock}")
+    @Value("${docker.host:}")
     private String dockerHost;
 
     @Bean
     public DockerClient dockerClient() {
-        // 1. 创建 Docker 配置
+        // 如果没有配置 docker.host，就根据当前操作系统自动判断
+        if (dockerHost == null || dockerHost.isBlank()) {
+            String os = System.getProperty("os.name").toLowerCase();
+            if (os.contains("win")) {
+                dockerHost = "npipe:////./pipe/docker_engine"; // Windows
+            } else {
+                dockerHost = "unix:///var/run/docker.sock";    // Linux / Mac
+            }
+        }
+
+        // 构建配置
         DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
                 .withDockerHost(dockerHost)
                 .build();
 
-        // 2. 使用 Apache HttpClient 构建 Docker HTTP 客户端
         DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
                 .sslConfig(config.getSSLConfig())
@@ -32,7 +41,6 @@ public class DockerConfig {
                 .responseTimeout(Duration.ofSeconds(45))
                 .build();
 
-        // 3. 创建 Docker 实例
         return DockerClientImpl.getInstance(config, httpClient);
     }
 }

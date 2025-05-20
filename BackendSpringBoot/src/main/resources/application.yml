@@ -40,6 +40,7 @@ server:
 #  charset: UTF-8  # 配置日志字符集为 UTF-8
 docker:
   host: npipe:////./pipe/docker_engine
+  host-ip: localhost
   tls:
     enabled: false
   pool:
@@ -50,11 +51,6 @@ docker:
       response: 45s
 
 logging:
-<<<<<<< HEAD
   charset: UTF-8
 
 
-
-=======
-  charset: UTF-8  # 配置日志字符集为 UTF-8
->>>>>>> 558d192aecd4065820b197acbf2b2e56992965b1
