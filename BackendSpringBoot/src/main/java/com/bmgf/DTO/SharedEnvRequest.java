@@ -7,7 +7,6 @@ public class SharedEnvRequest {
 
     // 无参构造
     public SharedEnvRequest() {}
-
     // 带参构造（可选）
     public SharedEnvRequest(String userId, String vulnType, int durationMinutes) {
         this.userId = userId;

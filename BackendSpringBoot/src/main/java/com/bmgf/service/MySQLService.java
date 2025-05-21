@@ -9,9 +9,9 @@ import java.sql.Statement;
 
 @Service
 public class MySQLService {
-    private final String mysqlUrl = "jdbc:mysql://localhost:3306/?useSSL=false&serverTimezone=UTC";
+    private final String mysqlUrl = "jdbc:mysql://47.117.70.79:3306/?useSSL=false&serverTimezone=UTC";
     private final String rootUser = "root";
-    private final String rootPass = "040305Wjj!";
+    private final String rootPass = "123456!";
 
     public void createDatabaseIfNotExists(String dbName) {
         String sql = "CREATE DATABASE IF NOT EXISTS `" + dbName + "`";

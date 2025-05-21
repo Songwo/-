@@ -43,7 +43,4 @@ public class ContainerInstance {
     private String status;
     private String AccessUrl;// 状态：RUNNING、STOPPED、EXPIRED等
 
-    // 资源监控
-    private Double cpuUsage;              // CPU 使用率
-    private Long memoryUsage;             // 内存使用量（字节）
 }

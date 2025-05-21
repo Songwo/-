@@ -1,12 +1,11 @@
-// ContainerService.java
 package com.bmgf.service.impl;
-
 import com.bmgf.po.ContainerInstance;
 import com.bmgf.service.MySQLService;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.api.DockerClient;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -74,16 +73,22 @@ public class ContainerService {
                 Ports portBindings = new Ports();
                 portBindings.bind(exposedPort, Ports.Binding.empty());
 
+                // 设置容器资源限制（内存、CPU、Swap 等）
                 CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
                         .withName(containerName)
                         .withExposedPorts(exposedPort)
                         .withHostConfig(HostConfig.newHostConfig()
                                 .withPortBindings(portBindings)
-                                .withNetworkMode(networkName))
+                                .withNetworkMode(networkName)
+                                .withMemory(512 * 1024 * 1024L)  // 设置内存为 512MB
+                                .withMemorySwap(1L * 1024 * 1024 * 1024)  // 设置交换内存为 1GB
+                                .withCpuShares(256)                // 设置 CPU 份额为 256
+                                .withCpusetCpus("0")               // 限制容器只使用第 0 核
+                        )
                         .withEnv(List.of(
                                 "MYSQL_HOST=host.docker.internal",
-                                "MYSQL_USER=root",
-                                "MYSQL_PASSWORD=040305Wjj!",
+                                "MYSQL_USER=jun",
+                                "MYSQL_PASSWORD=123456",
                                 "MYSQL_DB=" + dbName
                         ))
                         .exec();
@@ -123,30 +128,28 @@ public class ContainerService {
             throw new RuntimeException("创建共享环境失败: " + e.getMessage(), e);
         }
     }
-
-    public void removeSharedEnvironment(String userId, String vulnType) {
+    // 定时任务，每两分钟执行一次
+    @Scheduled(cron = "0 0/2 * * * ?") 
+    public void removeExpiredSharedEnvironments() {
         try {
-            String containerName = vulnType.replaceAll("[^a-zA-Z0-9_.-]", "_");
+            List<ContainerInstance> instances = mongoTemplate.find(
+                    query(where("expireTime").lt(Instant.now()).and("status").is("RUNNING")),
+                    ContainerInstance.class);
 
-            List<Container> containers = dockerClient.listContainersCmd()
-                    .withNameFilter(List.of("/" + containerName))
-                    .withShowAll(true)
-                    .exec();
-
-            if (!containers.isEmpty()) {
-                String containerId = containers.get(0).getId();
+            for (ContainerInstance instance : instances) {
+                String containerId = instance.getContainerId();
                 dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+
+                String dbName = instance.getUserId() + "_" + instance.getVulnType();
+                mySQLService.dropDatabaseIfExists(dbName);
+
+                mongoTemplate.remove(
+                        query(where("containerId").is(containerId)),
+                        ContainerInstance.class
+                );
             }
-
-            String dbName = "user_" + userId + "_" + vulnType.replaceAll("[^a-zA-Z0-9]", "_");
-            mySQLService.dropDatabaseIfExists(dbName);
-
-            mongoTemplate.remove(
-                    query(where("userId").is(userId).and("vulnType").is(vulnType)),
-                    ContainerInstance.class
-            );
         } catch (Exception e) {
-            throw new RuntimeException("销毁环境失败: " + e.getMessage(), e);
+            throw new RuntimeException("定时销毁过期环境失败: " + e.getMessage(), e);
         }
     }
 }

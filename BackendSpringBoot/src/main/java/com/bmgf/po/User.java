@@ -32,7 +32,6 @@ public class User implements Serializable {
     private String username;
     private String password;
     private String avatar="avatar/17fd8e0a-2bb9-4f82-934d-3f8820fca5f5_ab.jpg";
-
     // 联系信息
     @Indexed
     @Email(regexp = "^(?=.{1,64}@)[a-zA-Z0-9_+&*-]+(\\.[a-zA-Z0-9_+&*-]+)*@"
@@ -42,11 +41,9 @@ public class User implements Serializable {
     private Boolean emailVerified = false;
     private String emailVerificationToken;
     private Date emailVerificationTokenExpiry;
-
     // 安全相关
     private Set<String> roles = new HashSet<>(Arrays.asList("USER")); // 用户角色
     private Date lastLoginTime; // 最后登录时间
-
     // 积分系统
     @Indexed(name = "score_index", direction = IndexDirection.DESCENDING)
     private int totalScore = 0; // 总积分
