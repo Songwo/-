@@ -147,7 +147,15 @@
           </el-card>
 
           <!-- 称号选择卡片 -->
-          <TitleSelector />
+          <TitleSelector 
+            :honorary-title="userInfo.honoraryTitle" 
+            @update:honorary-title="async (newTitle) => {
+              console.log('Updating honoraryTitle:', newTitle);
+              userInfo.honoraryTitle = newTitle;
+              // 重新加载用户信息以确保数据同步
+              await userMinemes();
+            }"
+          />
 
           <!-- 学习报告卡片 -->
           <el-card class="learning-report-card glass-effect">
@@ -367,14 +375,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { Message, Lock, User, ArrowLeft, Calendar, Timer, Star, Edit, Close, DataLine, Platform, Document, Download, Check } from '@element-plus/icons-vue'
 import { ElMessage, ElDialog, ElForm, ElFormItem, ElInput, ElButton, ElRow, ElCol, ElCard, ElTag } from 'element-plus';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router'
 import axios from 'axios';
 import ToUrl from '@/api/api';
-import TitleSelector from './TitleSelector.vue'
+import TitleSelector from './TitleSlect/TitleSelector.vue'
 
 const router=useRouter();
 
@@ -383,16 +391,37 @@ const store = useStore()
 
 // 模拟用户数据
 const userInfo = ref({
-// 用户信息
-  createTime: "",
-  email: "",
+  // 用户基本信息
   id: "",
-  password: "",
-  updateTime: "",
   username: "",
+  email: "",
+  password: "",
   avatar: '',
-  totalScore:'',
-  emailVerified: false
+  emailVerified: false,
+  roles: [],
+  
+  // 时间信息
+  createTime: "",
+  updateTime: "",
+  
+  // 积分和统计信息
+  totalScore: 0,
+  correctCount: 0,
+  totalAttempts: 0,
+  ActivityPoints: 0,
+  
+  // 称号信息
+  honoraryTitle: {},
+  
+  // 签到信息
+  lastCheckInDate: "",
+  consecutiveCheckInDays: 0,
+  
+  // 题目和实验信息
+  completedQuestions: [],
+  vulnScores: {},
+  activeLabs: [],
+  completedLabs: []
 })
 
 // 学习统计数据
@@ -469,7 +498,7 @@ const handleChangePassword = () => {
 //加载用户信息
 const userMinemes = async () => {
   if (store.state.user === "") {
-    ElMessage.error("未登录噻");
+    ElMessage.error("未登录");
     return;
   }
   try {
@@ -478,12 +507,24 @@ const userMinemes = async () => {
         'Authorization': `Bearer ${store.state.token}`
       }
     });
-    // console.log(response.data.data);
+    console.log('User info response:', response.data.data);
+    
+    // 检查 honoraryTitle 字段
+    if (!response.data.data.honoraryTitle) {
+      console.warn('honoraryTitle field is missing or null');
+      response.data.data.honoraryTitle = {};
+    } else {
+      console.log('honoraryTitle data:', response.data.data.honoraryTitle);
+    }
+    
     userInfo.value = response.data.data;
-    // console.log(userInfo.id);
+    console.log('Updated userInfo:', userInfo.value);
 
     // 确保 emailVerified 字段被正确设置
     userInfo.value.emailVerified = response.data.data.emailVerified || false;
+
+    // 更新 store 中的称号信息
+    store.commit('setHonoraryTitle', response.data.data.honoraryTitle || {});
 
     editForm.value = {
       id:userInfo.value.id,
@@ -493,6 +534,7 @@ const userMinemes = async () => {
 
     ElMessage.success("加载成功");
   } catch (error) {
+    console.error('Error loading user info:', error);
     ElMessage.error("加载失败");
   }
 };
@@ -565,55 +607,52 @@ const loadLearningData = async () => {
   }
 };
 
-// 添加称号相关的响应式数据
-const currentTitle = ref({
-  id: '',
-  name: '未设置',
-  type: 'info',
-  description: '',
-  requirement: ''
-})
-
-// 加载用户当前称号
-const loadCurrentTitle = async () => {
-  try {
-    const response = await axios.get(`${ToUrl.url}/user/title/current`, {
-      headers: {
-        'Authorization': `Bearer ${store.state.token}`
-      }
-    })
-    if (response.data && response.data.data) {
-      currentTitle.value = response.data.data
+// 称号相关的响应式数据
+const currentTitle = computed(() => {
+  console.log('Computing currentTitle with userInfo:', userInfo.value);
+  const titleData = userInfo.value.honoraryTitle || {}
+  console.log('Title data:', titleData);
+  
+  const selectedTitle = Object.entries(titleData).find(([_, value]) => value === 1)
+  console.log('Selected title:', selectedTitle);
+  
+  if (selectedTitle) {
+    const typeMap = {
+      '新星白帽': 'success',
+      '安全先锋': 'warning',
+      '攻防大师': 'danger',
+      '漏洞猎人': 'info',
+      '渗透之眼': 'info'
     }
-  } catch (error) {
-    console.error('加载当前称号失败')
-    // 设置默认值
-    currentTitle.value = {
-      id: '',
-      name: '未设置',
-      type: 'info',
-      description: '',
-      requirement: ''
+    const result = {
+      id: selectedTitle[0],
+      name: selectedTitle[0],
+      type: typeMap[selectedTitle[0]] || 'info',
+      description: '称号描述',
+      requirement: '称号要求'
     }
+    console.log('Returning title result:', result);
+    return result;
   }
-}
-
-// 在组件挂载时加载用户信息和学习数据
-onMounted(() => {
-  userMinemes();
-  loadLearningData();
-  loadCurrentTitle();
-});
-
-// 在组件卸载前清理数据
-onBeforeUnmount(() => {
-  currentTitle.value = {
+  
+  console.log('No title selected, returning default');
+  return {
     id: '',
     name: '未设置',
     type: 'info',
     description: '',
     requirement: ''
   }
+})
+
+// 在组件挂载时加载用户信息和学习数据
+onMounted(() => {
+  userMinemes();
+  loadLearningData();
+});
+
+// 在组件卸载前清理数据
+onBeforeUnmount(() => {
   if (cooldownTimer) {
     clearInterval(cooldownTimer);
   }

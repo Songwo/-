@@ -25,6 +25,7 @@
               <el-dropdown-menu>
                 <el-dropdown-item @click="downloadApp">App端下载</el-dropdown-item>
                 <el-dropdown-item v-if="isLoggedIn" @click="aiAnswer">AI智能解答</el-dropdown-item>
+                <el-dropdown-item @click="goToPublicDiscussion">公共讨论区</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -36,7 +37,21 @@
         <el-dropdown class="user-dropdown" trigger="click">
           <span class="user-info">
             <el-avatar :src="at.avatar" :size="32" class="user-avatar" />
-            你好，{{ at.user }}
+            <template v-if="isFirstLogin">
+              你好，{{ at.user }}
+            </template>
+            <template v-else>
+              <span class="welcome-text">欢迎回来，{{ at.user }}</span>
+              <el-tag 
+                v-if="currentTitle.name !== '未设置'" 
+                :type="currentTitle.type" 
+                effect="dark" 
+                size="small" 
+                class="user-title"
+              >
+                {{ currentTitle.name }}
+              </el-tag>
+            </template>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -277,6 +292,11 @@ const aiAnswer = () => {
   router.push('/root/chat-wacyg');
 };
 
+// 添加公共讨论区跳转方法
+const goToPublicDiscussion = () => {
+  router.push('/root/public-discussion');
+};
+
 // 在组件挂载后添加菜单项动画
 onMounted(() => {
   // 为每个菜单项添加悬停动画
@@ -314,7 +334,46 @@ onMounted(() => {
     duration: 0.5,
     ease: 'power1.out'
   })
+
+  // 如果用户已登录，设置登录标记
+  if (isLoggedIn.value) {
+    localStorage.setItem('hasLoggedIn', 'true');
+  }
 })
+
+// 判断是否为首次登录
+const isFirstLogin = computed(() => {
+  return !localStorage.getItem('hasLoggedIn');
+});
+
+// 获取用户当前称号
+const currentTitle = computed(() => {
+  // 从 store 中获取称号数据
+  const titleData = store.state.honoraryTitle || {};
+  // 查找值为1的称号（当前选中的称号）
+  const selectedTitle = Object.entries(titleData).find(([_, value]) => value === 1);
+  
+  if (selectedTitle) {
+    // 称号类型映射表，用于设置不同称号的标签颜色
+    const typeMap = {
+      '新星白帽': 'success',  // 绿色
+      '安全先锋': 'warning',  // 黄色
+      '攻防大师': 'danger',   // 红色
+      '漏洞猎人': 'info',     // 蓝色
+      '渗透之眼': 'info'      // 蓝色
+    };
+    return {
+      name: selectedTitle[0],
+      type: typeMap[selectedTitle[0]] || 'info'
+    };
+  }
+  
+  // 如果没有称号，返回默认值
+  return {
+    name: '未设置',
+    type: 'info'
+  };
+});
 </script>
 
 <style scoped>
@@ -441,6 +500,21 @@ onMounted(() => {
   background-color: rgba(255, 255, 255, 0.2);
   transition: all 0.2s ease;
   will-change: transform, background-color;
+  gap: 8px;
+}
+
+.welcome-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.user-title {
+  margin-left: 4px;
+  font-size: 12px;
+  padding: 0 6px;
+  height: 20px;
+  line-height: 20px;
+  border-radius: 10px;
 }
 
 .user-info:hover {

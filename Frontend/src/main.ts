@@ -34,6 +34,22 @@ if (avatar) store.commit('setAvatar', avatar);
 if (id) store.commit('setId', id);
 if (roles) store.commit('setRoles', roles);
 
+// 初始化称号数据
+const initHonoraryTitle = () => {
+  const savedTitle = localStorage.getItem('honoraryTitle')
+  if (savedTitle) {
+    try {
+      const titleData = JSON.parse(savedTitle)
+      store.commit('setHonoraryTitle', titleData)
+    } catch (error) {
+      console.error('Failed to parse honorary title data:', error)
+      localStorage.removeItem('honoraryTitle')
+    }
+  }
+}
+
+// 初始化称号数据
+initHonoraryTitle()
 
 app.use(router)
 app.use(store)

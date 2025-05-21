@@ -78,6 +78,14 @@
                       <div class="meta-item">
                         <el-avatar :size="24" :src="ToUrl.url + '/' + post.avatar" loading="lazy" />
                         <span class="author">{{ post.username }}</span>
+                        <el-tag 
+                          :type="getPostTitle(post).type" 
+                          effect="dark" 
+                          size="small" 
+                          class="user-title"
+                        >
+                          {{ getPostTitle(post).name }}
+                        </el-tag>
                       </div>
                       <div class="meta-item">
                         <el-icon><Clock /></el-icon>
@@ -154,7 +162,27 @@
           <div class="user-info">
             <el-avatar :size="64" :src="ToUrl.url+'/'+store.state.avatar" />
             <div class="user-details">
-              <div class="user-name">{{ store.state.user }}</div>
+              <div class="user-name">
+                {{ store.state.user }}
+                <el-tag 
+                  v-if="currentTitle.name !== '未设置'" 
+                  :type="currentTitle.type" 
+                  effect="dark" 
+                  size="small" 
+                  class="user-title"
+                >
+                  {{ currentTitle.name }}
+                </el-tag>
+                <el-tag 
+                  v-else 
+                  type="info" 
+                  effect="dark" 
+                  size="small" 
+                  class="user-title"
+                >
+                  未拥有称号
+                </el-tag>
+              </div>
               <div class="user-stats">
                 <div class="stat">
                   <div class="stat-value">{{ userPostCount }}</div>
@@ -230,6 +258,14 @@
                       <div class="comment-content">
                         <div class="comment-header">
                           <span class="author">{{ comment.username }}</span>
+                          <el-tag 
+                            :type="getCommentTitle(comment).type" 
+                            effect="dark" 
+                            size="small" 
+                            class="user-title"
+                          >
+                            {{ getCommentTitle(comment).name }}
+                          </el-tag>
                           <span class="time">{{ formatTime(comment.timestamp) }}</span>
                         </div>
                         <p class="comment-text">{{ comment.content }}</p>
@@ -391,6 +427,14 @@
                 <div class="comment-content">
                   <div class="comment-header">
                     <span class="author">{{ comment.username }}</span>
+                    <el-tag 
+                      :type="getCommentTitle(comment).type" 
+                      effect="dark" 
+                      size="small" 
+                      class="user-title"
+                    >
+                      {{ getCommentTitle(comment).name }}
+                    </el-tag>
                     <span class="time">{{ formatTime(comment.timestamp) }}</span>
                   </div>
                   <p class="comment-text">{{ comment.content }}</p>
@@ -431,7 +475,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watchEffect } from 'vue'
+import { ref, computed, onMounted, watchEffect, watch } from 'vue'
 import {
   ElCard, ElButton, ElSelect, ElOption, ElTag,
   ElAvatar, ElIcon, ElEmpty, ElMessage, ElPagination, ElInput
@@ -441,7 +485,6 @@ import {
   User, Plus, Search, InfoFilled, ChatDotSquare
 } from '@element-plus/icons-vue'
 import axios from 'axios'
-import store from '@/store'
 import ToUrl from '@/api/api'
 import '@/assets/styles/forum-theme.css'
 import 'md-editor-v3/lib/style.css'
@@ -452,8 +495,10 @@ import 'highlight.js/styles/atom-one-dark.css'
 import { ElImageViewer } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { debounce } from 'lodash-es'
+import { useStore } from 'vuex'
 
 const router = useRouter();
+const store = useStore();
 
 // 论坛板块
 const forumSections = [
@@ -648,7 +693,11 @@ const fetchPosts = async () => {
       });
     }
     
-    posts.value = response.data.data;
+    // 确保每个帖子都包含用户的称号信息
+    posts.value = response.data.data.map(post => ({
+      ...post,
+      honoraryTitle: post.authorId === store.state.id ? store.state.honoraryTitle : post.honoraryTitle
+    }));
     
     // 只有登录后才获取用户统计信息
     if (store.state.token) {
@@ -803,6 +852,10 @@ const selectPost = async (post) => {
     });
     selectedPost.value = response.data.data;
     
+    // 确保帖子包含用户的称号信息
+    selectedPost.value.honoraryTitle = selectedPost.value.authorId === store.state.id ? 
+      store.state.honoraryTitle : selectedPost.value.honoraryTitle;
+    
     // 获取评论
     if (post.replyCount > 0) {
       loadingComments.value = true;
@@ -810,7 +863,11 @@ const selectPost = async (post) => {
         const commentsResponse = await axios.get(ToUrl.url + `/comments/find/${post.id}`, {
           headers
         });
-        selectedPost.value.comments = commentsResponse.data.data || [];
+        // 确保每个评论都包含用户的称号信息
+        selectedPost.value.comments = (commentsResponse.data.data || []).map(comment => ({
+          ...comment,
+          honoraryTitle: comment.authorId === store.state.id ? store.state.honoraryTitle : comment.honoraryTitle
+        }));
       } catch (error) {
         ElMessage.error('获取评论失败');
       } finally {
@@ -854,13 +911,20 @@ const submitComment = async () => {
     }
 
     postingComment.value = true
+    
+    // 获取当前选中的称号
+    const titleData = store.state.honoraryTitle || {}
+    const selectedTitle = Object.entries(titleData).find(([_, value]) => value === 1)
+    const honoraryTitle = selectedTitle ? selectedTitle[0] : '未拥有称号'
+    
     const commentData = {
       authorId: store.state.id,
       username: store.state.user,
       postId: selectedPost.value.id,
       content: newComment.value.content,
       avatar: store.state.avatar,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      honoraryTitle: honoraryTitle // 发送字符串形式的称号
     }
 
     const res = await axios.post(ToUrl.url + '/comments/insert', commentData, {
@@ -876,7 +940,7 @@ const submitComment = async () => {
       // 使用返回的数据或本地构建的数据
       const commentResponse = {
         ...commentData,
-        id: res.data.data?.id || Date.now().toString() // 如果后端没有返回id，使用时间戳作为临时id
+        id: res.data.data?.id || Date.now().toString(), // 如果后端没有返回id，使用时间戳作为临时id
       }
       
       selectedPost.value.comments.unshift(commentResponse)
@@ -1047,6 +1111,100 @@ onMounted(() => {
 })
 
 const filterPostsDebounced = debounce(filterPosts, 300)
+
+// 称号相关的响应式数据
+const currentTitle = computed(() => {
+  const titleData = store.state.honoraryTitle || {}
+  const selectedTitle = Object.entries(titleData).find(([_, value]) => value === 1)
+  
+  if (selectedTitle) {
+    const typeMap = {
+      '新星白帽': 'success',
+      '安全先锋': 'warning',
+      '攻防大师': 'danger',
+      '漏洞猎人': 'info',
+      '渗透之眼': 'info'
+    }
+    return {
+      id: selectedTitle[0],
+      name: selectedTitle[0],
+      type: typeMap[selectedTitle[0]] || 'info',
+      description: '称号描述',
+      requirement: '称号要求'
+    }
+  }
+  return {
+    id: '',
+    name: '未设置',
+    type: 'info',
+    description: '',
+    requirement: ''
+  }
+})
+
+const getTitleType = (honoraryTitle) => {
+  if (!honoraryTitle) return 'info'
+  
+  const selectedTitle = Object.entries(honoraryTitle).find(([_, value]) => value === 1)
+  if (!selectedTitle) return 'info'
+  
+  const typeMap = {
+    '新星白帽': 'success',
+    '安全先锋': 'warning',
+    '攻防大师': 'danger',
+    '漏洞猎人': 'info',
+    '渗透之眼': 'info'
+  }
+  return typeMap[selectedTitle[0]] || 'info'
+}
+
+// 添加帖子称号计算属性
+const getPostTitle = (post) => {
+  const titleData = post.honoraryTitle || {}
+  const selectedTitle = Object.entries(titleData).find(([_, value]) => value === 1)
+  
+  if (selectedTitle) {
+    const typeMap = {
+      '新星白帽': 'success',
+      '安全先锋': 'warning',
+      '攻防大师': 'danger',
+      '漏洞猎人': 'info',
+      '渗透之眼': 'info'
+    }
+    return {
+      name: selectedTitle[0],
+      type: typeMap[selectedTitle[0]] || 'info'
+    }
+  }
+  return {
+    name: '未拥有称号',
+    type: 'info'
+  }
+}
+
+// 添加评论称号计算属性
+const getCommentTitle = (comment) => {
+  const titleData = comment.honoraryTitle || {}
+  const selectedTitle = Object.entries(titleData).find(([_, value]) => value === 1)
+  
+  if (selectedTitle) {
+    const typeMap = {
+      '新星白帽': 'success',
+      '安全先锋': 'warning',
+      '攻防大师': 'danger',
+      '漏洞猎人': 'info',
+      '渗透之眼': 'info'
+    }
+    return {
+      name: selectedTitle[0],
+      type: typeMap[selectedTitle[0]] || 'info'
+    }
+  }
+  return {
+    name: '未拥有称号',
+    type: 'info'
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -1234,6 +1392,14 @@ const filterPostsDebounced = debounce(filterPosts, 300)
               .author {
                 font-weight: 500;
                 color: #333;
+              }
+              
+              .user-title {
+                margin-left: 4px;
+                font-size: 12px;
+                height: 20px;
+                line-height: 18px;
+                padding: 0 6px;
               }
               
               .el-icon {
@@ -1537,13 +1703,20 @@ const filterPostsDebounced = debounce(filterPosts, 300)
 
             .comment-header {
               display: flex;
-              align-items: center;
               gap: 8px;
-              margin-bottom: 6px;
+              align-items: center;
+              margin-bottom: 4px;
 
               .author {
                 font-weight: 500;
                 color: #333333 !important;
+              }
+
+              .user-title {
+                font-size: 12px;
+                height: 20px;
+                line-height: 18px;
+                padding: 0 6px;
               }
 
               .time {
@@ -1809,6 +1982,13 @@ const filterPostsDebounced = debounce(filterPosts, 300)
             .author {
               font-weight: 500;
               color: #333333 !important;
+            }
+
+            .user-title {
+              font-size: 12px;
+              height: 20px;
+              line-height: 18px;
+              padding: 0 6px;
             }
 
             .time {

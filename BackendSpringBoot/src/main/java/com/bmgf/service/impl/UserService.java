@@ -214,4 +214,14 @@ public class UserService {
         userService.save(user);
         return true;
     }
+    public boolean addPoints(String username, int points) {
+        Optional<User> u = userService.findByUsername(username);
+        if (u.isEmpty()) {
+            return false;
+        }
+        User user = u.get();
+        user.setActivityPoints(user.getActivityPoints() + points);
+        userService.save(user);
+        return true;
+    }
 }

@@ -382,7 +382,7 @@ const checkUserProfile = async () => {
     // 如果没有ID，先获取用户信息
     if (!store.state.id) {
       try {
-        const responseId = await request.get('/api/user/info');
+        const responseId = await request.get('/api/user/profile');
         if (responseId.data.code === 200) {
           const { id, avatar } = responseId.data.data;
           await store.dispatch('setId', id);
