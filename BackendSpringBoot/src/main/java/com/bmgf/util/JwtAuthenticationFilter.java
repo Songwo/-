@@ -29,8 +29,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws IOException, ServletException {
-
-        // 1. 放行公开路径（与SecurityConfig保持一致）
         if (isPublicPath(request)) {
             chain.doFilter(request, response);
             return;

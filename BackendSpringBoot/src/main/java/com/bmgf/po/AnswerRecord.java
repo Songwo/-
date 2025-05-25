@@ -19,4 +19,5 @@ public class AnswerRecord {
     private boolean correct;
     private int scoreDelta;// 本次得分变化
     private LocalDateTime answerTime =LocalDateTime.now();
+    private LocalDateTime costTime;
 }

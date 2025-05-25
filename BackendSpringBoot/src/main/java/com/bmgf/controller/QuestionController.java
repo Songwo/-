@@ -19,6 +19,7 @@ import java.util.Set;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.bmgf.po.ExamRecord;
 @RestController
 @RequestMapping("/api")
 public class QuestionController {
@@ -106,7 +107,6 @@ public Result getRandomQuestions(@RequestHeader("Authorization") String authHead
         examRecord.setSubmitTime(LocalDateTime.now());
         examRecord.setCostTime(request.getCostTime());
         examRecord.setQuestionResults(new ArrayList<>());
-
         // 4. 遍历所有题目答案
         for (Map.Entry<String, String> entry : request.getAnswers().entrySet()) {
             String questionId = entry.getKey();
@@ -341,27 +341,7 @@ public Result getRandomQuestions(@RequestHeader("Authorization") String authHead
         private boolean correct;
         private int score;
         private String explanation;
-
-
     }
-
-
-    // 新增考试记录实体
-    @Data
-    @Document(collection = "exam_records")
-    public class ExamRecord {
-        @Id
-        private String id;
-        private String userId;
-        private String examId;
-        private LocalDateTime submitTime;
-        //花费时间
-        private LocalDateTime CostTime;
-        private int totalScore;
-        private int correctCount;
-        private List<QuestionResult> questionResults;
-    }
-
     // 修改请求类
     @Data
     static class ExamSubmissionRequest {
@@ -369,9 +349,8 @@ public Result getRandomQuestions(@RequestHeader("Authorization") String authHead
         private String examId;
         @NotEmpty(message = "至少需要一道题的答案")
         private Map<String, String> answers; // questionId -> userAnswer
-        private LocalDateTime costTime;
+        private Integer costTime;
     }
-
     // 响应结构保持不变
     @Data
     @AllArgsConstructor

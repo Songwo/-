@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -38,8 +39,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private ObjectMapper objectMapper;
 
     @Autowired
-    @Qualifier("vulnTaskExecutor")
-    private ThreadPoolTaskExecutor taskExecutor;
+    @Qualifier("taskExecutor")
+    private Executor executor;
 
     /** 房间到期检查、倒计时推送 */
     @PostConstruct
@@ -150,7 +151,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private void broadcastToRoom(String roomId, TextMessage msg) {
         ChatRoomManager.getSessions(roomId).forEach(s -> {
             if (s.isOpen()) {
-                taskExecutor.execute(() -> {
+                executor.execute(() -> {
                     try {
                         s.sendMessage(msg);
                     } catch (Exception e) {

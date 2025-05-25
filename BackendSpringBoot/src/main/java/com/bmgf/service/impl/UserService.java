@@ -1,9 +1,7 @@
 package com.bmgf.service.impl;
 import com.bmgf.DTO.UserScoreDto;
-import com.bmgf.po.Comment;
-import com.bmgf.po.HonoraryTitle;
-import com.bmgf.po.Post;
-import com.bmgf.po.User;
+import com.bmgf.dao.UserChallengeProgressRepository;
+import com.bmgf.po.*;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.ProjectionOperation;
 import com.bmgf.dao.UserRepository;
@@ -31,6 +29,8 @@ public class UserService {
     private UserRepository userService;
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private UserChallengeProgressRepository userChallengeProgressRepository;
 
     public void sendVerificationEmail(String userId) {
         User user = userService.findById(userId)
@@ -223,5 +223,28 @@ public class UserService {
         user.setActivityPoints(user.getActivityPoints() + points);
         userService.save(user);
         return true;
+    }
+    public double currect(String username) {
+        User user = userService.findByUsername(username).get();
+        return calculateAccuracy(user);
+    }
+    public double calculateAccuracy(User user) {
+        List<String> completedQuestions = user.getCompletedQuestions();
+        int questionCount = completedQuestions != null ? completedQuestions.size() : 0;
+
+        if (questionCount == 0) {
+            return 0.0;
+        }
+        int totalPossibleScore = questionCount * 10;
+        int totalScore = user.getTotalScore();
+        return (double) totalScore / totalPossibleScore;
+    }
+    public int intotalPass(String username) {
+        try {
+            User user = userService.findByUsername(username).get();
+            return userChallengeProgressRepository.findById(user.getId()).get().getCompletedChallenges().size();
+        }catch (Exception exception){
+            return 0;
+        }
     }
 }

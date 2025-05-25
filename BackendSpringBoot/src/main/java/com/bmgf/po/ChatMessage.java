@@ -1,5 +1,6 @@
 package com.bmgf.po;
 
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
