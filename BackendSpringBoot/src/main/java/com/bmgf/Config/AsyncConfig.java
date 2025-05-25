@@ -1,31 +1,25 @@
 package com.bmgf.Config;
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.core.DefaultDockerClientConfig;
-import com.github.dockerjava.core.DockerClientImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-
-import java.util.concurrent.ThreadPoolExecutor;
-
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
+import java.util.concurrent.Executor;
 @Configuration
 @EnableAsync
-public class AsyncConfig {
-
-    @Bean(name = "vulnTaskExecutor")
-    public ThreadPoolTaskExecutor vulnTaskExecutor() {
-        ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
-        exec.setCorePoolSize(2);
-        exec.setMaxPoolSize(4);
-        exec.setQueueCapacity(50);
-        exec.setKeepAliveSeconds(60);
-        exec.setThreadNamePrefix("VulnEnv-");
-        exec.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        exec.initialize();
-        return exec;
+public class AsyncConfig implements AsyncConfigurer {
+    @Bean("taskExecutor")
+    @Override
+    public Executor getAsyncExecutor() {
+        // 重点：使用 DelegatingSecurityContextAsyncTaskExecutor 包装线程池
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(8);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("VulnEnv-");
+        executor.initialize();
+        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 }
-
-
-

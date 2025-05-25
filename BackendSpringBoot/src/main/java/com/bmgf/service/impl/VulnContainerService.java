@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -28,6 +29,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -50,21 +52,13 @@ public class VulnContainerService {
     private static final int BACKEND_WAIT_DELAY_MS = 2000;   // 每次等待2秒
     private static final Logger log = LoggerFactory.getLogger(VulnContainerService.class);
     private final UserService userService;
-    private final ThreadPoolTaskExecutor vulnTaskExecutor;
     public String getUsernameFromToken(String token) {
         return jwtUtil.getUsernameFromToken(token);
     }
-    @Bean(name = "containerTaskExecutor")
-    public Executor containerTaskExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(20);
-        executor.setMaxPoolSize(100);
-        executor.setQueueCapacity(200);
-        executor.setThreadNamePrefix("ContainerAsync-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        executor.initialize();
-        return executor;
-    }
+    @Autowired
+    @Qualifier("taskExecutor")
+    private Executor taskExecutor;
+
     private String createNetwork(String networkName) {
         try {
             try {
@@ -81,26 +75,23 @@ public class VulnContainerService {
             throw new RuntimeException("创建网络失败: " + e.getMessage(), e);
         }
     }
-    @Async("vulnTaskExecutor")
+    @Async
     public CompletableFuture<ComposeEnvironment> createComposeEnvironmentAsync(
             User user, List<ServiceSpec> services, int durationMinutes) {
         return CompletableFuture.supplyAsync(() -> {
-            String envId = UUID.randomUUID().toString();
-            Map<String, String> backendEnv = services.stream()
-                    .filter(s -> s.getServiceName().toLowerCase().contains("backend"))
-                    .map(ServiceSpec::getEnv)
-                    .findFirst()
-                    .orElse(new HashMap<>());
-
-            configureServiceEnvironments(services, backendEnv);
-            String networkName = String.format("user-%s-env-%s", user.getId(), envId);
-            String networkId = createNetwork(networkName);
-
-            Map<String, String> containerIds = new LinkedHashMap<>();
             try {
+                String envId = UUID.randomUUID().toString();
+                Map<String, String> backendEnv = services.stream()
+                        .filter(s -> s.getServiceName().toLowerCase().contains("backend"))
+                        .map(ServiceSpec::getEnv)
+                        .findFirst()
+                        .orElse(new HashMap<>());
+                configureServiceEnvironments(services, backendEnv);
+                String networkName = String.format("user-%s-env-%s", user.getId(), envId);
+                String networkId = createNetwork(networkName);
+                Map<String, String> containerIds = new LinkedHashMap<>();
                 createAllContainers(services, networkId, containerIds);
                 startServicesWithDependencies(services, containerIds);
-
                 ComposeEnvironment env = new ComposeEnvironment();
                 env.setUserId(user.getId());
                 env.setNetworkId(networkId);
@@ -111,14 +102,15 @@ public class VulnContainerService {
                 env.setImageNames(services.stream()
                         .map(ServiceSpec::getImage)
                         .collect(Collectors.toSet()));
-                return mongoTemplate.save(env);
-
+                ComposeEnvironment saved = mongoTemplate.save(env);
+                return saved;
             } catch (Exception e) {
-                cleanupResources(containerIds.values(), networkId);
-                throw new CompletionException("环境创建失败", e);
+                log.error("环境创建异常: {}", e.getMessage(), e);
+                throw new RuntimeException(e);
             }
-        });
+        }, taskExecutor);
     }
+
 
     private void cleanupResources(Collection<String> containerIds, String networkId) {
         containerIds.forEach(id -> {
@@ -439,6 +431,13 @@ public class VulnContainerService {
             }
         });
     }
+    private HostConfig buildSecureHostConfig(Ports portBindings) {
+        return HostConfig.newHostConfig()
+                .withPortBindings(portBindings)
+                .withAutoRemove(true)  // 容器停止后自动删除
+                .withRestartPolicy(RestartPolicy.noRestart());  // 不自动重启
+    }
+
     private String getVolumeNameForContainer(String containerId) {
         try {
             // 获取容器的详细信息
@@ -474,11 +473,11 @@ public class VulnContainerService {
     public void monitorContainers() {
         log.info("开始容器健康检查...");
         CompletableFuture<Void> t1 = CompletableFuture.runAsync(
-                this::destroyExpiredContainers, vulnTaskExecutor);
+                this::destroyExpiredContainers, taskExecutor);
         CompletableFuture<Void> t2 = CompletableFuture.runAsync(
-                this::monitorSingleContainers,  vulnTaskExecutor);
+                this::monitorSingleContainers,  taskExecutor);
         CompletableFuture<Void> t3 = CompletableFuture.runAsync(
-                this::monitorComposeEnvironments, vulnTaskExecutor);
+                this::monitorComposeEnvironments, taskExecutor);
         log.info("容器健康检查完成");
         CompletableFuture.allOf(t1, t2, t3)
                 .whenComplete((r, ex) -> {
@@ -774,17 +773,7 @@ public class VulnContainerService {
     }
 
     // 构建安全的主机配置
-    private HostConfig buildSecureHostConfig(Ports portBindings) {
-        return HostConfig.newHostConfig()
-                .withPortBindings(portBindings)
-                .withPrivileged(true)
-                .withReadonlyRootfs(false)
-                .withMemory(256 * 1024 * 1024L)  // 内存限制为512MB
-                .withCpuShares(512)  // CPU份额
-                .withPidsLimit(100L)  // 进程数限制
-                .withRestartPolicy(RestartPolicy.onFailureRestart(3))  // 失败时最多重启3次
-                .withCapAdd(Capability.NET_ADMIN, Capability.SYS_ADMIN);  // 添加特权
-    }
+
     /**
      * 服务规格定义类
      */

@@ -1,5 +1,8 @@
-package com.bmgf.exception;
+package com.bmgf.Config;
 
+import com.bmgf.exception.RoomNotFoundException;
+import com.bmgf.exception.UnauthorizedRoomOperationException;
+import com.bmgf.exception.UserNotFoundException;
 import com.bmgf.po.Result;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -27,12 +30,6 @@ public class GlobalExceptionHandler {
                 (ex.getCause() != null ? ex.getCause().getMessage() : "未知错误");
         return Result.error(errorMsg);
     }
-    // 通用异常处理（统一使用Result格式）
-//    @ExceptionHandler(Exception.class)
-//    public Result handleAllExceptions(Exception ex) {
-//        return Result.error( "服务器内部错误: " + ex.getMessage());
-//    }
-    // 处理空指针异常
     @ExceptionHandler(NullPointerException.class)
     public Result handleNullPointer(NullPointerException ex) {
         return Result.error( "空指针异常: " + ex.getMessage());
@@ -40,5 +37,20 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
     public Result handleMediaTypeError(HttpMediaTypeNotSupportedException ex) {
         return Result.error( "不支持的媒体类型: " + ex.getContentType());
+    }
+    // 新增自定义异常处理
+    @ExceptionHandler(RoomNotFoundException.class)
+    public Result handleRoomNotFound(RoomNotFoundException ex) {
+        return Result.error(ex.getMessage());
+    }
+
+    @ExceptionHandler(UnauthorizedRoomOperationException.class)
+    public Result handleUnauthorizedOperation(UnauthorizedRoomOperationException ex) {
+        return Result.error(ex.getMessage());
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public Result handleUserNotFound(UserNotFoundException ex) {
+        return Result.error(ex.getMessage());
     }
 }

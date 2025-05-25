@@ -1,18 +1,23 @@
 package com.bmgf.po;
 
+import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.util.Date;
-
+import org.springframework.data.mongodb.core.mapping.Field;
+import java.awt.*;
+import java.time.LocalDateTime;
+@Builder
 @Data
 @Document(collection = "chat_messages")
 public class ChatMessage {
     @Id
     private String id;
-    private String from;
-    private String to; // 为空代表群聊
+    @Field("room_id")
+    private String roomId;
+    @Field("sender_id")
+    private String senderId;
     private String content;
-    private Date timestamp = new Date();
+    private MessageType type; // TEXT/IMAGE/SYSTEM
+    private LocalDateTime timestamp;
 }

@@ -11,12 +11,7 @@ import java.sql.Statement;
 public class MySQLService {
     private final String mysqlUrl = "jdbc:mysql://47.117.70.79:3306/?useSSL=false&serverTimezone=UTC";
     private final String rootUser = "root";
-<<<<<<< HEAD
-    private final String rootPass = "123456!";
-=======
     private final String rootPass = "123456";
->>>>>>> ef5094fc732b7d7953b2cfa9cc26eeab4df93db1
-
     public void createDatabaseIfNotExists(String dbName) {
         String sql = "CREATE DATABASE IF NOT EXISTS `" + dbName + "`";
         try (Connection conn = DriverManager.getConnection(mysqlUrl, rootUser, rootPass);

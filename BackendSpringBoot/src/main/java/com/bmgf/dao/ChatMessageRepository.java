@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface ChatMessageRepository extends MongoRepository<ChatMessage, String> {
-    List<ChatMessage> findByFromOrTo(String from, String to);
+    List<ChatMessage> findTop50ByRoomIdOrderByTimestampDesc(String roomId);
 }

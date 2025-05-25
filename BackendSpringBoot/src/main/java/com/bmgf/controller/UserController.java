@@ -1,10 +1,12 @@
 package com.bmgf.controller;
+import com.bmgf.DTO.AnalysisDTO;
 import com.bmgf.DTO.ChangePasswordDTO;
 import com.bmgf.DTO.EmailVerificationDTO;
 import com.bmgf.DTO.LoginRequest;
 import com.bmgf.po.*;
 import com.bmgf.service.impl.*;
 import com.bmgf.util.JwtUtil;
+import com.bmgf.util.LearningAdviceUtil;
 import com.bmgf.util.RegisterRequest;
 import com.bmgf.dao.AnswerRecordRepository;
 import com.bmgf.dao.RewardRepository;
@@ -53,21 +55,16 @@ public class UserController {
 
     @PostMapping("/send-verification")
     public ResponseEntity<?> sendVerificationEmail(@RequestHeader("Authorization") String authHeader) {
-//        System.out.println(authHeader);
-//        User us=userService.findByUsername(jwtUtil.getUsernameFromToken(token));
         String token = authHeader.substring(7); // 去掉"Bearer "前缀
         String userId = jwtUtil.extractUserId(token); //获取用户ID的方法
-//        System.out.println(userId);
         userService.sendVerificationEmail(userId);
         return ResponseEntity.ok().body("Verification email sent");
     }
-
     @PostMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(@RequestBody EmailVerificationDTO dto) {
         boolean verified = userService.verifyEmail(dto.getToken());
         return ResponseEntity.ok().body(verified ? "Email verified successfully" : "Verification failed");
     }
-
     @PostMapping("/avatar")
     public Result uploadAvatar(@RequestParam("file") MultipartFile file, @RequestHeader("Authorization") String authHeader,
                                HttpServletRequest request) {
@@ -336,13 +333,28 @@ private CustomUserDetailsService customUserDetailsService;
             return ResponseEntity.status(409).body("今日已签到！");
         }
     }
-
-//    @GetMapping("learn_post")
-//    public Result learnPost(@RequestHeader("Authorization") String authHeader) {
-//        String token = authHeader.substring(7);
-//        String username = jwtUtil.getUsernameFromToken(token);
-//
-//    }
-
-
+    @Autowired
+    private ExamRecordService examRecordService;
+    @GetMapping("/Analysis")
+    public Result getUserAnalysis(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7);
+        String username = jwtUtil.getUsernameFromToken(token);
+        User user = imUserService.findByUsername(username);
+        if (user == null) {
+            return Result.error("该用户不存在");
+        }else {
+            double a = userService1.currect(username);
+            String b = examRecordService.totalTime(username);
+            int c = user.getConsecutiveCheckInDays();
+            int d = userService1.intotalPass(username);
+            String advice = LearningAdviceUtil.generateAdvice(a, b, c, d);
+            AnalysisDTO analysisDTO = new AnalysisDTO();
+            analysisDTO.setCurrent(a);
+            analysisDTO.setTotalTime(b);
+            analysisDTO.setDay(c);
+            analysisDTO.setIntotalPass(d);
+            analysisDTO.setAdvice(advice);
+            return Result.success(analysisDTO);
+        }
+    }
 }

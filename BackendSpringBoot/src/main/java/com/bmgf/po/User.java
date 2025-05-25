@@ -55,6 +55,7 @@ public class User implements Serializable {
     private int  ActivityPoints;//活动积分
     private Date lastCheckInDate; // 上次签到日期
     private int consecutiveCheckInDays = 0; // 连续签到天数
+    private Set<String> ownedRooms = new HashSet<>();//聊天室
     // 实验管理
     @DBRef
     private List<ContainerInstance> activeLabs = new ArrayList<>(); // 正在进行的实验

@@ -7,6 +7,6 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 public interface StatsRepository extends MongoRepository<Stats, String> {
-    Optional<Stats> findByDate(LocalDate date);
+    Optional<Stats> findByDate(String date);
     Optional<Stats> findByUserIdAndDate(String userId, LocalDate date);
 }

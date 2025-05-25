@@ -72,7 +72,11 @@ public class PostController {
         // 强制使用当前用户ID
         String token = authHeader.substring(7); // 去掉"Bearer "前缀
         String username = containerService.getUsernameFromToken(token);
-        post.setAuthorId(userService.findByUsername(username).getId());
+        if (userService.findByUsername(username)!=null){
+            post.setAuthorId(userService.findByUsername(username).getId());
+        }else {
+            return Result.error("没有查到此用户id");
+        }
         Post pos= postService.createPost(post);
         statsService.incrementUserPostCount(username);
         return Result.success(pos);
