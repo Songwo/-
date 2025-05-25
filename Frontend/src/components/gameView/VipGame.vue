@@ -1,11 +1,11 @@
 <template>
   <div class="challenge-container">
-    <!-- 标题栏 - 整合VIP切换功能 -->
+    <!-- 标题栏 -->
     <div class="header">
       <div class="title">网络安全靶场</div>
       <div class="header-buttons">
         <el-button type="text" class="switch-btn" @click="handleSwitchView">
-          {{ viewMode === 'normal' ? '切换到VIP版' : '切换到普通版' }}
+          切换到普通版
         </el-button>
         <el-button class="tutorial-button" @click="showTutorial">
           <el-icon><Guide /></el-icon>
@@ -14,263 +14,210 @@
       </div>
     </div>
 
-    <!-- 非VIP版本 -->
-    <template v-if="viewMode === 'normal'">
-      <div class="normal-version">
-        <!-- 顶部数据统计 -->
-        <el-row :gutter="16" class="dashboard-stats">
-          <el-col :xs="12" :sm="12" :md="6" :lg="6" v-for="(stat, index) in dashboardStats" :key="index">
-            <div class="stat-card">
-              <div class="stat-icon"><el-icon><component :is="stat.icon" /></el-icon></div>
-              <div class="stat-content">
-                <div class="stat-value">{{ stat.value }}</div>
-                <div class="stat-label">{{ stat.label }}</div>
+    <!-- 实时监控面板 -->
+    <el-row :gutter="16" class="monitoring-panel">
+      <el-col :span="24">
+        <el-card class="monitoring-card">
+          <template #header>
+            <div class="card-header">
+              <h3>
+                <el-icon><Monitor /></el-icon>
+                实时监控面板
+              </h3>
+              <div class="monitoring-controls">
+                <el-button-group>
+                  <el-button size="small" @click="refreshMonitoring">
+                    <el-icon><Refresh /></el-icon>
+                    刷新
+                  </el-button>
+                  <el-button size="small" @click="toggleAutoRefresh">
+                    <el-icon><Timer /></el-icon>
+                    {{ autoRefresh ? '停止自动刷新' : '自动刷新' }}
+                  </el-button>
+                </el-button-group>
               </div>
             </div>
-          </el-col>
-        </el-row>
-
-        <!-- 挑战列表 -->
-        <el-row :gutter="20">
-          <el-col :span="24">
-            <el-card v-for="(challenge, index) in currentChallenges" :key="challenge.id" class="challenge-card">
-              <template #header>
-                <div class="card-header">
-                  <div class="title-section">
-                    <h2>{{ challenge.title }}</h2>
-                    <el-tag :type="getDifficultyType(challenge.difficulty)" class="difficulty-tag">
-                      ★{{ challenge.difficulty }}
-                    </el-tag>
+          </template>
+          
+          <el-row :gutter="16">
+            <!-- 靶场状态监控 -->
+            <el-col :span="12">
+              <div class="monitoring-section">
+                <h4>靶场状态监控</h4>
+                <div class="status-grid">
+                  <div class="status-item" v-for="(status, index) in labStatus" :key="index">
+                    <div class="status-icon" :class="status.status">
+                      <el-icon><component :is="status.icon" /></el-icon>
+                    </div>
+                    <div class="status-info">
+                      <div class="status-label">{{ status.label }}</div>
+                      <div class="status-value">{{ status.value }}</div>
+                    </div>
                   </div>
                 </div>
-              </template>
-
-              <div class="card-content">
-                <el-row :gutter="20">
-                  <el-col :span="16">
-                    <div class="left-content">
-                      <div class="task-section">
-                        <h3>
-                          <el-icon><Flag /></el-icon>
-                          任务目标
-                        </h3>
-                        <p>{{ challenge.task }}</p>
-                      </div>
-                    </div>
-                  </el-col>
-
-                  <el-col :span="8">
-                    <div class="right-content">
-                      <div class="action-section">
-                        <div class="action-buttons">
-                          <el-button type="primary" size="large" @click="startLab(challenge)" 
-                            :loading="challenge.loading"
-                            :disabled="challenge.disabled || !challenge.unlocked || challenge.completed || isAnyLabRunning() && !challenge.labUrl">
-                            启动靶场
-                          </el-button>
-                          <el-button type="success" size="large" @click="verifyFlag(challenge)"
-                            :disabled="!challenge.labUrl || challenge.completed">
-                            验证FLAG
-                          </el-button>
-                        </div>
-
-                        <div v-if="challenge.loading" class="startup-progress">
-                          <el-progress 
-                            :percentage="challenge.startProgress"
-                            :status="challenge.startProgress === 100 ? 'success' : ''"
-                            :stroke-width="20"
-                            :show-text="true">
-                            <template #default="{ percentage }">
-                              <span class="progress-text">
-                                {{ percentage < 100 ? '启动中...' : '启动完成' }}
-                                {{ percentage }}%
-                              </span>
-                            </template>
-                          </el-progress>
-                        </div>
-
-                        <div v-if="challenge.labUrl" class="lab-info">
-                          <el-link :href="challenge.labUrl" target="_blank" type="primary" class="lab-link">
-                            前往靶场
-                          </el-link>
-                          <span v-if="runningLabInfo && runningLabInfo.challengeId === challenge.id" class="timer">
-                            (剩余时间: {{ Math.floor(runningLabInfo.remainingSeconds / 1000 / 60) }}分{{
-                              Math.floor((runningLabInfo.remainingSeconds / 1000) % 60)
-                            }}秒)
-                          </span>
-                        </div>
-
-                        <div v-if="challenge.completed" class="completion-section">
-                          <el-alert type="success" description="挑战通关！" show-icon />
-                          <div class="completion-details">
-                            <p>完成时间：{{ formatTime(challenge.completionTime) }}</p>
-                            <p>得分：{{ challenge.score }}/100</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </el-col>
-                </el-row>
               </div>
-            </el-card>
-          </el-col>
-        </el-row>
-
-        <!-- VIP提示 -->
-        <el-card class="vip-notice">
-          <div class="vip-notice-content">
-            <el-icon class="vip-icon"><Star /></el-icon>
-            <div class="vip-text">
-              <h3>升级VIP，享受独立靶场环境</h3>
-              <p>VIP用户可享受独立靶场环境，避免多人同时使用导致的干扰，提供更稳定的学习体验。</p>
-            </div>
-            <el-button type="warning" @click="handleSwitchView">立即升级</el-button>
-          </div>
+            </el-col>
+            
+            <!-- 实时漏洞监控 -->
+            <el-col :span="12">
+              <div class="monitoring-section">
+                <h4>实时漏洞监控</h4>
+                <div class="vuln-monitor">
+                  <div class="vuln-chart">
+                    <div ref="vulnChartRef" class="chart-container"></div>
+                  </div>
+                  <div class="vuln-stats">
+                    <div class="vuln-stat-item" v-for="(stat, index) in vulnStats" :key="index">
+                      <div class="stat-label">{{ stat.label }}</div>
+                      <div class="stat-value" :class="stat.type">{{ stat.value }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
         </el-card>
-      </div>
-    </template>
+      </el-col>
+    </el-row>
 
     <!-- VIP版本 -->
-    <template v-else>
-      <!-- 原有的VIP版本内容 -->
-      <div class="cyber-security-dashboard">
-        <!-- 顶部数据统计 - 两行四列 -->
-        <el-row :gutter="16" class="dashboard-stats">
-          <el-col :xs="12" :sm="12" :md="6" :lg="6" v-for="(stat, index) in dashboardStats" :key="index">
-            <div class="stat-card">
-              <div class="stat-icon"><el-icon><component :is="stat.icon" /></el-icon></div>
-              <div class="stat-content">
-                <div class="stat-value">{{ stat.value }}</div>
-                <div class="stat-label">{{ stat.label }}</div>
-              </div>
+    <div class="cyber-security-dashboard">
+      <!-- 顶部数据统计 -->
+      <el-row :gutter="16" class="dashboard-stats">
+        <el-col :xs="12" :sm="12" :md="6" :lg="6" v-for="(stat, index) in dashboardStats" :key="index">
+          <div class="stat-card">
+            <div class="stat-icon"><el-icon><component :is="stat.icon" /></el-icon></div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stat.value }}</div>
+              <div class="stat-label">{{ stat.label }}</div>
             </div>
-          </el-col>
-        </el-row>
+          </div>
+        </el-col>
+      </el-row>
 
-        <!-- 挑战分类选择 -->
-        <div class="el-tabs el-tabs--top">
-          <div class="el-tabs__header is-top">
-            <div class="el-tabs__nav-wrap is-top">
-              <div class="el-tabs__nav-scroll">
-                <div class="el-tabs__nav is-top" role="tablist">
-                  <div class="el-tabs__active-bar is-top"></div>
-                  <div 
-                    v-for="category in categories" 
-                    :key="category.key"
-                    :class="['el-tabs__item is-top', { 
-                      'is-active': currentCategoryKey === category.key,
-                      'is-disabled': !category.unlocked
-                    }]"
-                    :id="'tab-' + category.key"
-                    :aria-controls="'pane-' + category.key"
-                    role="tab"
-                    :aria-selected="currentCategoryKey === category.key"
-                    :tabindex="currentCategoryKey === category.key ? '0' : '-1'"
-                    @click="category.unlocked && handleCategorySelect(category.key)"
-                  >
-                    {{ category.name }}
-                  </div>
+      <!-- 挑战分类选择 -->
+      <div class="el-tabs el-tabs--top">
+        <div class="el-tabs__header is-top">
+          <div class="el-tabs__nav-wrap is-top">
+            <div class="el-tabs__nav-scroll">
+              <div class="el-tabs__nav is-top" role="tablist">
+                <div class="el-tabs__active-bar is-top"></div>
+                <div 
+                  v-for="category in categories" 
+                  :key="category.key"
+                  :class="['el-tabs__item is-top', { 
+                    'is-active': currentCategoryKey === category.key,
+                    'is-disabled': !category.unlocked
+                  }]"
+                  :id="'tab-' + category.key"
+                  :aria-controls="'pane-' + category.key"
+                  role="tab"
+                  :aria-selected="currentCategoryKey === category.key"
+                  :tabindex="currentCategoryKey === category.key ? '0' : '-1'"
+                  @click="category.unlocked && handleCategorySelect(category.key)"
+                >
+                  {{ category.name }}
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <el-row :gutter="16">
-          <!-- 主要内容区 - 挑战列表 -->
-          <el-col :xs="24" :sm="24" :md="16" :lg="16">
-            <challenge-list 
-              :challenges="currentChallenges" 
-              :categories="categories"
-              :is-VIP="isVipUser"
-              :running-lab-info="runningLabInfo"
-              @start-challenge="startLab"
-              @verify-flag="verifyFlag"
-            />
-          </el-col>
-          
-          <!-- 右侧边栏 -->
-          <el-col :xs="24" :sm="24" :md="8" :lg="8">
-            <!-- 学习进度卡片 -->
-            <el-card class="sidebar-card learning-progress-card">
-              <template #header>
-                <div class="card-header">
-                  <h3>
-                    <el-icon><TrendCharts /></el-icon>
-                    学习进度
-                  </h3>
-                </div>
-              </template>
-              <div class="progress-section">
+      <el-row :gutter="16">
+        <!-- 主要内容区 - 挑战列表 -->
+        <el-col :xs="24" :sm="24" :md="16" :lg="16">
+          <challenge-list 
+            :challenges="currentChallenges" 
+            :categories="categories"
+            :is-VIP="isVipUser"
+            :running-lab-info="runningLabInfo"
+            @start-challenge="startLab"
+            @verify-flag="verifyFlag"
+          />
+        </el-col>
+        
+        <!-- 右侧边栏 -->
+        <el-col :xs="24" :sm="24" :md="8" :lg="8">
+          <!-- 学习进度卡片 -->
+          <el-card class="sidebar-card learning-progress-card">
+            <template #header>
+              <div class="card-header">
+                <h3>
+                  <el-icon><TrendCharts /></el-icon>
+                  学习进度
+                </h3>
+              </div>
+            </template>
+            <div class="progress-section">
+              <div class="progress-header">
+                <el-tooltip
+                  content="总体完成率，计算所有难度挑战的总体完成情况"
+                  placement="top"
+                  effect="light"
+                >
+                  <span class="progress-info">总体进度</span>
+                </el-tooltip>
+              </div>
+              <el-progress 
+                :percentage="getOverallProgress()" 
+                :format="format => `${format}%`"
+                :stroke-width="20"
+                class="overall-progress"
+              ></el-progress>
+            </div>
+            <div class="category-progress">
+              <div class="category-item">
                 <div class="progress-header">
-                  <el-tooltip
-                    content="总体完成率，计算所有难度挑战的总体完成情况"
-                    placement="top"
-                    effect="light"
-                  >
-                    <span class="progress-info">总体进度</span>
+                  <span>{{ getCurrentCategoryName() }} </span>
+                  <el-tooltip placement="top" effect="light">
+                    <template #content>
+                      <div class="progress-tooltip">
+                        <div v-for="category in categories" :key="category.key" class="tooltip-category">
+                          <div>{{ category.name }}: {{ getCategoryProgress(category) }}%</div>
+                          <div class="mini-progress">
+                            <div class="mini-progress-inner" 
+                                :style="{width: getCategoryProgress(category) + '%', 
+                                background: getCategoryProgressColor(category)}"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                    <el-icon class="info-icon"><InfoFilled /></el-icon>
                   </el-tooltip>
                 </div>
                 <el-progress 
-                  :percentage="getOverallProgress()" 
-                  :format="format => `${format}%`"
-                  :stroke-width="20"
-                  class="overall-progress"
+                  :percentage="getCurrentCategoryProgress()" 
+                  :stroke-width="12"
+                  :status="getCurrentCategoryStatus()"
+                  class="category-progress-bar"
                 ></el-progress>
               </div>
-              <div class="category-progress">
-                <div class="category-item">
-                  <div class="progress-header">
-                    <span>{{ getCurrentCategoryName() }} </span>
-                    <el-tooltip placement="top" effect="light">
-                      <template #content>
-                        <div class="progress-tooltip">
-                          <div v-for="category in categories" :key="category.key" class="tooltip-category">
-                            <div>{{ category.name }}: {{ getCategoryProgress(category) }}%</div>
-                            <div class="mini-progress">
-                              <div class="mini-progress-inner" 
-                                  :style="{width: getCategoryProgress(category) + '%', 
-                                  background: getCategoryProgressColor(category)}"></div>
-                            </div>
-                          </div>
-                        </div>
-                      </template>
-                      <el-icon class="info-icon"><InfoFilled /></el-icon>
-                    </el-tooltip>
-                  </div>
-                  <el-progress 
-                    :percentage="getCurrentCategoryProgress()" 
-                    :stroke-width="12"
-                    :status="getCurrentCategoryStatus()"
-                    class="category-progress-bar"
-                  ></el-progress>
-                </div>
+            </div>
+          </el-card>
+          
+          <!-- 安全小贴士 -->
+          <el-card class="sidebar-card security-tips-card">
+            <template #header>
+              <div class="card-header">
+                <h3>
+                  <el-icon><InfoFilled /></el-icon>
+                  安全小贴士
+                </h3>
               </div>
-            </el-card>
-            
-            <!-- 安全小贴士 -->
-            <el-card class="sidebar-card security-tips-card">
-              <template #header>
-                <div class="card-header">
-                  <h3>
-                    <el-icon><InfoFilled /></el-icon>
-                    安全小贴士
-                  </h3>
+            </template>
+            <el-carousel height="150px" :interval="5000" indicator-position="none" arrow="never">
+              <el-carousel-item v-for="(tip, index) in securityTips" :key="index">
+                <div class="tip-item">
+                  <h4>{{ tip.title }}</h4>
+                  <p>{{ tip.content }}</p>
                 </div>
-              </template>
-              <el-carousel height="150px" :interval="5000" indicator-position="none" arrow="never">
-                <el-carousel-item v-for="(tip, index) in securityTips" :key="index">
-                  <div class="tip-item">
-                    <h4>{{ tip.title }}</h4>
-                    <p>{{ tip.content }}</p>
-                  </div>
-                </el-carousel-item>
-              </el-carousel>
-            </el-card>
-          </el-col>
-        </el-row>
-      </div>
-    </template>
+              </el-carousel-item>
+            </el-carousel>
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
 
     <!-- 教程对话框 -->
     <el-dialog
@@ -346,7 +293,7 @@
       </template>
     </el-dialog>
 
-    <!-- 添加图片预览对话框 -->
+    <!-- 图片预览对话框 -->
     <el-dialog
       v-model="showImagePreview"
       width="80%"
@@ -364,369 +311,219 @@
       </div>
     </el-dialog>
 
-    <!-- 在tips-section之后添加新的靶场实战功能区域 -->
-    <el-row :gutter="20" class="interactive-features" v-if="viewMode === 'vip'">
-      <el-col :span="24">
-        <h2 class="section-title">
-          <el-icon><Cpu /></el-icon>
-          靶场实战创新功能
-        </h2>
-        
-        <!-- 靶场特色功能展示 -->
-        <el-card class="feature-cards">
-          <el-row :gutter="20">
-            <!-- 攻击链分析功能 -->
-            <el-col :span="6">
-              <div class="feature-card">
-                <div class="feature-icon"><el-icon><Link /></el-icon></div>
-                <h3>攻击链分析</h3>
-                <p>可视化展示漏洞利用全过程，了解从发现到利用的完整攻击链路</p>
-                <div class="feature-footer">
-                  <el-tag type="danger">高级特性</el-tag>
-                  <el-button type="primary" plain size="small">体验功能</el-button>
-  </div>
+    <!-- 录像控制面板 -->
+    <el-card v-if="isVipUser" class="recording-panel">
+      <template #header>
+        <div class="card-header">
+          <h3>
+            <el-icon><VideoCamera /></el-icon>
+            高级录制控制面板
+          </h3>
+          <div class="recording-stats">
+            <el-tooltip content="总录制时长" placement="top">
+              <div class="stat-item">
+                <el-icon><Timer /></el-icon>
+                <span>{{ formatDuration(recordingStats.totalDuration) }}</span>
               </div>
-            </el-col>
-            
-            <!-- 靶场录像回放 -->
-            <el-col :span="6">
-              <div class="feature-card">
-                <div class="feature-icon"><el-icon><VideoCamera /></el-icon></div>
-                <h3>靶场录像回放</h3>
-                <p>记录所有操作过程，支持慢速回放和关键点标记，方便事后学习分析</p>
-                <div class="feature-footer">
-                  <el-tag type="success">新功能</el-tag>
-                  <el-button type="primary" plain size="small">开始录制</el-button>
-                </div>
+            </el-tooltip>
+            <el-tooltip content="录制文件数量" placement="top">
+              <div class="stat-item">
+                <el-icon><Document /></el-icon>
+                <span>{{ recordingStats.totalRecordings }}</span>
               </div>
-            </el-col>
-            
-            <!-- 漏洞评分系统 -->
-            <el-col :span="6">
-              <div class="feature-card">
-                <div class="feature-icon"><el-icon><DataAnalysis /></el-icon></div>
-                <h3>漏洞评分系统</h3>
-                <p>基于CVSS评分标准，学习真实漏洞评估方法，提高威胁分析能力</p>
-                <div class="feature-footer">
-                  <el-tag type="warning">进阶学习</el-tag>
-                  <el-button type="primary" plain size="small">评估漏洞</el-button>
-                </div>
-              </div>
-            </el-col>
-            
-            <!-- 团队协作功能 -->
-            <el-col :span="6">
-              <div class="feature-card">
-                <div class="feature-icon"><el-icon><Service /></el-icon></div>
-                <h3>团队协作靶场</h3>
-                <p>邀请好友共同攻破复杂靶场，模拟红蓝对抗，体验真实渗透测试团队协作</p>
-                <div class="feature-footer">
-                  <el-tag type="info">即将上线</el-tag>
-                  <el-button type="primary" plain size="small">创建团队</el-button>
-                </div>
-              </div>
-            </el-col>
-          </el-row>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 非VIP用户看到的功能预览 -->
-    <el-row :gutter="20" class="interactive-features" v-else>
-      <el-col :span="24">
-        <h2 class="section-title">
-          <el-icon><Cpu /></el-icon>
-          靶场实战创新功能
-        </h2>
-        
-        <el-card class="feature-preview">
-          <div class="preview-content">
-            <div class="preview-header">
-              <el-icon class="preview-icon"><Lock /></el-icon>
-              <h3>升级VIP，解锁更多高级功能</h3>
-            </div>
-            <div class="preview-features">
-              <div class="preview-feature-item">
-                <el-icon><Link /></el-icon>
-                <span>攻击链分析</span>
-              </div>
-              <div class="preview-feature-item">
-                <el-icon><VideoCamera /></el-icon>
-                <span>靶场录像回放</span>
-              </div>
-              <div class="preview-feature-item">
+            </el-tooltip>
+            <el-tooltip content="存储空间使用" placement="top">
+              <div class="stat-item">
                 <el-icon><DataAnalysis /></el-icon>
-                <span>漏洞评分系统</span>
+                <span>{{ formatFileSize(recordingStats.storageUsed) }}</span>
               </div>
-              <div class="preview-feature-item">
-                <el-icon><Service /></el-icon>
-                <span>团队协作靶场</span>
-              </div>
-            </div>
-            <el-button type="warning" @click="handleSwitchView">立即升级VIP</el-button>
+            </el-tooltip>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 添加靶场实战进阶功能区域 -->
-    <el-row :gutter="20" class="advanced-training" v-if="viewMode === 'vip'">
-      <el-col :span="12">
-        <h2 class="section-title">
-          <el-icon><Opportunity /></el-icon>
-          漏洞实验室
-        </h2>
-        <el-card class="lab-card">
-          <el-tabs tab-position="left">
-            <el-tab-pane label="实时漏洞库">
-              <div class="lab-content">
-                <div class="lab-header">
-                  <h3>最新安全漏洞</h3>
-                  <el-button type="primary" size="small">查看全部</el-button>
-                </div>
-                
-                <el-table :data="recentVulnerabilities" stripe style="width: 100%">
-                  <el-table-column prop="cveId" label="CVE编号" width="130" />
-                  <el-table-column prop="title" label="漏洞名称" />
-                  <el-table-column prop="severity" label="危害级别" width="100">
-                    <template #default="scope">
-                      <el-tag :type="getSeverityType(scope.row.severity)">{{ scope.row.severity }}</el-tag>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="操作" width="120">
-                    <template #default>
-                      <el-button link type="primary" size="small">开始复现</el-button>
-                    </template>
-                  </el-table-column>
-                </el-table>
-              </div>
-            </el-tab-pane>
-            <el-tab-pane label="漏洞分析工具">
-              <div class="lab-content">
-                <div class="tools-grid">
-                  <div class="tool-box">
-                    <i class="tool-icon el-icon"><el-icon><Connection /></el-icon></i>
-                    <h4>网络流量分析</h4>
-                    <p>分析网络数据包，发现异常通信</p>
-                  </div>
-                  <div class="tool-box">
-                    <i class="tool-icon el-icon"><el-icon><Cherry /></el-icon></i>
-                    <h4>代码审计工具</h4>
-                    <p>静态分析源代码中的安全缺陷</p>
-                  </div>
-                  <div class="tool-box">
-                    <i class="tool-icon el-icon"><el-icon><Histogram /></el-icon></i>
-                    <h4>内存取证分析</h4>
-                    <p>检查内存转储文件查找恶意行为</p>
-                  </div>
-                  <div class="tool-box">
-                    <i class="tool-icon el-icon"><el-icon><Search /></el-icon></i>
-                    <h4>漏洞扫描器</h4>
-                    <p>自动化发现系统中的安全漏洞</p>
-                  </div>
-                </div>
-              </div>
-            </el-tab-pane>
-            <el-tab-pane label="漏洞利用步骤">
-              <div class="steps-container">
-                <h3>漏洞利用通用流程</h3>
-                <el-steps direction="vertical" :active="1">
-                  <el-step title="信息收集" description="获取目标系统基本信息，识别操作系统类型、开放端口和服务版本" />
-                  <el-step title="漏洞发现" description="使用漏洞扫描工具或手动测试发现潜在安全漏洞" />
-                  <el-step title="漏洞分析" description="研究漏洞原理，确定利用可行性和潜在影响" />
-                  <el-step title="漏洞利用" description="使用合适的利用工具或技术触发漏洞，获取系统访问权限" />
-                  <el-step title="权限提升" description="从初始访问点扩大控制范围，提升系统权限" />
-                  <el-step title="持久化" description="建立持久访问机制，确保后续可以重新获取系统访问" />
-                  <el-step title="痕迹清理" description="移除攻击痕迹，避免被检测系统发现" />
-                </el-steps>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
-        </el-card>
-      </el-col>
+        </div>
+      </template>
       
-      <el-col :span="12">
-        <h2 class="section-title">
-          <el-icon><School /></el-icon>
-          真实案例实战
-        </h2>
-        <el-card class="case-study-card">
-          <div class="case-header">
-            <div>
-              <h3>近期热门安全案例</h3>
-              <p>基于真实漏洞事件的靶场环境，实践实战技能</p>
-            </div>
-            <el-radio-group v-model="caseFilter" size="small">
-              <el-radio-button label="all">全部</el-radio-button>
-              <el-radio-button label="web">Web安全</el-radio-button>
-              <el-radio-button label="api">API安全</el-radio-button>
-              <el-radio-button label="cloud">云安全</el-radio-button>
-            </el-radio-group>
-          </div>
+      <div class="recording-controls">
+        <div class="control-section">
+          <el-button 
+            :type="isRecording ? 'danger' : 'primary'"
+            @click="isRecording ? stopRecording() : startRecording()"
+            class="recording-btn"
+            :loading="isRecording"
+          >
+            <el-icon><component :is="isRecording ? 'VideoPause' : 'VideoPlay'" /></el-icon>
+            {{ isRecording ? '停止录制' : '开始录制' }}
+          </el-button>
           
-          <div class="case-list">
-            <div class="case-item" v-for="(item, index) in realWorldCases" :key="index">
-              <div class="case-difficulty">{{ item.difficulty }}</div>
-              <div class="case-info">
-                <h4>{{ item.title }}</h4>
-                <p>{{ item.description }}</p>
-                <div class="case-tags">
-                  <el-tag size="small" v-for="(tag, idx) in item.tags" :key="idx" :type="getTagType(tag)">{{ tag }}</el-tag>
-                </div>
-              </div>
-              <div class="case-actions">
-                <el-button type="success" size="small">开始实战</el-button>
-                <el-button type="info" plain size="small">查看详情</el-button>
-              </div>
+          <span v-if="isRecording" class="recording-time">
+            <el-icon><Timer /></el-icon>
+            录制时长: {{ formatDuration(recordingTime) }}
+          </span>
+        </div>
+        
+        <div class="settings-section">
+          <el-popover
+            placement="bottom"
+            :width="300"
+            trigger="click"
+          >
+            <template #reference>
+              <el-button class="settings-btn">
+                <el-icon><Setting /></el-icon>
+                录制设置
+              </el-button>
+            </template>
+            
+            <div class="recording-settings">
+              <h4>录制设置</h4>
+              <el-form label-position="top">
+                <el-form-item label="录制质量">
+                  <el-select v-model="recordingSettings.quality" class="w-100">
+                    <el-option label="高质量 (8Mbps)" value="high" />
+                    <el-option label="中等质量 (4Mbps)" value="medium" />
+                    <el-option label="低质量 (2Mbps)" value="low" />
+                  </el-select>
+                </el-form-item>
+                
+                <el-form-item label="帧率">
+                  <el-select v-model="recordingSettings.frameRate" class="w-100">
+                    <el-option label="60 FPS" :value="60" />
+                    <el-option label="30 FPS" :value="30" />
+                    <el-option label="24 FPS" :value="24" />
+                  </el-select>
+                </el-form-item>
+                
+                <el-form-item>
+                  <el-checkbox v-model="recordingSettings.audioEnabled">
+                    录制系统声音
+                  </el-checkbox>
+                </el-form-item>
+                
+                <el-form-item>
+                  <el-checkbox v-model="recordingSettings.showCursor">
+                    显示鼠标指针
+                  </el-checkbox>
+                </el-form-item>
+                
+                <el-form-item>
+                  <el-checkbox v-model="recordingSettings.showTimer">
+                    显示录制计时器
+                  </el-checkbox>
+                </el-form-item>
+                
+                <el-form-item>
+                  <el-checkbox v-model="recordingSettings.watermark">
+                    添加水印
+                  </el-checkbox>
+                </el-form-item>
+              </el-form>
             </div>
+          </el-popover>
+        </div>
+      </div>
+      
+      <!-- 录像列表 -->
+      <div v-if="recordingList.length > 0" class="recording-list">
+        <el-table :data="recordingList" style="width: 100%">
+          <el-table-column prop="title" label="标题" min-width="200">
+            <template #default="scope">
+              <div class="recording-title">
+                <el-icon><VideoPlay /></el-icon>
+                <span>{{ scope.row.title }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="timestamp" label="录制时间" width="180">
+            <template #default="scope">
+              {{ new Date(scope.row.timestamp).toLocaleString() }}
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="duration" label="时长" width="100">
+            <template #default="scope">
+              {{ formatDuration(scope.row.duration) }}
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="size" label="文件大小" width="100" />
+          
+          <el-table-column prop="quality" label="质量" width="100">
+            <template #default="scope">
+              <el-tag :type="scope.row.quality === 'high' ? 'success' : 
+                            scope.row.quality === 'medium' ? 'warning' : 'info'">
+                {{ scope.row.quality === 'high' ? '高质量' :
+                   scope.row.quality === 'medium' ? '中等' : '低质量' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          
+          <el-table-column label="操作" width="200" fixed="right">
+            <template #default="scope">
+              <el-button-group>
+                <el-button link type="primary" @click="playRecording(scope.row)">
+                  <el-icon><VideoPlay /></el-icon>
+                  播放
+                </el-button>
+                <el-button link type="success" @click="exportRecording(scope.row)">
+                  <el-icon><Download /></el-icon>
+                  导出
+                </el-button>
+                <el-button link type="danger" @click="deleteRecording(scope.row)">
+                  <el-icon><Delete /></el-icon>
+                  删除
+                </el-button>
+              </el-button-group>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <div v-else class="empty-recording">
+        <el-empty description="暂无录制内容" />
+      </div>
+    </el-card>
+    
+    <!-- 录像播放对话框 -->
+    <el-dialog
+      v-model="showRecordingDialog"
+      title="播放录制内容"
+      width="80%"
+      class="recording-dialog"
+      destroy-on-close
+    >
+      <div class="video-container">
+        <video
+          v-if="currentRecording"
+          :src="currentRecording.url"
+          controls
+          class="recording-video"
+        ></video>
+        
+        <div class="video-info">
+          <div class="info-item">
+            <span class="label">标题：</span>
+            <span class="value">{{ currentRecording?.title }}</span>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 非VIP用户看到的进阶功能预览 -->
-    <el-row :gutter="20" class="advanced-training" v-else>
-      <el-col :span="24">
-        <h2 class="section-title">
-          <el-icon><Opportunity /></el-icon>
-          进阶学习功能
-        </h2>
-        <el-card class="advanced-preview">
-          <div class="preview-content">
-            <div class="preview-header">
-              <el-icon class="preview-icon"><Lock /></el-icon>
-              <h3>VIP专享进阶学习功能</h3>
-            </div>
-            <div class="preview-features">
-              <div class="preview-feature-item">
-                <el-icon><Opportunity /></el-icon>
-                <div class="feature-info">
-                  <h4>漏洞实验室</h4>
-                  <p>实时漏洞库、漏洞分析工具、漏洞利用步骤详解</p>
-                </div>
-              </div>
-              <div class="preview-feature-item">
-                <el-icon><School /></el-icon>
-                <div class="feature-info">
-                  <h4>真实案例实战</h4>
-                  <p>基于真实漏洞事件的靶场环境，实践实战技能</p>
-                </div>
-              </div>
-            </div>
-            <el-button type="warning" @click="handleSwitchView">升级VIP，开启进阶学习</el-button>
+          <div class="info-item">
+            <span class="label">录制时间：</span>
+            <span class="value">{{ new Date(currentRecording?.timestamp).toLocaleString() }}</span>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 添加社区互动板块 -->
-    <el-row :gutter="20" class="community-section">
-      <el-col :span="24">
-        <h2 class="section-title">
-          <el-icon><ChatDotRound /></el-icon>
-          安全社区
-        </h2>
-        <el-card class="community-card">
-          <el-tabs>
-            <el-tab-pane label="靶场解题思路">
-              <div class="solution-grid">
-                <div class="solution-item" v-for="(solution, index) in communitySolutions" :key="index">
-                  <div class="solution-avatar">
-                    <el-avatar :size="50" :src="solution.avatar"></el-avatar>
-                  </div>
-                  <div class="solution-content">
-                    <div class="solution-header">
-                      <h4>{{ solution.challenge }}</h4>
-                      <div class="solution-meta">
-                        <span><el-icon><User /></el-icon> {{ solution.author }}</span>
-                        <span><el-icon><Timer /></el-icon> {{ solution.date }}</span>
-                        <span><el-icon><View /></el-icon> {{ solution.views }}</span>
-                      </div>
-                    </div>
-                    <p>{{ solution.summary }}</p>
-                    <div class="solution-footer">
-                      <el-link type="primary" :underline="false">查看完整思路</el-link>
-                      <div class="solution-likes">
-                        <el-button size="small" plain circle><el-icon><Star /></el-icon></el-button>
-                        <span>{{ solution.likes }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </el-tab-pane>
-            <el-tab-pane label="学习小组">
-              <div class="study-groups">
-                <el-empty v-if="!isVipUser" description="升级VIP后可参与学习小组">
-                  <el-button type="primary">立即升级</el-button>
-                </el-empty>
-                <div v-else class="group-list">
-                  <div class="group-item" v-for="(group, index) in studyGroups" :key="index">
-                    <div class="group-avatar">
-                      <el-avatar :size="60" :src="group.avatar"></el-avatar>
-                    </div>
-                    <div class="group-info">
-                      <h4>{{ group.name }}</h4>
-                      <p>{{ group.description }}</p>
-                      <div class="group-stats">
-                        <span><el-icon><User /></el-icon> {{ group.members }}人</span>
-                        <span><el-icon><Pointer /></el-icon> {{ group.level }}</span>
-                      </div>
-                    </div>
-                    <div class="group-action">
-                      <el-button type="primary" size="small">加入小组</el-button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </el-tab-pane>
-            <el-tab-pane label="寻找队友">
-              <div class="teammates-finder">
-                <el-empty v-if="!isVipUser" description="升级VIP后可寻找队友">
-                  <el-button type="primary">立即升级</el-button>
-                </el-empty>
-                <div v-else class="teammate-search">
-                  <div class="search-filters">
-                    <el-form :inline="true">
-                      <el-form-item label="技能方向">
-                        <el-select v-model="teammateSkill" placeholder="选择技能方向">
-                          <el-option label="Web渗透" value="web"></el-option>
-                          <el-option label="逆向工程" value="reverse"></el-option>
-                          <el-option label="二进制利用" value="pwn"></el-option>
-                          <el-option label="密码学" value="crypto"></el-option>
-                        </el-select>
-                      </el-form-item>
-                      <el-form-item label="经验水平">
-                        <el-select v-model="teammateLevel" placeholder="选择经验水平">
-                          <el-option label="入门" value="beginner"></el-option>
-                          <el-option label="中级" value="intermediate"></el-option>
-                          <el-option label="高级" value="advanced"></el-option>
-                        </el-select>
-                      </el-form-item>
-                      <el-form-item>
-                        <el-button type="primary">搜索</el-button>
-                      </el-form-item>
-                    </el-form>
-                  </div>
-                  
-                  <div class="teammate-results">
-                    <div class="teammate-card" v-for="(teammate, index) in potentialTeammates" :key="index">
-                      <el-avatar :size="80" :src="teammate.avatar"></el-avatar>
-                      <h4>{{ teammate.name }}</h4>
-                      <div class="teammate-skill-tags">
-                        <el-tag size="small" v-for="(skill, idx) in teammate.skills" :key="idx">{{ skill }}</el-tag>
-                      </div>
-                      <p>{{ teammate.bio }}</p>
-                      <el-button type="primary" size="small">发送邀请</el-button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
-        </el-card>
-      </el-col>
-    </el-row>
+          <div class="info-item">
+            <span class="label">时长：</span>
+            <span class="value">{{ formatDuration(currentRecording?.duration) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">文件大小：</span>
+            <span class="value">{{ currentRecording?.size }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">质量：</span>
+            <span class="value">{{ currentRecording?.quality === 'high' ? '高质量' :
+                                 currentRecording?.quality === 'medium' ? '中等' : '低质量' }}</span>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -740,14 +537,16 @@ import { Lock, Unlock, Check, Loading, Document, Flag, Guide, ArrowLeft, ArrowRi
   User, Clock, Medal, Timer, Rank, Aim, QuestionFilled, 
   Cpu, VideoCamera, DataAnalysis, Service, Opportunity, 
   School, ChatDotRound, Link, Cherry, Histogram, Search, 
-  View, Star, Pointer, InfoFilled } from '@element-plus/icons-vue'
+  View, Star, Pointer, InfoFilled, VideoPause, Setting, Delete, 
+  Refresh } from '@element-plus/icons-vue'
 import { useStore } from 'vuex'
 import gsap from 'gsap'
 import { useRouter } from 'vue-router'
+import * as echarts from 'echarts'
 
 // 导入漏洞组件
 import SQLInjection from './hole_coms/SQLInjection.vue'
-import XSS from './hole_coms/XSS.vue'
+import XSS from './hole_coms/XSSInjection.vue'
 import SSRF from './hole_coms/SSRF.vue'
 import Log4Shell from './hole_coms/Log4Shell.vue'
 
@@ -766,7 +565,7 @@ const categories = ref([])
 // 添加静态靶场漏洞数据
 const staticChallenges = [
   {
-    id: "oregret/shared-lab:latest",
+    id: "oregret/sql-shared-lab:latest",
     title: 'SQL注入基础',
     description: '学习基本的SQL注入技术，通过构造特殊的SQL语句来获取数据库中的敏感信息。',
     difficulty: '简单',
@@ -845,34 +644,104 @@ const staticChallenges = [
   }
 ];
 
-// 修改获取挑战的方法
+// 获取挑战的方法
 const fetchChallenges = async () => {
   try {
     if (isVipUser.value) {
-      // VIP用户从后端获取动态数据
-      const response = await axios.get(ToUrl.url + '/challenges', {
+      const response = await axios.get(ToUrl.url + '/api/challenges', {
         headers: { 'Authorization': `Bearer ${store.state.token}` }
       });
+      
       if (response.data && Array.isArray(response.data)) {
-        categories.value = response.data;
+        // 将挑战按难度分类
+        const categorizedChallenges = {
+          low: {
+            key: 'low',
+            name: '初级挑战',
+            unlocked: true,
+            challenges: []
+          },
+          mid: {
+            key: 'mid',
+            name: '中级挑战',
+            unlocked: false,
+            challenges: []
+          },
+          high: {
+            key: 'high',
+            name: '高级挑战',
+            unlocked: false,
+            challenges: []
+          },
+          extreme: {
+            key: 'extreme',
+            name: '极限挑战',
+            unlocked: false,
+            challenges: []
+          }
+        };
+
+        // 将挑战分配到对应分类
+        response.data.forEach(challenge => {
+          const categoryKey = challenge.id.split('-')[0]; // 从id中提取分类（如 'low-1' -> 'low'）
+          if (categorizedChallenges[categoryKey]) {
+            categorizedChallenges[categoryKey].challenges.push({
+              ...challenge,
+              type: getChallengeType(challenge.title), // 根据标题判断漏洞类型
+              vulnSteps: [
+                {
+                  title: '漏洞原理',
+                  content: '详细解释漏洞的技术原理和成因',
+                  icon: '🔍',
+                  visible: true
+                },
+                {
+                  title: '攻击流程',
+                  content: '分步骤展示攻击者如何利用该漏洞',
+                  icon: '⚡',
+                  visible: true
+                },
+                {
+                  title: '防御措施',
+                  content: '介绍如何修复和预防该漏洞',
+                  icon: '🛡️',
+                  visible: true
+                }
+              ]
+            });
+          }
+        });
+
+        // 转换为数组形式
+        categories.value = Object.values(categorizedChallenges);
       } else {
         console.error('Invalid response format:', response.data);
         ElMessage.error('获取挑战数据格式错误');
       }
     } else {
-      // 普通用户使用静态数据
-      categories.value = [
-        {
-          key: 'low',
-          title: '初级挑战',
-          challenges: staticChallenges
-        }
-      ];
+      ElMessage.warning('请先升级为VIP用户');
+      router.push('/bmgf/game/normal');
     }
   } catch (error) {
     console.error('获取挑战失败:', error);
     ElMessage.error('获取挑战数据失败');
   }
+};
+
+// 根据挑战标题判断漏洞类型
+const getChallengeType = (title) => {
+  const titleLower = title.toLowerCase();
+  if (titleLower.includes('sql')) return 'sql_injection';
+  if (titleLower.includes('xss')) return 'xss';
+  if (titleLower.includes('ssrf')) return 'ssrf';
+  if (titleLower.includes('log4j') || titleLower.includes('log4shell')) return 'log4shell';
+  if (titleLower.includes('upload')) return 'file_upload';
+  if (titleLower.includes('cmd') || titleLower.includes('命令')) return 'command_injection';
+  if (titleLower.includes('jwt')) return 'jwt';
+  if (titleLower.includes('反序列化')) return 'deserialization';
+  if (titleLower.includes('逻辑')) return 'logic_flaw';
+  if (titleLower.includes('内存马')) return 'memshell';
+  return 'other';
 };
 
 const runningLabInfo = ref(null)
@@ -906,17 +775,31 @@ onUnmounted(() => {
 
 const checkLabStatus = async () => {
   try {
+    if (!categories.value) {
+      console.warn('Categories not loaded yet');
+      return;
+    }
+
     for (const category of categories.value) {
+      if (!category || !category.challenges) {
+        console.warn('Invalid category or challenges not loaded');
+        continue;
+      }
+
       for (const challenge of category.challenges) {
+        if (!challenge || !challenge.id) {
+          console.warn('Invalid challenge or missing ID');
+          continue;
+        }
+
         const res = await axios.get(ToUrl.stadUrl, {
           params: {
             userId: store.state.id,
             challengeId: challenge.id
           }
         });
-        console.log(res.data.running)
-        console.log(res.data)
-        if (res.data.running) {
+
+        if (res.data && res.data.running) {
           runningLabInfo.value = {
             challengeId: challenge.id,
             labUrl: res.data.labUrl,
@@ -925,11 +808,13 @@ const checkLabStatus = async () => {
           // 标记当前 challenge
           challenge.labUrl = res.data.labUrl;
           challenge.running = true;
-          // 让其他 challenge 不可点击-
+          // 让其他 challenge 不可点击
           categories.value.forEach(cat => {
-            cat.challenges.forEach(ch => {
-              if (ch.id !== challenge.id) ch.disabled = true;
-            });
+            if (cat && cat.challenges) {
+              cat.challenges.forEach(ch => {
+                if (ch && ch.id !== challenge.id) ch.disabled = true;
+              });
+            }
           });
           return; // 只允许一个靶场运行
         }
@@ -937,21 +822,43 @@ const checkLabStatus = async () => {
     }
     // 如果没有运行中的靶场
     runningLabInfo.value = null;
-    categories.value.forEach(cat => {
-      cat.challenges.forEach(ch => ch.disabled = false);
-    });
+    if (categories.value) {
+      categories.value.forEach(cat => {
+        if (cat && cat.challenges) {
+          cat.challenges.forEach(ch => {
+            if (ch) ch.disabled = false;
+          });
+        }
+      });
+    }
   } catch (e) {
     console.error('靶场状态获取失败', e);
+    ElMessage.error('靶场状态获取失败，请稍后重试');
   }
 };
 
 onMounted(async () => {
+  // 初始加载时使用普通模式
+  viewMode.value = 'normal';
   await fetchChallenges();
   await checkLabStatus();
   // 添加动画效果
   animateStatCards();
   // 更新active-bar
   updateActiveBar();
+  initVulnChart()
+  window.addEventListener('resize', handleResize)
+});
+
+onUnmounted(() => {
+  // ... existing unmounted code ...
+  if (vulnChart.value) {
+    vulnChart.value.dispose()
+  }
+  window.removeEventListener('resize', handleResize)
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+  }
 });
 
 // 映射后端 challenge 到前端 challenge
@@ -1101,7 +1008,8 @@ const getUnlockProgress = (challenge) => {
 
 // 获取某个分类已完成挑战数量
 const getCompletedInCategory = (category) => {
-  return category.challenges.filter(c => c.completed).length
+  if (!category || !category.challenges) return 0;
+  return category.challenges.filter(c => c && c.completed).length;
 }
 
 // 获取分类进度百分比
@@ -1122,30 +1030,34 @@ const getCategoryStatus = (category) => {
 
 // 获取总体进度
 const getOverallProgress = () => {
-  let totalChallenges = 0
-  let completedChallenges = 0
+  if (!categories.value) return 0;
+  
+  let totalChallenges = 0;
+  let completedChallenges = 0;
   
   categories.value.forEach(cat => {
-    totalChallenges += cat.challenges.length
-    completedChallenges += getCompletedInCategory(cat)
-  })
+    if (cat && cat.challenges) {
+      totalChallenges += cat.challenges.length;
+      completedChallenges += getCompletedInCategory(cat);
+    }
+  });
   
-  return totalChallenges > 0 ? Math.round((completedChallenges / totalChallenges) * 100) : 0
+  return totalChallenges > 0 ? Math.round((completedChallenges / totalChallenges) * 100) : 0;
 }
 
 // 启动靶场方法
 const startLab = async (challenge) => {
   if (!store.getters.isVIP) {
-    loading.value = true;
-    startProgress.value = 0;
+    challenge.loading = true;
+    challenge.startProgress = 0;
     
     // 创建进度条动画
-    const progressAnimation = gsap.to(startProgress, {
+    const progressAnimation = gsap.to(challenge, {
       duration: 30,
-      value: 100,
+      startProgress: 100,
       ease: "none",
       onUpdate: () => {
-        if (startProgress.value >= 100) {
+        if (challenge.startProgress >= 100) {
           progressAnimation.kill();
         }
       }
@@ -1160,11 +1072,11 @@ const startLab = async (challenge) => {
         headers: { 'Authorization': `Bearer ${store.state.token}` }
       });
 
-      if (response.data && response.data.backendUrl) {
+      if (response.data && response.data.accessUrl) {
         // 存储后端URL到store
-        store.commit('setBackendUrl', response.data.backendUrl);
+        store.commit('setBackendUrl', response.data.accessUrl);
         // 跳转到sql页面
-        router.push('/sql');
+        router.push('/bmgf/game/sql');
       } else {
         ElMessage.error('启动靶场失败：未获取到后端URL');
       }
@@ -1173,7 +1085,7 @@ const startLab = async (challenge) => {
       ElMessage.error('启动靶场失败，请稍后重试');
     } finally {
       progressAnimation.kill();
-      loading.value = false;
+      challenge.loading = false;
     }
   } else {
     // ... existing VIP user code ...
@@ -1331,26 +1243,12 @@ const handleImageClick = (imageUrl) => {
   showImagePreview.value = true
 }
 
-// Add viewMode ref after existing refs
 const viewMode = ref('normal')
 
-// Add handleSwitchView function after existing functions
-const handleSwitchView = async () => {
-  if (!isVipUser.value) {
-    ElMessage.warning('请先升级为VIP用户');
-    return;
-  }
-  
-  if (viewMode.value === 'normal') {
-    viewMode.value = 'vip';
-  } else {
-    viewMode.value = 'normal';
-  }
-  // 重新获取数据
-  await fetchChallenges();
+const handleSwitchView = () => {
+  router.push('/bmgf/game/normal')
 }
 
-// Add new ref for animation control
 const isAnimating = ref(false)
 
 // 添加统计卡片动画
@@ -1559,13 +1457,17 @@ const getCategoryProgressColor = (category) => {
 
 // 获取已完成挑战数量
 const getCompletedChallengesCount = () => {
-  let count = 0
+  if (!categories.value) return 0;
+  
+  let count = 0;
   categories.value.forEach(category => {
-    category.challenges.forEach(challenge => {
-      if (challenge.completed) count++
-    })
-  })
-  return count
+    if (category && category.challenges) {
+      category.challenges.forEach(challenge => {
+        if (challenge && challenge.completed) count++;
+      });
+    }
+  });
+  return count;
 }
 
 // 随机生成练习总时长
@@ -1586,6 +1488,341 @@ const getVulnComponent = (type) => {
       return Log4Shell
     default:
       return null
+  }
+}
+
+// 添加安全提示数据
+const securityTips = ref([
+  {
+    title: 'SQL注入防护',
+    content: '使用参数化查询，避免直接拼接SQL语句，可以有效防止SQL注入攻击。'
+  },
+  {
+    title: 'XSS防护',
+    content: '对用户输入进行HTML转义，使用Content Security Policy (CSP)限制脚本执行。'
+  },
+  {
+    title: '文件上传安全',
+    content: '严格验证文件类型，限制上传文件大小，使用随机文件名存储。'
+  },
+  {
+    title: '密码安全',
+    content: '使用强密码策略，定期更换密码，启用双因素认证。'
+  }
+]);
+
+// 添加录像相关状态
+const isRecording = ref(false)
+const recordingList = ref([])
+const showRecordingDialog = ref(false)
+const currentRecording = ref(null)
+const recordingTime = ref(0)
+const recordingSettings = ref({
+  quality: 'high', // high, medium, low
+  frameRate: 30,
+  audioEnabled: true,
+  showCursor: true,
+  showTimer: true,
+  watermark: true
+})
+const recordingStats = ref({
+  totalRecordings: 0,
+  totalDuration: 0,
+  storageUsed: 0
+})
+let recordingTimer = null
+let mediaRecorder = null
+
+// 开始录制
+const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { 
+        mediaSource: "screen",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: recordingSettings.value.frameRate }
+      },
+      audio: recordingSettings.value.audioEnabled
+    });
+    
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: 'video/webm;codecs=vp9',
+      videoBitsPerSecond: recordingSettings.value.quality === 'high' ? 8000000 : 
+                         recordingSettings.value.quality === 'medium' ? 4000000 : 2000000
+    });
+    
+    const chunks = [];
+    
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        chunks.push(e.data);
+      }
+    };
+    
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      
+      // 更新录制统计
+      recordingStats.value.totalRecordings++;
+      recordingStats.value.totalDuration += recordingTime.value;
+      recordingStats.value.storageUsed += blob.size;
+      
+      // 保存录制内容
+      recordingList.value.push({
+        id: Date.now(),
+        title: `录制_${new Date().toLocaleString()}`,
+        url: url,
+        duration: recordingTime.value,
+        timestamp: new Date(),
+        size: formatFileSize(blob.size),
+        quality: recordingSettings.value.quality,
+        resolution: '1920x1080',
+        frameRate: recordingSettings.value.frameRate
+      });
+      
+      // 停止所有轨道
+      stream.getTracks().forEach(track => track.stop());
+      
+      // 显示录制完成通知
+      ElNotification({
+        title: '录制完成',
+        message: `已保存录制内容，时长: ${formatDuration(recordingTime.value)}`,
+        type: 'success',
+        duration: 3000
+      });
+    };
+    
+    mediaRecorder.start(1000); // 每秒保存一次数据
+    isRecording.value = true;
+    recordingTime.value = 0;
+    
+    // 开始计时
+    recordingTimer = setInterval(() => {
+      recordingTime.value++;
+    }, 1000);
+    
+    // 监听用户停止共享
+    stream.getVideoTracks()[0].onended = () => {
+      stopRecording();
+    };
+    
+  } catch (error) {
+    console.error('录制失败:', error);
+    ElMessage.error('录制失败: ' + error.message);
+  }
+};
+
+// 停止录制
+const stopRecording = () => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    isRecording.value = false;
+    clearInterval(recordingTimer);
+  }
+};
+
+// 播放录制内容
+const playRecording = (recording) => {
+  currentRecording.value = recording;
+  showRecordingDialog.value = true;
+};
+
+// 删除录制内容
+const deleteRecording = (recording) => {
+  ElMessageBox.confirm(
+    '确定要删除这个录制内容吗？此操作不可恢复。',
+    '删除确认',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    const index = recordingList.value.findIndex(r => r.id === recording.id);
+    if (index !== -1) {
+      URL.revokeObjectURL(recordingList.value[index].url);
+      recordingStats.value.storageUsed -= recording.size;
+      recordingList.value.splice(index, 1);
+      ElMessage.success('录制内容已删除');
+    }
+  }).catch(() => {});
+};
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// 格式化录制时长
+const formatDuration = (seconds) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
+// 导出录制内容
+const exportRecording = (recording) => {
+  const link = document.createElement('a');
+  link.href = recording.url;
+  link.download = `recording_${new Date(recording.timestamp).toISOString()}.webm`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// 监控面板相关
+const vulnChartRef = ref(null)
+const vulnChart = ref(null)
+const autoRefresh = ref(false)
+let refreshInterval = null
+
+// 靶场状态数据
+const labStatus = ref([
+  {
+    label: '运行中靶场',
+    value: '2',
+    status: 'success',
+    icon: 'VideoPlay'
+  },
+  {
+    label: 'CPU使用率',
+    value: '45%',
+    status: 'warning',
+    icon: 'Cpu'
+  },
+  {
+    label: '内存使用率',
+    value: '60%',
+    status: 'warning',
+    icon: 'DataAnalysis'
+  },
+  {
+    label: '网络流量',
+    value: '2.5MB/s',
+    status: 'normal',
+    icon: 'Connection'
+  }
+])
+
+// 漏洞统计数据
+const vulnStats = ref([
+  {
+    label: '高危漏洞',
+    value: '3',
+    type: 'danger'
+  },
+  {
+    label: '中危漏洞',
+    value: '5',
+    type: 'warning'
+  },
+  {
+    label: '低危漏洞',
+    value: '8',
+    type: 'info'
+  }
+])
+
+// 初始化漏洞监控图表
+const initVulnChart = () => {
+  if (vulnChartRef.value) {
+    vulnChart.value = echarts.init(vulnChartRef.value)
+    updateVulnChart()
+  }
+}
+
+// 更新漏洞监控图表
+const updateVulnChart = () => {
+  if (!vulnChart.value) return
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: ['SQL注入', 'XSS', 'CSRF', '文件上传', '命令注入', 'SSRF'],
+      axisLabel: {
+        color: '#fff'
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        color: '#fff'
+      }
+    },
+    series: [
+      {
+        name: '漏洞数量',
+        type: 'bar',
+        data: [3, 2, 1, 2, 1, 1],
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#83bff6' },
+            { offset: 0.5, color: '#188df0' },
+            { offset: 1, color: '#188df0' }
+          ])
+        }
+      }
+    ]
+  }
+
+  vulnChart.value.setOption(option)
+}
+
+// 刷新监控数据
+const refreshMonitoring = async () => {
+  try {
+    // 模拟获取最新数据
+    labStatus.value = labStatus.value.map(status => ({
+      ...status,
+      value: Math.random() > 0.5 ? status.value : Math.floor(Math.random() * 100) + '%'
+    }))
+    
+    updateVulnChart()
+    
+    ElMessage.success('监控数据已更新')
+  } catch (error) {
+    console.error('刷新监控数据失败:', error)
+    ElMessage.error('刷新监控数据失败')
+  }
+}
+
+// 切换自动刷新
+const toggleAutoRefresh = () => {
+  autoRefresh.value = !autoRefresh.value
+  if (autoRefresh.value) {
+    refreshInterval = setInterval(refreshMonitoring, 30000) // 每30秒刷新一次
+  } else {
+    clearInterval(refreshInterval)
+  }
+}
+
+// 监听窗口大小变化
+const handleResize = () => {
+  if (vulnChart.value) {
+    vulnChart.value.resize()
   }
 }
 
@@ -3177,7 +3414,7 @@ p[data-v-8c3679b0] {
   :deep(.el-input__inner) {
     background-color: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
+    color: #000000 !important; /* 修改输入框文字颜色为黑色 */
   }
 
   :deep(.el-button) {
@@ -3655,5 +3892,401 @@ p[data-v-8c3679b0] {
 :deep(.vuln-details-section li) {
   margin: 5px 0;
   color: rgba(255, 255, 255, 0.8);
+}
+
+.recording-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.recording-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.recording-btn:hover {
+  transform: translateY(-2px);
+}
+
+.recording-time {
+  color: #f4f14d;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(244, 241, 77, 0.5);
+}
+
+.recording-list {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recording-list .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recording-list .card-header h3 {
+  color: #ffffff;
+  margin: 0;
+  font-size: 18px;
+}
+
+.recording-dialog :deep(.el-dialog) {
+  background: rgba(30, 30, 30, 0.95);
+  border-radius: 12px;
+}
+
+.recording-dialog :deep(.el-dialog__title) {
+  color: #ffffff;
+}
+
+.recording-dialog :deep(.el-dialog__headerbtn .el-dialog__close) {
+  color: #ffffff;
+}
+
+.recording-panel {
+  margin: 20px 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.recording-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.recording-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.control-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.recording-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.recording-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.recording-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f4f14d;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(244, 241, 77, 0.5);
+}
+
+.settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.settings-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.recording-settings {
+  padding: 15px;
+}
+
+.recording-settings h4 {
+  margin: 0 0 15px 0;
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.recording-list {
+  margin-top: 20px;
+}
+
+.recording-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+}
+
+.empty-recording {
+  padding: 40px 0;
+}
+
+.video-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.recording-video {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+}
+
+.video-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-item .label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+.info-item .value {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* 添加动画效果 */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.recording-btn.is-recording {
+  animation: pulse 2s infinite;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .recording-controls {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .control-section {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .settings-section {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .video-info {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 监控面板样式 */
+.monitoring-panel {
+  margin-bottom: 20px;
+}
+
+.monitoring-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.monitoring-card :deep(.el-card__header) {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.monitoring-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.monitoring-section {
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  height: 100%;
+}
+
+.monitoring-section h4 {
+  color: #ffffff;
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.status-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.status-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.status-icon.success {
+  background: rgba(103, 194, 58, 0.2);
+  color: #67c23a;
+}
+
+.status-icon.warning {
+  background: rgba(230, 162, 60, 0.2);
+  color: #e6a23c;
+}
+
+.status-icon.danger {
+  background: rgba(245, 108, 108, 0.2);
+  color: #f56c6c;
+}
+
+.status-icon.normal {
+  background: rgba(144, 147, 153, 0.2);
+  color: #909399;
+}
+
+.status-info {
+  flex: 1;
+}
+
+.status-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.status-value {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.vuln-monitor {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 200px;
+}
+
+.vuln-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.vuln-stat-item {
+  text-align: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.vuln-stat-item .stat-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.vuln-stat-item .stat-value {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.vuln-stat-item .stat-value.danger {
+  color: #f56c6c;
+}
+
+.vuln-stat-item .stat-value.warning {
+  color: #e6a23c;
+}
+
+.vuln-stat-item .stat-value.info {
+  color: #909399;
+}
+
+@media (max-width: 768px) {
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .vuln-stats {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

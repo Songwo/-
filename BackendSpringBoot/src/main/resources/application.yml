@@ -2,24 +2,24 @@
 #  data:
 #    mongodb:
 #      uri: mongodb://CsNet:yzMKSXjALzBsn5NG@47.117.70.79csnet?authSource=admin
-#spring:
-#  data:
-#    mongodb:
-#      host: 127.0.0.1
-#      database: CsNet
-#      port: 27017
-#      connection-pool-size: 50  # 配置 MongoDB 连接池大小
-#      max-wait-time: 2000ms      # 设置最大等待时间（单位：毫秒）
 spring:
   data:
     mongodb:
       host: 127.0.0.1
-      database: csnet
+      database: CsNet
       port: 27017
       connection-pool-size: 50  # 配置 MongoDB 连接池大小
       max-wait-time: 2000ms      # 设置最大等待时间（单位：毫秒）
-      username: CsNet
-      password: yzMKSXjALzBsn5NG
+#spring:
+#  data:
+#    mongodb:
+#      host: 127.0.0.1
+#      database: csnet
+#      port: 27017
+#      connection-pool-size: 50  # 配置 MongoDB 连接池大小
+#      max-wait-time: 2000ms      # 设置最大等待时间（单位：毫秒）
+#      username: CsNet
+#      password: yzMKSXjALzBsn5NG
   web:
     resources:
       static-locations: "file:F:/NetGame_s/hello_vue3_1.0/src/avatar/" # 静态资源路径
@@ -36,6 +36,7 @@ server:
 
 docker:
   host: tcp://47.117.70.79:2375  # Docker 主机地址
+#  host: tcp://127.0.0.1:2375  # Docker 主机地址
   tls:
     enabled: true  # 启用 TLS
     cert-path: /etc/docker/certs  # TLS 证书路径

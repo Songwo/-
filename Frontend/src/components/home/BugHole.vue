@@ -111,7 +111,7 @@
                 更多漏洞信息
               </el-divider>
               <p class="prompt-text">登录后可以查看更多漏洞和完整详情</p>
-              <el-button type="primary" @click="router.push('/login')">立即登录</el-button>
+              <el-button type="primary" @click="router.push('/bmgf/login')">立即登录</el-button>
             </div>
 
             <el-pagination
@@ -386,7 +386,7 @@ const initOrUpdateCharts = () => {
 const showVulnDetails = (vuln) => {
   if (!store.state.token) {
     ElMessage.warning('登录后可查看完整漏洞详情');
-    router.push('/login');
+    router.push('/bmgf/login');
     return;
   }
   selectedVuln.value = vuln;

@@ -172,37 +172,38 @@ const quickActions = [
     label: '数据分析', 
     icon: 'DataLine', 
     type: 'warning',
-    path: '/backMange/trend'
+    path: '/bmgf/admin/trend'
   },
   { 
     label: '用户管理', 
     icon: 'User', 
     type: 'info',
-    path: '/backMange/user'
+    path: '/bmgf/admin/user'
   },
   { 
     label: '系统设置', 
     icon: 'Setting', 
     type: 'primary',
-    path: '/backMange/settings'
+    path: '/bmgf/admin/settings'
   },
   { 
     label: '帮助中心', 
     icon: 'Help', 
     type: 'success',
-    path: '/backMange/help'
+    path: '/bmgf/admin/help'
   },
   { 
     label: '文档中心', 
     icon: 'Document', 
     type: 'warning',
-    path: '/backMange/document'
+    path: '/bmgf/admin/document'
   },
   { 
     label: '工具中心', 
     icon: 'Tools', 
     type: 'info',
-    path: '/backMange/tools'
+    path: null,
+    message: '该功能暂未开发'
   }
 ]
 

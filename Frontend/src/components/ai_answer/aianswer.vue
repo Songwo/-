@@ -1,21 +1,43 @@
 <template>
   <div class="ai-answer-container">
     <div class="platform-title">
-      <h1>智能问答</h1>
+      <h1>白帽工坊-智能问答</h1>
       <div class="cyber-line"></div>
+    </div>
+
+    <!-- 添加简介区域 -->
+    <div class="intro-section">
+      <p class="intro-text">
+        欢迎使用白帽工坊智能问答系统！这是一个专注于网络安全领域的AI助手，可以为您解答各类网络安全问题，
+        包括但不限于漏洞分析、安全防护、渗透测试、安全开发等专业领域的问题。
+      </p>
+      <div class="capabilities-list">
+        <span class="capability-tag">漏洞分析</span>
+        <span class="capability-tag">安全防护</span>
+        <span class="capability-tag">渗透测试</span>
+        <span class="capability-tag">安全开发</span>
+        <span class="capability-tag">代码审计</span>
+        <span class="capability-tag">安全架构</span>
+        <span class="capability-tag">应急响应</span>
+        <span class="capability-tag">安全合规</span>
+      </div>
     </div>
 
     <div class="ai-content">
       <!-- 问答区域 -->
       <div class="qa-section">
         <div class="input-area card-style">
+          <div v-if="isLoadingHistory" class="loading-history-message">
+            <el-icon class="loading-icon"><Loading /></el-icon>
+            <span>正在加载历史数据，请稍候...</span>
+          </div>
           <el-input
             v-model="userInput"
             type="textarea"
             :rows="4"
             placeholder="请输入您的问题，Shift + Enter 换行..."
             resize="none"
-            :disabled="isLoading"
+            :disabled="isLoading || isLoadingHistory"
             @keydown.enter.prevent="onEnterPress"
           />
           <div class="input-actions">
@@ -23,7 +45,7 @@
               type="primary"
               @click="sendQuestion"
               :loading="isLoading"
-              :disabled="!userInput.trim() || isLoading"
+              :disabled="!userInput.trim() || isLoading || isLoadingHistory"
               class="ask-btn"
              >
                <el-icon><Promotion /></el-icon>
@@ -138,6 +160,48 @@
         </div>
       </div>
     </div>
+
+    <!-- 功能展示区域 -->
+    <div class="features-section">
+      <h2 class="features-title">即将推出的功能</h2>
+      <div class="features-grid">
+        <div class="feature-card card-style">
+          <div class="feature-icon">
+            <el-icon><Connection /></el-icon>
+          </div>
+          <h3>上下文记忆</h3>
+          <p>AI将记住对话历史，提供更连贯的对话体验</p>
+          <div class="feature-status">开发中</div>
+        </div>
+
+        <div class="feature-card card-style">
+          <div class="feature-icon">
+            <el-icon><Picture /></el-icon>
+          </div>
+          <h3>图片识别</h3>
+          <p>支持上传图片，AI将识别并回答相关问题</p>
+          <div class="feature-status">开发中</div>
+        </div>
+
+        <div class="feature-card card-style">
+          <div class="feature-icon">
+            <el-icon><Document /></el-icon>
+          </div>
+          <h3>文档分析</h3>
+          <p>支持上传文档，AI将帮助分析文档内容</p>
+          <div class="feature-status">开发中</div>
+        </div>
+
+        <div class="feature-card card-style">
+          <div class="feature-icon">
+            <el-icon><Share /></el-icon>
+          </div>
+          <h3>对话分享</h3>
+          <p>支持将有趣的对话分享给其他用户</p>
+          <div class="feature-status">开发中</div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -145,7 +209,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
-  Promotion, ChatDotRound, CopyDocument, Clock, Delete, MagicStick, UserFilled, Close
+  Promotion, ChatDotRound, CopyDocument, Clock, Delete, MagicStick, UserFilled, Close,
+  Connection, Picture, Document, Share, Loading
 } from '@element-plus/icons-vue';
 import axios from 'axios';
 import ToUrl from '@/api/api';
@@ -174,6 +239,7 @@ const userInput = ref('');
 const isLoading = ref(false);
 const historyList = ref([]);
 const activeIndex = ref(-1);
+const isLoadingHistory = ref(false);
 
 const activeChat = computed(() => {
   if (activeIndex.value >= 0 && activeIndex.value < historyList.value.length) {
@@ -218,7 +284,7 @@ const sendQuestion = async () => {
     if (historyList.value[0]?.time === tempChatItem.time && historyList.value[0]?.question === currentUserInput) {
         historyList.value[0].answer = receivedReply; 
     } else {
-        const chatToUpdate = historyList.value.find(chat => chat.time === tempChatItem.time && chat.question === currentUserInput);
+        const chatToUpdate = historyList.value.find(chat => chat.time === tempChatItem.time && chat.question === currentInput);
          if (chatToUpdate) {
             chatToUpdate.answer = receivedReply;
          }
@@ -229,20 +295,20 @@ const sendQuestion = async () => {
   } catch (error) {
     console.error('AI问答出错:', error);
     ElMessage.error('与AI服务连接失败，请稍后再试');
-    if (historyList.value[0]?.time === tempChatItem.time && historyList.value[0]?.question === currentUserInput) {
+    if (historyList.value[0]?.time === tempChatItem.time && historyList.value[0]?.question === currentInput) {
         historyList.value[0].answer = '抱歉，获取回答时遇到网络错误。'; 
     } else {
-        const chatToUpdate = historyList.value.find(chat => chat.time === tempChatItem.time && chat.question === currentUserInput);
+        const chatToUpdate = historyList.value.find(chat => chat.time === tempChatItem.time && chat.question === currentInput);
          if (chatToUpdate) {
             chatToUpdate.answer = '抱歉，获取回答时遇到网络错误。';
          }
     }
      saveHistoryToLocal(); 
   } finally {
-    if (historyList.value[0]?.time === tempChatItem.time && historyList.value[0]?.question === currentUserInput) {
+    if (historyList.value[0]?.time === tempChatItem.time && historyList.value[0]?.question === currentInput) {
         historyList.value[0].isLoading = false; 
     } else {
-         const chatToUpdate = historyList.value.find(chat => chat.time === tempChatItem.time && chat.question === currentUserInput);
+         const chatToUpdate = historyList.value.find(chat => chat.time === tempChatItem.time && chat.question === currentInput);
          if (chatToUpdate) {
             chatToUpdate.isLoading = false;
          }
@@ -253,7 +319,7 @@ const sendQuestion = async () => {
 
 // 加载聊天记录
 const loadHistoryData = async () => {
-  isLoading.value = true; 
+  isLoadingHistory.value = true; 
   let loadedFromApi = false;
 
   try {
@@ -320,7 +386,7 @@ const loadHistoryData = async () => {
     }
   }
   
-  isLoading.value = false; 
+  isLoadingHistory.value = false; 
 };
 
 // 确认后清空所有聊天记录
@@ -349,7 +415,7 @@ const selectHistoryItem = (index) => {
   activeIndex.value = index;
 };
 
-// 新增：删除单条历史记录
+// 删除单条历史记录
 const deleteHistoryItem = (indexToDelete) => {
   const itemToDelete = historyList.value[indexToDelete];
   if (!itemToDelete) return;
@@ -513,22 +579,90 @@ onMounted(() => {
 .platform-title {
   text-align: center;
   margin-bottom: 40px;
+  position: relative;
 }
 
 .platform-title h1 {
-  font-size: 2.2rem;
+  font-size: 2.4rem;
   margin-bottom: 15px;
-  color: #2c3e50;
-  font-weight: 600;
+  background: linear-gradient(120deg, #afcdec, #03f5ed);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
   letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .cyber-line {
   height: 4px;
-  width: 80px;
-  background: linear-gradient(90deg, #409EFF, #79bbff);
-  border-radius: 2px;
+  width: 120px;
+  background: linear-gradient(90deg, #5aa0e5, #17f3eb);
+  border-radius: 4px;
   margin: 0 auto;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.cyber-line::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: #409EFF;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(64, 158, 255, 0.5);
+}
+
+/* 添加简介区域样式 */
+.intro-section {
+  max-width: 800px;
+  margin: 0 auto 40px;
+  text-align: center;
+  padding: 0 20px;
+  background: linear-gradient(135deg, rgba(90, 160, 229, 0.1), rgba(23, 243, 235, 0.1));
+  border-radius: 16px;
+  padding: 25px;
+}
+
+.intro-text {
+  color: #ffffff;
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: 20px;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.capabilities-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.capability-tag {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  color: #5c6b7f;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.capability-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: rgba(90, 160, 229, 0.3);
+  background: rgba(255, 255, 255, 1);
+  color: #409EFF;
 }
 
 .ai-content {
@@ -571,6 +705,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  position: relative;
 }
 
 .input-area :deep(.el-textarea__inner) {
@@ -888,6 +1023,146 @@ onMounted(() => {
    }
   .ask-btn {
      width: 80px;
+  }
+}
+
+/* Features Section Styles */
+.features-section {
+  margin-top: 40px;
+  padding: 0 20px;
+}
+
+.features-title {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 30px;
+  background: linear-gradient(120deg, #afcdec, #03f5ed);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 20px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #afcdec, #03f5ed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.feature-icon .el-icon {
+  font-size: 28px;
+  color: white;
+}
+
+.feature-card h3 {
+  font-size: 1.2rem;
+  color: #303133;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.feature-card p {
+  color: #606266;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.feature-status {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: rgba(64, 158, 255, 0.1);
+  color: #409EFF;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Responsive adjustments for features section */
+@media (max-width: 768px) {
+  .features-section {
+    padding: 0 10px;
+  }
+  
+  .features-title {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+  }
+  
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .feature-card {
+    padding: 20px 15px;
+  }
+}
+
+.loading-history-message {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 1;
+  border-radius: 8px;
+}
+
+.loading-history-message .loading-icon {
+  font-size: 24px;
+  color: #409EFF;
+  animation: rotating 2s linear infinite;
+}
+
+.loading-history-message span {
+  color: #606266;
+  font-size: 0.95rem;
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

@@ -67,6 +67,7 @@ public class SecurityConfig {
 
                                 // 新闻公开API
                                 "/api/news/**",
+                                "/ws/**",
 
                                 // 其他公开API
                                 "/api/public/**"
@@ -104,7 +105,8 @@ public class SecurityConfig {
                 "https://www.wacyg.fun",
                 "http://www.wacyg.fun",
                 "https://wacyg.fun",
-                "http://wacyg.fun"
+                "http://wacyg.fun",
+                "https://hoppscotch.io"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With",

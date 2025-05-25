@@ -145,7 +145,7 @@ const filteredResults = computed(() => {
 })
 
 const goBack = () => {
-  router.push('/root/pricate')
+  router.push('/bmgf/private')
 }
 
 const resetForm = () => {

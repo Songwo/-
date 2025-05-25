@@ -100,6 +100,9 @@
         </el-col>
       </el-row>
     </div>
+
+    <!-- 添加路由出口 -->
+    <router-view></router-view>
   </div>
 </template>
 
@@ -189,25 +192,25 @@ const hotTools = ref([
     name: 'CMS', 
     description: '在线CMS指纹识别工具', 
     icon: 'mdi:shield-search',
-    link: '/cms' 
+    link: '/bmgf/tools/cms' 
   },
   { 
     name: '子域名查询', 
     description: '在线子域名查询工具', 
     icon: 'mdi:domain',
-    link: '/subdomain' 
+    link: '/bmgf/tools/subdomain' 
   },
   { 
     name: 'IP查询', 
     description: '在线IP信息查询工具', 
     icon: 'mdi:ip-network',
-    link: '/findIp' 
+    link: '/bmgf/tools/ip-finder' 
   },
   { 
     name: '密码强度检测', 
     description: '密码强度检测工具', 
     icon: 'mdi:shield-lock',
-    link: '/CheckPwd' 
+    link: '/bmgf/tools/password-check' 
   }
 ])
 
@@ -216,69 +219,71 @@ const tools = ref([
     name: 'CMS', 
     description: '在线CMS指纹识别工具', 
     icon: 'mdi:shield-search',
-    link: '/cms',
+    link: '/bmgf/tools/cms',
     category: 'scan'
   },
   { 
     name: '子域名查询', 
     description: '在线子域名查询工具', 
     icon: 'mdi:domain',
-    link: '/subdomain',
+    link: '/bmgf/tools/subdomain',
     category: 'scan'
   },
   { 
     name: 'base64编码', 
     description: '在线Base64解码工具', 
     icon: 'mdi:code-brackets',
-    link: '/base64',
+    link: '/bmgf/tools/base64',
     category: 'encode'
   },
   { 
     name: 'IP查询', 
     description: '在线IP信息查询工具', 
     icon: 'mdi:ip-network',
-    link: '/findIp',
+    link: '/bmgf/tools/ip-finder',
     category: 'analysis'
   },
   { 
     name: '哈希值', 
     description: '在线哈希值生成工具', 
     icon: 'mdi:function-variant',
-    link: '/Crehash',
+    link: '/bmgf/tools/hash',
     category: 'encode'
   },
   { 
     name: '密码强度检测工具', 
     description: '密码强度检测工具', 
     icon: 'mdi:shield-lock',
-    link: '/CheckPwd',
+    link: '/bmgf/tools/password-check',
     category: 'analysis'
   },
   {
     name: '端口扫描工具',
     description: '在线端口扫描工具',
     icon: 'mdi:network-outline',
-    link: '/portscan',
+    link: '/bmgf/tools/port-scan',
     category: 'scan'
   },
   {
     name: 'URL编码工具',
     description: '在线URL编码工具',
     icon: 'mdi:link-variant',
-    link: '/urlencode',
+    link: '/bmgf/tools/url-encode',
+    category: 'encode'
   },
   {
     name: '凯撒密码工具',
     description: '在线凯撒密码工具',
     icon: 'mdi:lock-outline',
-    link: '/caesar',
+    link: '/bmgf/tools/caesar',
     category: 'encode'
   },
   {
     name: 'Unicode编码工具',
     description: '在线Unicode编码工具',
     icon: 'mdi:unicode',
-    link: '/unicode',
+    link: '/bmgf/tools/unicode',
+    category: 'encode'
   }
 ])
 
@@ -298,7 +303,7 @@ const goToTool = (url) => {
     router.push('/');
     return;
   }
-  router.push('/root' + url);
+  router.push(url);
 }
 
 const increaseUserCount = async () => {

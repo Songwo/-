@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <!-- Header -->
-    <el-header class="header">
+    <el-header class="header" :class="{ 'header-hidden': !isHeaderVisible }">
       <div class="logo">
         <img src="@/assets/logo/logo/信息.png" alt="白帽工坊logo" class="logo-img">
         白帽工坊
@@ -14,9 +14,49 @@
       </div>
       <!-- 导航菜单 -->
       <el-menu class="menu" mode="horizontal" :default-active="activeMenu" :class="{ 'mobile-menu': isMobileMenuOpen }">
-        <el-menu-item v-for="(item, key) in filteredMenuItems" :key="key" :index="key">
-          <RouterLink :to="`/root/${key}`" class="router-link">{{ item.label }}</RouterLink>
+        <!-- 主要导航项 -->
+        <el-menu-item v-for="(item, key) in mainMenuItems" :key="key" :index="key">
+          <RouterLink :to="`/bmgf/${key}`" class="router-link">{{ item.label }}</RouterLink>
         </el-menu-item>
+
+        
+        <!-- AI智能解答 -->
+        <el-menu-item index="chat" v-if="isLoggedIn">
+          <RouterLink to="/bmgf/chat" class="router-link">AI智能解答</RouterLink>
+        </el-menu-item>
+
+        <!-- 聊天室 -->
+        <el-menu-item index="discussion">
+          <RouterLink to="/bmgf/discussion" class="router-link">实时聊天室</RouterLink>
+        </el-menu-item>
+        
+        <!-- 学习资源下拉菜单 -->
+        <el-menu-item class="more">
+          <el-dropdown trigger="click">
+            <span>学习资源</span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="goToAttack">视频课程</el-dropdown-item>
+                <el-dropdown-item @click="goToBugHole">漏洞库</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </el-menu-item>
+
+        <!-- 个人中心下拉菜单 -->
+        <el-menu-item class="more" v-if="isLoggedIn">
+          <el-dropdown trigger="click">
+            <span>个人中心</span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="goToMySorts">个人排名</el-dropdown-item>
+                <el-dropdown-item @click="goToRewards">奖励页面</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </el-menu-item>
+
+
         <!-- 更多菜单项下的下拉菜单 -->
         <el-menu-item class="more">
           <el-dropdown trigger="click">
@@ -24,8 +64,9 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="downloadApp">App端下载</el-dropdown-item>
-                <el-dropdown-item v-if="isLoggedIn" @click="aiAnswer">AI智能解答</el-dropdown-item>
-                <el-dropdown-item @click="goToPublicDiscussion">公共讨论区</el-dropdown-item>
+                <el-dropdown-item @click="goToAbout">关于我们</el-dropdown-item>
+                <el-dropdown-item @click="goToHelp">帮助中心</el-dropdown-item>
+                <el-dropdown-item @click="goToFeedback">意见反馈</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -108,7 +149,7 @@
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useStore } from 'vuex'
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch, onUnmounted } from 'vue'
 import ToUrl from '@/api/api'
 import { Menu, ArrowRight } from '@element-plus/icons-vue'
 import gsap from 'gsap'
@@ -153,24 +194,19 @@ const isLoggedIn = computed(() => {
   return store.state.token && store.state.token !== 'null' && store.state.token !== '';
 });
 
-// 菜单项定义
-const menuItems = {
-  home: { label: '首页', requireAuth: false },
-  pricate: { label: '实战工具', requireAuth: true },
-  atack: { label: '攻防课程', requireAuth: true },
-  bughole: { label: '漏洞库', requireAuth: false },
-  ConunityTalk: { label: '社区论坛', requireAuth: false },
-  Question: { label: '答题测试', requireAuth: true },
-  sortMine: { label: '个人排名', requireAuth: true },
-  reward: { label: '奖励页面', requireAuth: true },
-  game: { label: '靶场实战', requireAuth: true },
-  aboutUs: { label: '关于我们', requireAuth: false }
-};
+// 主要导航菜单项
+const mainMenuItems = computed(() => {
+  const items = {
+    home: { label: '首页', requireAuth: false },
+    private: { label: '实战工具', requireAuth: true },
+    community: { label: '社区论坛', requireAuth: false },
+    questions: { label: '答题测试', requireAuth: true },
+    game: { label: '靶场实战', requireAuth: true }
+  };
 
-// 根据登录状态过滤菜单项
-const filteredMenuItems = computed(() => {
+  // 根据登录状态过滤菜单项
   const filtered = {};
-  Object.entries(menuItems).forEach(([key, item]) => {
+  Object.entries(items).forEach(([key, item]) => {
     if (!item.requireAuth || isLoggedIn.value) {
       filtered[key] = item;
     }
@@ -178,24 +214,29 @@ const filteredMenuItems = computed(() => {
   return filtered;
 });
 
-// 根据当前路由路径返回匹配的菜单 index
+// 修改 activeMenu 计算属性
 const activeMenu = computed(() => {
   const path = route.path
-  if (path.includes('/root/home')) return 'home'
-  if (path.includes('/root/pricate')) return 'pricate'
-  if (path.includes('/root/atack')) return 'atack'
-  if (path.includes('/root/bughole')) return 'bughole'
-  if (path.includes('/root/ConunityTalk')) return 'ConunityTalk'
-  if (path.includes('/root/Question')) return 'Question'
-  if (path.includes('/root/sortMine')) return 'sortMine'
-  if (path.includes('/root/reward')) return 'reward'
-  if (path.includes('/root/game')) return 'game'
-  if (path.includes('/root/aboutUs')) return 'aboutUs'
-  if (path.includes('/root/cms')) return 'pricate'
-  if (path.includes('/root/base64')) return 'pricate'
-  if (path.includes('/root/findIp')) return 'pricate'
-  if (path.includes('/root/Crehash')) return 'pricate'
-  if (path.includes('/root/CheckPwd')) return 'pricate'
+  // 主要导航项
+  if (path.includes('/bmgf/home')) return 'home'
+  if (path.includes('/bmgf/private')) return 'private'
+  if (path.includes('/bmgf/community')) return 'community'
+  if (path.includes('/bmgf/questions')) return 'questions'
+  if (path.includes('/bmgf/game')) return 'game'
+  
+  // 下拉菜单项
+  if (path.includes('/bmgf/attack')) return 'attack'
+  if (path.includes('/bmgf/bug-hole')) return 'bug-hole'
+  if (path.includes('/bmgf/my-sorts')) return 'my-sorts'
+  if (path.includes('/bmgf/rewards')) return 'rewards'
+  if (path.includes('/bmgf/chat')) return 'chat'
+  if (path.includes('/bmgf/discussion')) return 'discussion'
+  
+  // 更多菜单项
+  if (path.includes('/bmgf/about')) return 'about'
+  if (path.includes('/bmgf/help')) return 'help'
+  if (path.includes('/bmgf/feedback')) return 'feedback'
+  
   return 'home' //不存在返回home
 })
 
@@ -249,13 +290,13 @@ const laout = () => {
 
 // 前往个人信息页
 const Mine = () => {
-  router.push('/root/mine')
+  router.push('/bmgf/mine-mes')
 }
 
 // App端下载
 const downloadApp = () => {
   // ElMessage.success('跳转到App端下载页面')
-  window.open('/root/app', 'App_down')
+  window.open('/bmgf/app', 'App_down')
 }
 
 // 添加加载状态
@@ -274,7 +315,7 @@ const goToLogin = async () => {
     })
     
     // 跳转到登录页
-    await router.push('/login')
+    await router.push('/bmgf/login')
   } catch (error) {
     console.error('Navigation error:', error)
     ElMessage.error('页面跳转失败')
@@ -283,22 +324,108 @@ const goToLogin = async () => {
   }
 }
 
-// 修改 AI 智能解答方法
-const aiAnswer = () => {
-  if (!isLoggedIn.value) {
-    ElMessage.warning('请先登录后使用此功能');
-    return;
+// 添加下拉菜单激活状态处理
+const handleDropdownClick = (path) => {
+  router.push(path);
+  // 手动更新激活状态
+  const menuItem = document.querySelector(`.el-menu-item[index="${path.split('/').pop()}"]`);
+  if (menuItem) {
+    menuItem.classList.add('is-active');
   }
-  router.push('/root/chat-wacyg');
 };
 
-// 添加公共讨论区跳转方法
-const goToPublicDiscussion = () => {
-  router.push('/root/public-discussion');
+// 修改导航方法
+const goToAttack = () => {
+  handleDropdownClick('/bmgf/attack');
 };
 
-// 在组件挂载后添加菜单项动画
+const goToBugHole = () => {
+  handleDropdownClick('/bmgf/bug-hole');
+};
+
+const goToMySorts = () => {
+  handleDropdownClick('/bmgf/my-sorts');
+};
+
+const goToRewards = () => {
+  handleDropdownClick('/bmgf/rewards');
+};
+
+const goToAbout = () => {
+  handleDropdownClick('/bmgf/about');
+};
+
+const goToHelp = () => {
+  handleDropdownClick('/bmgf/help');
+};
+
+const goToFeedback = () => {
+  handleDropdownClick('/bmgf/feedback');
+};
+
+// 判断是否为首次登录
+const isFirstLogin = computed(() => {
+  return !localStorage.getItem('hasLoggedIn');
+});
+
+// 获取用户当前称号
+const currentTitle = computed(() => {
+  // 从 store 中获取称号数据
+  const titleData = store.state.honoraryTitle || {};
+  // 查找值为1的称号（当前选中的称号）
+  const selectedTitle = Object.entries(titleData).find(([_, value]) => value === 1);
+  
+  if (selectedTitle) {
+    // 称号类型映射表，用于设置不同称号的标签颜色
+    const typeMap = {
+      '安全新秀': 'success',
+      '漏洞侦探': 'warning',
+      '攻防入门者': 'danger',
+      '中级分析师': 'info',
+      '加密解码手': 'success',
+      '脚本小能手': 'warning',
+      '红队先锋': 'danger',
+      '蓝队守护者': 'info',
+      '逆向专家': 'success',
+      '网络安全大师': 'danger'
+    };
+    return {
+      name: selectedTitle[0],
+      type: typeMap[selectedTitle[0]] || 'info'
+    };
+  }
+  
+  // 如果没有称号，返回默认值
+  return {
+    name: '未设置',
+    type: 'info'
+  };
+});
+
+// 添加滚动相关状态
+const lastScrollTop = ref(0)
+const isHeaderVisible = ref(true)
+
+// 处理滚动事件
+const handleScroll = () => {
+  const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop
+  
+  // 判断滚动方向
+  if (currentScrollTop > lastScrollTop.value && currentScrollTop > 60) {
+    // 向下滚动且超过60px时隐藏header
+    isHeaderVisible.value = false
+  } else {
+    // 向上滚动时显示header
+    isHeaderVisible.value = true
+  }
+  
+  lastScrollTop.value = currentScrollTop
+}
+
+// 在组件挂载时添加滚动监听
 onMounted(() => {
+  window.addEventListener('scroll', handleScroll)
+  
   // 为每个菜单项添加悬停动画
   const menuItems = document.querySelectorAll('.menu .el-menu-item')
   menuItems.forEach(item => {
@@ -341,39 +468,10 @@ onMounted(() => {
   }
 })
 
-// 判断是否为首次登录
-const isFirstLogin = computed(() => {
-  return !localStorage.getItem('hasLoggedIn');
-});
-
-// 获取用户当前称号
-const currentTitle = computed(() => {
-  // 从 store 中获取称号数据
-  const titleData = store.state.honoraryTitle || {};
-  // 查找值为1的称号（当前选中的称号）
-  const selectedTitle = Object.entries(titleData).find(([_, value]) => value === 1);
-  
-  if (selectedTitle) {
-    // 称号类型映射表，用于设置不同称号的标签颜色
-    const typeMap = {
-      '新星白帽': 'success',  // 绿色
-      '安全先锋': 'warning',  // 黄色
-      '攻防大师': 'danger',   // 红色
-      '漏洞猎人': 'info',     // 蓝色
-      '渗透之眼': 'info'      // 蓝色
-    };
-    return {
-      name: selectedTitle[0],
-      type: typeMap[selectedTitle[0]] || 'info'
-    };
-  }
-  
-  // 如果没有称号，返回默认值
-  return {
-    name: '未设置',
-    type: 'info'
-  };
-});
+// 在组件卸载时移除滚动监听
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 </script>
 
 <style scoped>
@@ -423,6 +521,11 @@ const currentTitle = computed(() => {
   padding: 0 20px;
   height: 60px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out;
+}
+
+.header-hidden {
+  transform: translateY(-100%);
 }
 
 .main-content {
@@ -532,26 +635,52 @@ const currentTitle = computed(() => {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(102, 126, 234, 0.2);
-  min-width: 120px;
+  min-width: 160px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 8px;
+  margin-top: 8px;
 }
 
 :deep(.el-dropdown-menu__item) {
   color: #2d3748;
   font-size: 14px;
-  padding: 8px 16px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin: 2px 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 :deep(.el-dropdown-menu__item:hover) {
   background: rgba(102, 126, 234, 0.1);
   color: #667eea;
+  transform: translateX(4px);
 }
 
-.more {
-  position: relative;
-  margin-left: 0px;
+:deep(.el-dropdown-menu__item:active) {
+  background: rgba(102, 126, 234, 0.2);
 }
 
+/* 添加下拉菜单动画 */
+:deep(.el-dropdown-menu) {
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 美化下拉菜单触发按钮 */
 .more .el-dropdown {
   color: #fff;
   font-size: clamp(12px, 1.2vw, 16px);
@@ -561,20 +690,29 @@ const currentTitle = computed(() => {
   line-height: 60px;
   display: flex;
   align-items: center;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .more .el-dropdown:hover {
-  background: rgba(102, 126, 234, 0.2);
+  background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
 }
 
-/* 移动端菜单按钮 */
-.mobile-menu-btn {
-  display: none;
-  font-size: 24px;
-  cursor: pointer;
-  margin-left: auto;
-  margin-right: 20px;
+.more .el-dropdown::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: #4CAF50;
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.more .el-dropdown:hover::after {
+  width: 80%;
 }
 
 /* 移动端适配 */
@@ -605,6 +743,7 @@ const currentTitle = computed(() => {
     backdrop-filter: blur(10px);
     display: none;
     flex-direction: column;
+
   }
 
   .menu.mobile-menu {
@@ -629,6 +768,16 @@ const currentTitle = computed(() => {
 
   .user-avatar {
     margin-right: 5px;
+  }
+
+  :deep(.el-dropdown-menu) {
+    min-width: 140px;
+    padding: 6px;
+  }
+
+  :deep(.el-dropdown-menu__item) {
+    padding: 8px 12px;
+    font-size: 13px;
   }
 }
 @media (min-width: 769px) and (max-width: 1024px) {

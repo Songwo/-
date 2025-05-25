@@ -25,7 +25,7 @@
                 </div>
                 <h3>{{ news.title }}</h3>
                 <p>{{ news.summary }}</p>
-                <router-link :to="'/news/' + news.id" class="read-more">阅读更多</router-link>
+                <router-link :to="'/bmgf/news/' + news.id" class="read-more">阅读更多</router-link>
               </div>
             </div>
           </div>

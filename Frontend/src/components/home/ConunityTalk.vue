@@ -111,7 +111,7 @@
                 更多精彩内容
               </el-divider>
               <p class="prompt-text">登录后可以查看更多帖子和完整内容</p>
-              <el-button type="primary" @click="router.push('/login')">立即登录</el-button>
+              <el-button type="primary" @click="router.push('/bmgf/login')">立即登录</el-button>
             </div>
 
             <el-pagination
@@ -239,7 +239,7 @@
                   <template #extra>
                     <div class="prompt-actions">
                       <p class="prompt-text">参与讨论，分享你的见解</p>
-                      <el-button type="primary" @click="router.push('/login')">去登录</el-button>
+                      <el-button type="primary" @click="router.push('/bmgf/login')">去登录</el-button>
                     </div>
                   </template>
                 </el-empty>
@@ -259,12 +259,12 @@
                         <div class="comment-header">
                           <span class="author">{{ comment.username }}</span>
                           <el-tag 
-                            :type="getCommentTitle(comment).type" 
+                            :type="getPostTitle(comment).type" 
                             effect="dark" 
                             size="small" 
                             class="user-title"
                           >
-                            {{ getCommentTitle(comment).name }}
+                            {{ getPostTitle(comment).name }}
                           </el-tag>
                           <span class="time">{{ formatTime(comment.timestamp) }}</span>
                         </div>
@@ -408,7 +408,7 @@
             <template #extra>
               <div class="prompt-actions">
                 <p class="prompt-text">参与讨论，分享你的见解</p>
-                <el-button type="primary" @click="router.push('/login')">去登录</el-button>
+                <el-button type="primary" @click="router.push('/bmgf/login')">去登录</el-button>
               </div>
             </template>
           </el-empty>
@@ -428,12 +428,12 @@
                   <div class="comment-header">
                     <span class="author">{{ comment.username }}</span>
                     <el-tag 
-                      :type="getCommentTitle(comment).type" 
+                      :type="getPostTitle(comment).type" 
                       effect="dark" 
                       size="small" 
                       class="user-title"
                     >
-                      {{ getCommentTitle(comment).name }}
+                      {{ getPostTitle(comment).name }}
                     </el-tag>
                     <span class="time">{{ formatTime(comment.timestamp) }}</span>
                   </div>
@@ -646,7 +646,7 @@ const onUploadImg = async (files, callback) => {
 const openDetailDialog = async (post) => {
   if (!store.state.token && post.content.length > 200) {
     ElMessage.warning('登录后可查看完整内容');
-    router.push('/login');
+    router.push('/bmgf/login');
     return;
   }
   
@@ -658,7 +658,11 @@ const openDetailDialog = async (post) => {
     loadingComments.value = true;
     try {
       const response = await axios.get(ToUrl.url + `/comments/find/${post.id}`);
-      selectedPost.value.comments = response.data.data || [];
+      // 确保每个评论都包含正确的称号信息
+      selectedPost.value.comments = (response.data.data || []).map(comment => ({
+        ...comment,
+        honoraryTitle: comment.authorId === store.state.id ? store.state.honoraryTitle : comment.honoraryTitle
+      }));
       
       // 未登录用户只显示部分评论
       if (!store.state.token) {
@@ -896,7 +900,7 @@ const submitComment = async () => {
     // 检查登录状态
     if (!store.state.token) {
       ElMessage.warning('请先登录后再发表评论');
-      router.push('/login');
+      router.push('/bmgf/login');
       return;
     }
 
@@ -924,7 +928,7 @@ const submitComment = async () => {
       content: newComment.value.content,
       avatar: store.state.avatar,
       timestamp: new Date().toISOString(),
-      honoraryTitle: honoraryTitle // 发送字符串形式的称号
+      honoraryTitle: store.state.honoraryTitle // 直接使用 store 中的称号数据
     }
 
     const res = await axios.post(ToUrl.url + '/comments/insert', commentData, {
@@ -972,7 +976,7 @@ const submitComment = async () => {
 const openPostDialog = () => {
   if (!store.state.token) {
     ElMessage.warning('请先登录后再发布帖子');
-    router.push('/login');
+    router.push('/bmgf/login');
     return;
   }
   showPostDialog.value = true
@@ -1119,6 +1123,16 @@ const currentTitle = computed(() => {
   
   if (selectedTitle) {
     const typeMap = {
+      '安全新秀': 'success',
+      '漏洞侦探': 'warning',
+      '攻防入门者': 'danger',
+      '中级分析师': 'info',
+      '加密解码手': 'success',
+      '脚本小能手': 'warning',
+      '红队先锋': 'danger',
+      '蓝队守护者': 'info',
+      '逆向专家': 'success',
+      '网络安全大师': 'danger',
       '新星白帽': 'success',
       '安全先锋': 'warning',
       '攻防大师': 'danger',
@@ -1149,11 +1163,16 @@ const getTitleType = (honoraryTitle) => {
   if (!selectedTitle) return 'info'
   
   const typeMap = {
-    '新星白帽': 'success',
-    '安全先锋': 'warning',
-    '攻防大师': 'danger',
-    '漏洞猎人': 'info',
-    '渗透之眼': 'info'
+    '安全新秀': 'success',
+    '漏洞侦探': 'warning',
+    '攻防入门者': 'danger',
+    '中级分析师': 'info',
+    '加密解码手': 'success',
+    '脚本小能手': 'warning',
+    '红队先锋': 'danger',
+    '蓝队守护者': 'info',
+    '逆向专家': 'success',
+    '网络安全大师': 'danger'
   }
   return typeMap[selectedTitle[0]] || 'info'
 }
@@ -1165,11 +1184,16 @@ const getPostTitle = (post) => {
   
   if (selectedTitle) {
     const typeMap = {
-      '新星白帽': 'success',
-      '安全先锋': 'warning',
-      '攻防大师': 'danger',
-      '漏洞猎人': 'info',
-      '渗透之眼': 'info'
+      '安全新秀': 'success',
+      '漏洞侦探': 'warning',
+      '攻防入门者': 'danger',
+      '中级分析师': 'info',
+      '加密解码手': 'success',
+      '脚本小能手': 'warning',
+      '红队先锋': 'danger',
+      '蓝队守护者': 'info',
+      '逆向专家': 'success',
+      '网络安全大师': 'danger'
     }
     return {
       name: selectedTitle[0],
@@ -1189,11 +1213,16 @@ const getCommentTitle = (comment) => {
   
   if (selectedTitle) {
     const typeMap = {
-      '新星白帽': 'success',
-      '安全先锋': 'warning',
-      '攻防大师': 'danger',
-      '漏洞猎人': 'info',
-      '渗透之眼': 'info'
+      '安全新秀': 'success',
+      '漏洞侦探': 'warning',
+      '攻防入门者': 'danger',
+      '中级分析师': 'info',
+      '加密解码手': 'success',
+      '脚本小能手': 'warning',
+      '红队先锋': 'danger',
+      '蓝队守护者': 'info',
+      '逆向专家': 'success',
+      '网络安全大师': 'danger'
     }
     return {
       name: selectedTitle[0],
@@ -1831,6 +1860,10 @@ const getCommentTitle = (comment) => {
 
   :deep(.el-dialog__headerbtn) {
     top: 20px;
+  }
+
+  :deep(.el-button--default) {
+    color: #333333 !important;
   }
 
   .dialog-content {

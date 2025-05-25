@@ -47,6 +47,7 @@
             <el-select v-model="row.roles[0]" :disabled="!editableUsers[row.id]" placeholder="选择角色">
               <el-option label="管理员" value="ROLE_ADMIN" />
               <el-option label="普通用户" value="ROLE_USER" />
+              <el-option label="VIP用户" value="ROLE_VIP" />
             </el-select>
           </template>
         </el-table-column>

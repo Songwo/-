@@ -2,167 +2,113 @@
   <div class="challenge-container">
     <div class="challenge-header">
       <img :src="logoUrl" alt="Logo" class="logo" />
-      <h2>SQL注入基础</h2>
+      <h2>SQL注入靶场</h2>
     </div>
 
     <el-card class="challenge-card">
       <template #header>
         <div class="card-header">
-          <h3>挑战描述</h3>
+          <h3>靶场说明</h3>
           <el-tag type="success">难度：★☆☆☆☆</el-tag>
         </div>
       </template>
 
       <div class="challenge-content">
         <div class="description-section">
-          <p>SQL注入是一种常见的Web安全漏洞，攻击者可以通过构造特殊的SQL语句来获取数据库中的敏感信息。本挑战将帮助你理解SQL注入的基本原理和防御方法。</p>
+          <p>这是一个SQL注入靶场，用于学习和实践SQL注入技术。靶场模拟了一个简单的用户系统，你的目标是获取第二个用户（ID=2）的密码。</p>
+          <div class="tips">
+            <h4>提示：</h4>
+            <ul>
+              <li>尝试使用单引号(')来闭合SQL语句</li>
+              <li>使用OR 1=1来绕过登录验证</li>
+              <li>使用UNION SELECT来获取其他用户的数据</li>
+              <li>注意观察错误信息，它们可能包含有用的信息</li>
+            </ul>
+          </div>
         </div>
 
-        <div class="task-section">
-          <h4>任务目标</h4>
-          <ul>
-            <li>分析登录表单的SQL查询语句</li>
-            <li>构造SQL注入语句绕过登录验证</li>
-            <li>获取管理员账号的密码</li>
-          </ul>
+        <div class="login-section">
+          <h4>用户系统</h4>
+          <el-form :model="loginForm" class="login-form">
+            <el-form-item label="用户名">
+              <el-input v-model="loginForm.username" placeholder="请输入用户名" />
+            </el-form-item>
+            <el-form-item label="密码">
+              <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleLogin">登录</el-button>
+            </el-form-item>
+          </el-form>
         </div>
 
-        <div class="action-section">
-          <el-button type="primary" @click="startLab" :loading="loading">
-            启动靶场
-          </el-button>
-          <el-button type="success" @click="verifyFlag" :disabled="!labUrl">
-            验证FLAG
-          </el-button>
+        <div v-if="loginResult" class="result-section">
+          <h4>查询结果</h4>
+          <div :class="['result-message', loginResult.success ? 'success' : 'error']">
+            {{ loginResult.message }}
+          </div>
+          <div v-if="loginResult.data" class="result-data">
+            <pre>{{ JSON.stringify(loginResult.data, null, 2) }}</pre>
+          </div>
         </div>
 
-        <div v-if="labUrl" class="lab-info">
-          <el-link :href="labUrl" target="_blank" type="primary">
-            前往靶场
-          </el-link>
-          <span class="timer" v-if="remainingTime">
-            剩余时间: {{ formatTime(remainingTime) }}
-          </span>
+        <div class="target-section">
+          <h4>目标</h4>
+          <p>获取ID=2用户的密码</p>
+          <p class="hint">提示：尝试使用UNION SELECT语句来获取其他用户的信息</p>
         </div>
       </div>
     </el-card>
-
-    <el-dialog v-model="showFlagDialog" title="验证FLAG" width="30%">
-      <el-input v-model="inputFlag" placeholder="请输入FLAG" />
-      <template #footer>
-        <el-button @click="showFlagDialog = false">取消</el-button>
-        <el-button type="primary" @click="submitFlag">确认</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref } from 'vue'
 import axios from 'axios'
-import ToUrl from '@/api/api'
-import { useStore } from 'vuex'
+import store from '@/store'
+import { ElMessage } from 'element-plus'
 
-const logoUrl = ref('@/assets/logo/logo.png')
-const store = useStore()
-const loading = ref(false)
-const labUrl = ref('')
-const showFlagDialog = ref(false)
-const inputFlag = ref('')
-const remainingTime = ref(null)
-let timer = null
+const backendUrl = store.state.backendUrl
+const logoUrl = ref('/src/assets/logo/logo/信息.png')
+const loginForm = ref({
+  username: '',
+  password: ''
+})
+const loginResult = ref(null)
 
-const startLab = async () => {
-  loading.value = true
-  try {
-    const response = await axios.post(
-      ToUrl.url + '/lab/create-compose',
-      {
-        services: [
-          {
-            serviceName: 'sql-injection-frontend',
-            image: 'sql-injection-frontend:latest',
-            ports: { '8080': '80' }
-          },
-          {
-            serviceName: 'sql-injection-backend',
-            image: 'sql-injection-backend:latest',
-            ports: { '3000': '3000' }
-          }
-        ],
-        duration: 30
-      },
-      { headers: { 'Authorization': `Bearer ${store.state.token}` } }
-    )
-
-    labUrl.value = `http://47.117.70.79:${response.data.frontendPort}`
-    remainingTime.value = 30 * 60 * 1000 // 30分钟
-    startTimer()
-    ElMessage.success('靶场启动成功！')
-  } catch (error) {
-    ElMessage.error('靶场启动失败：' + error.message)
-  } finally {
-    loading.value = false
-  }
-}
-
-const verifyFlag = () => {
-  showFlagDialog.value = true
-}
-
-const submitFlag = async () => {
-  if (!inputFlag.value) {
-    ElMessage.warning('请输入FLAG')
+const handleLogin = async () => {
+  if(!backendUrl){
+    ElMessage.error('请先登录或检查后端地址')
     return
   }
-
   try {
-    const response = await axios.post(
-      ToUrl.url + '/lab/flag',
-      {
-        userId: store.state.id,
-        imageName: 'sql-injection-frontend',
-        flag: inputFlag.value
-      },
-      { headers: { 'Authorization': `Bearer ${store.state.token}` } }
-    )
+    const response = await axios.post(backendUrl+'/login', {
+      username: loginForm.value.username,
+      password: loginForm.value.password
+    })
 
-    if (response.data.code === 200) {
-      ElMessage.success('验证成功！')
-      showFlagDialog.value = false
-      inputFlag.value = ''
-    } else {
-      ElMessage.error('FLAG验证失败')
+    if(response.data.success === false){
+      loginResult.value = {
+        success: false,
+        message: response.data.error || '登录失败',
+        data: response.data
+      }
+      return
+    }
+
+    loginResult.value = {
+      success: true,
+      message: '登录成功！',
+      data: response.data
     }
   } catch (error) {
-    ElMessage.error('验证请求失败：' + error.message)
-  }
-}
-
-const startTimer = () => {
-  timer = setInterval(() => {
-    if (remainingTime.value > 0) {
-      remainingTime.value -= 1000
-    } else {
-      clearInterval(timer)
-      labUrl.value = ''
-      ElMessage.warning('靶场已过期，请重新启动')
+    loginResult.value = {
+      success: false,
+      message: error.response?.data?.message || '登录失败，请检查输入',
+      data: error.response?.data
     }
-  }, 1000)
-}
-
-const formatTime = (ms) => {
-  const minutes = Math.floor(ms / 60000)
-  const seconds = Math.floor((ms % 60000) / 1000)
-  return `${minutes}分${seconds}秒`
-}
-
-onUnmounted(() => {
-  if (timer) {
-    clearInterval(timer)
   }
-})
+}
 </script>
 
 <style scoped>
@@ -210,7 +156,7 @@ onUnmounted(() => {
 }
 
 .description-section {
-  margin-bottom: 20px;
+  margin-bottom: 30px;
 }
 
 .description-section p {
@@ -218,39 +164,104 @@ onUnmounted(() => {
   line-height: 1.6;
 }
 
-.task-section {
-  margin-bottom: 30px;
+.tips {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
 }
 
-.task-section h4 {
+.tips h4 {
   color: #333;
   margin-bottom: 10px;
 }
 
-.task-section ul {
+.tips ul {
   padding-left: 20px;
   color: #666;
 }
 
-.task-section li {
+.tips li {
   margin-bottom: 8px;
 }
 
-.action-section {
-  display: flex;
-  gap: 15px;
+.login-section {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.login-section h4 {
+  color: #333;
   margin-bottom: 20px;
 }
 
-.lab-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+.login-form {
+  max-width: 400px;
 }
 
-.timer {
+.result-section {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+.result-section h4 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.result-message {
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.result-message.success {
+  background-color: #f0f9eb;
+  color: #67c23a;
+}
+
+.result-message.error {
+  background-color: #fef0f0;
+  color: #f56c6c;
+}
+
+.result-data {
+  background-color: #1e1e1e;
+  padding: 15px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.result-data pre {
+  color: #fff;
+  margin: 0;
+  font-family: monospace;
+}
+
+.target-section {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+.target-section h4 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.target-section p {
   color: #666;
-  font-size: 14px;
+  line-height: 1.6;
+}
+
+.hint {
+  color: #909399;
+  font-size: 0.875em;
 }
 </style> 

@@ -102,7 +102,7 @@ const verifyEmail = async () => {
 }
 
 const goToProfile = () => {
-  router.push('/root/mine')
+  router.push('/bmgf/profile')
 }
 
 onMounted(() => {

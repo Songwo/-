@@ -528,7 +528,8 @@ const showRankDetails = (user) => {
   selectedUser.value = {
     ...user,
     rank: rankings.value.findIndex(item => item.id === user.id) + 1,
-    title: user.id === store.state.id ? getCurrentUserTitle.value : user.title
+    title: user.id === store.state.id ? getCurrentUserTitle.value : user.title,
+    avatar: getAvatarUrl(user.avatar)
   }
   userDetailVisible.value = true
 }

@@ -178,7 +178,7 @@ const config = ref({
 
 // 返回主页
 const goBack = () => {
-  router.push('/root/pricate')
+  router.push('/bmgf/private')
 }
 
 // 清空输入

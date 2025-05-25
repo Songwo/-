@@ -179,7 +179,7 @@ const generateCaptcha = () => {
     ctx.restore()
   }
 }
-// 添加过渡完成处理方法
+// 过渡完成处理方法
 const handleTransitionEnd = () => {
   if (!isLogin.value) {
     generateCaptcha()
@@ -262,8 +262,8 @@ const handleLogin = async () => {
         const userData = userRes.data.data;
         // 根据roles判断用户类型
         const isAdmin = userData?.roles?.includes('ROLE_ADMIN') || false;
-        const redirectPath = isAdmin ? "/backMange/home" : "/root/home";
-
+        const redirectPath = isAdmin ? "/bmgf/admin/home" : "/bmgf/home";
+        
         // 存储用户信息，添加默认值处理
         await store.dispatch('setUser', userData?.username || loginForm.username);
         await store.dispatch('setId', userData?.id || token);
@@ -329,7 +329,7 @@ const handleRegister = async () => {
 
 // 添加返回首页方法
 const goToHome = () => {
-  router.push('/root/home');
+  router.push('/bmgf/home');
 };
 </script>
 

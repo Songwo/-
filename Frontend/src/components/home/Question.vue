@@ -538,15 +538,14 @@ async function submitExam() {
       return;
     }
 
-    // 计算考试用时并格式化为ISO 8601格式
+    // 计算考试用时并格式化为整数分钟数
     const costTimeMinutes = Math.floor((currentExam.value.duration * 60 - timeLeft.value) / 60);
-    const costTime = new Date(Date.now() - costTimeMinutes * 60 * 1000).toISOString();
 
     // 准备提交数据
     const submitData = {
       examId: currentExam.value?.id,
       answers: {},
-      costTime: costTime // 使用ISO 8601格式的时间字符串
+      costTime: costTimeMinutes // 直接使用整数分钟数
     };
 
     // 处理答案数据

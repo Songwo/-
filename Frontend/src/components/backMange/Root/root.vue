@@ -110,6 +110,12 @@
               <span>漏洞管理</span>
             </el-menu-item>
           </RouterLink>
+          <RouterLink :to="feedbackPath" class="router-link">
+            <el-menu-item index="3-4">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>反馈管理</span>
+            </el-menu-item>
+          </RouterLink>
         </el-sub-menu>
 
         <!-- 数据分析 -->
@@ -244,20 +250,21 @@ const router = useRouter()
 const route = useRoute()
 
 // 动态路径
-const homePath = ref('/backMange/home')
-const commentPath = ref('/backMange/comment')
-const userPath = ref('/backMange/user')
-const dataPath = ref('/backMange/data')
-const videoPath = ref('/backMange/video')
-const bugPath = ref('/backMange/bug')
-const categoryPath = ref('/backMange/category')
-const questionPath = ref('/backMange/ques')
-const rewardPath = ref('/backMange/reword')
-const announcementPath = ref('/backMange/announcement')
-const trendPath = ref('/backMange/trend')
-const helpPath = ref('/backMange/help')
-const documentPath = ref('/backMange/document')
-const newsPath = '/backMange/news'
+const homePath = ref('/bmgf/admin/home')
+const commentPath = ref('/bmgf/admin/comment')
+const userPath = ref('/bmgf/admin/user')
+const dataPath = ref('/bmgf/admin/data')
+const videoPath = ref('/bmgf/admin/video')
+const bugPath = ref('/bmgf/admin/bug')
+const categoryPath = ref('/bmgf/admin/category')
+const questionPath = ref('/bmgf/admin/ques')
+const rewardPath = ref('/bmgf/admin/reword')
+const announcementPath = ref('/bmgf/admin/announcement')
+const newsPath = ref('/bmgf/admin/news')
+const trendPath = ref('/bmgf/admin/trend')
+const helpPath = ref('/bmgf/admin/help')
+const documentPath = ref('/bmgf/admin/document')
+const feedbackPath = ref('/bmgf/admin/feedback')
 
 // 加载进度相关
 const isLoading = ref(false)
@@ -319,11 +326,11 @@ const handleCommand = (command) => {
   switch (command) {
     case 'profile':
       // 跳转到个人信息页面
-      router.push('/backMange/profile')
+      router.push('/bmgf/admin/profile')
       break
     case 'settings':
       // 跳转到系统设置页面
-      router.push('/backMange/settings')
+      router.push('/bmgf/admin/settings')
       break
     case 'logout':
       // 退出登录
@@ -333,86 +340,51 @@ const handleCommand = (command) => {
         type: 'warning'
       }).then(() => {
         store.dispatch('logout')
-        router.push('/login')
+        router.push('/bmgf/login')
         ElMessage.success('退出成功')
       }).catch(() => {})
       break
   }
 }
 
-// 面包屑导航点击处理
-const handleBreadcrumbClick = (index) => {
-  const paths = route.path.split('/').filter(Boolean);
-  let targetPath = '';
-  
-  if (index === 0) {
-    targetPath = '/backMange/home';
-  } else if (index === 1) {
-    switch (paths[1]) {
-      case 'comment':
-      case 'video':
-      case 'announcement':
-        targetPath = '/backMange/comment';
-        break;
-      case 'user':
-      case 'reword':
-        targetPath = '/backMange/user';
-        break;
-      case 'category':
-      case 'ques':
-      case 'bug':
-        targetPath = '/backMange/category';
-        break;
-      case 'data':
-        targetPath = '/backMange/data';
-        break;
-      case 'news':
-        targetPath = '/backMange/news';
-        break;
-      default:
-        targetPath = '/backMange/home';
-    }
-  } else if (index === 2) {
-    targetPath = '/' + paths.join('/');
-  }
-  
-  router.push(targetPath);
-};
-
 // 面包屑导航
 const breadcrumbList = computed(() => {
-  const path = route.path;
-  const paths = path.split('/').filter(Boolean);
-  const result = ['后台管理'];
-  
-  if (paths[1] === 'home') {
-    result.push('首页');
-  } else if (paths[1] === 'comment') {
-    result.push('内容管理', '评论管理');
-  } else if (paths[1] === 'video') {
-    result.push('内容管理', '视频管理');
-  } else if (paths[1] === 'announcement') {
-    result.push('内容管理', '公告管理');
-  } else if (paths[1] === 'user') {
-    result.push('用户管理', '用户列表');
-  } else if (paths[1] === 'reword') {
-    result.push('用户管理', '奖励管理');
-  } else if (paths[1] === 'category') {
-    result.push('系统管理', '分类管理');
-  } else if (paths[1] === 'ques') {
-    result.push('系统管理', '题目管理');
-  } else if (paths[1] === 'bug') {
-    result.push('系统管理', '漏洞管理');
-  } else if (paths[1] === 'data') {
-    result.push('数据分析', '数据统计');
-  } else if (paths[1] === 'trend') {
-    result.push('数据分析', '趋势分析');
-  } else if (paths[1] === 'news') {
-    result.push('内容管理', '新闻管理');
+  const pathMap = {
+    'home': '首页',
+    'comment': '评论管理',
+    'user': '用户管理',
+    'data': '数据统计',
+    'video': '视频管理',
+    'bug': '漏洞管理',
+    'category': '分类管理',
+    'ques': '题目管理',
+    'reword': '奖励管理',
+    'announcement': '公告管理',
+    'news': '新闻管理',
+    'trend': '趋势分析',
+    'help': '帮助中心',
+    'document': '文档中心',
+    'feedback': '反馈管理'
   }
+
+  const path = route.path
+  const segments = path.split('/').filter(Boolean)
+  const breadcrumbs = ['管理平台']
   
-  return result;
-});
+  if (segments.length >= 3) {
+    const pageName = segments[segments.length - 1]
+    breadcrumbs.push(pathMap[pageName] || pageName)
+  }
+
+  return breadcrumbs
+})
+
+// 处理面包屑点击
+const handleBreadcrumbClick = (index) => {
+  if (index === 0) {
+    router.push('/bmgf/admin/home')
+  }
+}
 
 // 动态设置 default-active
 const activeMenu = computed(() => {
@@ -446,6 +418,8 @@ const activeMenu = computed(() => {
       return '6';
     case '/backMange/news':
       return '1-4';
+    case '/backMange/feedback':
+      return '3-4';
     default:
       return '0';
   }

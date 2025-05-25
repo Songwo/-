@@ -618,11 +618,16 @@ const currentTitle = computed(() => {
   
   if (selectedTitle) {
     const typeMap = {
-      '新星白帽': 'success',
-      '安全先锋': 'warning',
-      '攻防大师': 'danger',
-      '漏洞猎人': 'info',
-      '渗透之眼': 'info'
+      '安全新秀': 'success',
+      '漏洞侦探': 'warning',
+      '攻防入门者': 'danger',
+      '中级分析师': 'info',
+      '加密解码手': 'success',
+      '脚本小能手': 'warning',
+      '红队先锋': 'danger',
+      '蓝队守护者': 'info',
+      '逆向专家': 'success',
+      '网络安全大师': 'danger'
     }
     const result = {
       id: selectedTitle[0],
